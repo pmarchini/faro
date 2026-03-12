@@ -21,6 +21,10 @@ export type PathItem = {
   description: string;
   isActive: boolean;
   collapsibleState: "expanded" | "collapsed";
+  command: {
+    id: "faro.setActivePath";
+    arguments: [string];
+  };
   children: BeaconItem[];
 };
 
@@ -40,6 +44,10 @@ function buildPathItem(path: FaroPath, activePathId: string | null): PathItem {
     description: path.goal ?? "",
     isActive: path.id === activePathId,
     collapsibleState: path.id === activePathId ? "expanded" : "collapsed",
+    command: {
+      id: "faro.setActivePath",
+      arguments: [path.id],
+    },
     children: beaconIds.map((beaconId) =>
       buildBeaconItem(path, beaconId, beaconId === currentBeaconId),
     ),

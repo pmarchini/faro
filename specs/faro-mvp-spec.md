@@ -92,6 +92,10 @@ Status: `done`
 - outline adapter
 - navigator adapter
 - editor navigation adapter
+- concrete VS Code outline registration
+- concrete VS Code navigator registration
+- concrete VS Code command registration
+- editor reveal/highlight wiring through activation
 - Faro skill scaffold
 
 Verification:
@@ -103,12 +107,11 @@ Verification:
 
 Status: `in_progress`
 
-The extension still lacks the real VS Code user loop:
+The local VS Code loop now exists, but Faro still lacks the agent-facing runtime contract:
 
-- no concrete VS Code TreeView registration yet
-- no concrete WebviewView registration yet
-- editor navigation adapter is not yet wired into the runtime
-- runtime refresh is not yet connected to concrete UI instances
+- no MCP server bootstrap yet
+- no shared agent read/write surface over the canonical store yet
+- no end-to-end agent flow from prompt to rendered path yet
 
 ## Implementation Status
 
@@ -138,7 +141,7 @@ Acceptance criteria:
 
 ### Slice 2: Outline TreeView
 
-Status: `in_progress`
+Status: `done`
 
 Acceptance criteria:
 
@@ -149,7 +152,7 @@ Acceptance criteria:
 
 ### Slice 3: Navigator WebviewView
 
-Status: `in_progress`
+Status: `done`
 
 Acceptance criteria:
 
@@ -161,7 +164,7 @@ Acceptance criteria:
 
 ### Slice 4: Editor Reveal And Highlight
 
-Status: `in_progress`
+Status: `done`
 
 Acceptance criteria:
 
@@ -207,21 +210,21 @@ Acceptance criteria:
 
 ### Next Slice
 
-`Concrete VS Code UI wiring`
+`Agent contract and MCP bootstrap`
 
 Deliverables:
 
-- register the outline adapter as a real VS Code TreeView
-- register the navigator adapter as a real VS Code WebviewView
-- connect runtime refresh to concrete UI instances
-- wire the editor adapter into reveal flows
-- keep one refresh owner in the runtime
+- define the minimal Faro read/write surface the agent will target
+- bootstrap a local `stdio` MCP server over the canonical store
+- expose read operations for listing and loading paths
+- expose write operations for replacing and selecting paths
+- keep the MCP layer reusing the same validation and store rules as the UI
 
 Why this next:
 
-- the runtime and generic adapters now exist
-- the missing gap is concrete VS Code registration and end-to-end UI flow
-- this is the shortest path to a genuinely usable extension MVP
+- the local UX loop is now implemented and verified
+- the next product value is letting an agent create and update paths directly
+- this is the shortest path to a real Faro happy path
 
 ## Open Risks
 
@@ -229,6 +232,7 @@ Why this next:
 - accidental business logic leaking into VS Code adapters
 - duplicated state if future MCP wiring bypasses the canonical store
 - overbuilding branch support before the linear MVP loop works
+- contract drift between the Faro skill, `AGENTS.md`, and the eventual MCP tool schema
 
 ## Update Rules
 

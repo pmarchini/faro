@@ -20,7 +20,8 @@
     "onCommand:faro.nextBeacon",
     "onCommand:faro.previousBeacon",
     "onCommand:faro.revealCurrentBeacon",
-    "onCommand:faro.setActivePath"
+    "onCommand:faro.setActivePath",
+    "onCommand:faro.setCurrentBeacon"
   ],
   "contributes": {
     "viewsContainers": {
@@ -61,6 +62,10 @@
       {
         "command": "faro.setActivePath",
         "title": "Faro: Set Active Path"
+      },
+      {
+        "command": "faro.setCurrentBeacon",
+        "title": "Faro: Set Current Beacon"
       }
     ]
   },

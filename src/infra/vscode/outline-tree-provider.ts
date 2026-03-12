@@ -8,7 +8,7 @@ export type OutlineTreeItem = {
   description: string;
   collapsibleState: "expanded" | "collapsed" | "none";
   contextValue: "path" | "beacon" | "current-beacon";
-  command?: BeaconItem["command"];
+  command?: PathItem["command"] | BeaconItem["command"];
 };
 
 type ChangeListener = () => void;
@@ -53,6 +53,7 @@ export function createOutlineTreeProvider({ store }: { store: OutlineStore }) {
         description: element.description,
         collapsibleState: element.collapsibleState,
         contextValue: "path",
+        command: element.command,
       };
     }
 

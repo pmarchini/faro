@@ -99,6 +99,12 @@ Execution rule:
 - create one commit after each completed slice
 - run `npm run check` and `npm test` before each slice commit
 
+Current execution status:
+
+- Phase 1 is implemented and verified
+- Phase 6 is partially implemented through `AGENTS.md` and the Faro authoring skill
+- the next active delivery target is Phase 3, starting with the minimal agent contract and MCP bootstrap
+
 ## Phase 0: Bootstrap
 
 Goal: establish a runnable VS Code extension project and the core document model.

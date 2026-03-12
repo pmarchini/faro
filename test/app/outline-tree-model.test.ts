@@ -99,3 +99,13 @@ test("beacon item carries command target", () => {
   });
   assert.equal(beacon.description, "The request enters the app here.");
 });
+
+test("path item carries active-path command target", () => {
+  const items = buildOutlineTreeModel(createDocument());
+  const path = items[1];
+
+  assert.deepEqual(path.command, {
+    id: "faro.setActivePath",
+    arguments: ["billing-flow"],
+  });
+});

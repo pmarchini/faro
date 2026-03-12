@@ -73,6 +73,10 @@ test("tree items preserve labels and commands", () => {
     description: "Trace authentication",
     collapsibleState: "expanded",
     contextValue: "path",
+    command: {
+      id: "faro.setActivePath",
+      arguments: ["auth-flow"],
+    },
   });
 
   assert.deepEqual(provider.getTreeItem(beacon), {

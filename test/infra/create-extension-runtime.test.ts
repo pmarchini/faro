@@ -144,8 +144,11 @@ test("runtime command and outline command payload drive one behavior loop", asyn
     id: "faro.setCurrentBeacon",
     arguments: ["sample-flow", "b2"],
   });
+  if (!command || command.id !== "faro.setCurrentBeacon") {
+    assert.fail("expected setCurrentBeacon command");
+  }
 
-  const result = await runtime.commands.setCurrentBeacon(...command.arguments);
+  const result = await runtime.commands.setCurrentBeacon(command.arguments[0], command.arguments[1]);
 
   assert.deepEqual(result, { status: "revealed", beaconId: "b2" });
   assert.equal(runtime.store.load().paths[0]?.current?.beaconId, "b2");
