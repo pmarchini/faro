@@ -1,0 +1,77 @@
+{
+  "name": "faro",
+  "displayName": "Faro",
+  "description": "Turn agent reasoning into persistent code beacons inside VS Code.",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "pmarchini",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "main": "./src/infra/vscode/extension.ts",
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:faro.outline",
+    "onView:faro.navigator",
+    "onCommand:faro.nextBeacon",
+    "onCommand:faro.previousBeacon",
+    "onCommand:faro.revealCurrentBeacon",
+    "onCommand:faro.setActivePath"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "faro",
+          "title": "Faro",
+          "icon": "media/faro.svg"
+        }
+      ]
+    },
+    "views": {
+      "faro": [
+        {
+          "id": "faro.outline",
+          "name": "Outline"
+        },
+        {
+          "id": "faro.navigator",
+          "name": "Navigator",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "faro.nextBeacon",
+        "title": "Faro: Next Beacon"
+      },
+      {
+        "command": "faro.previousBeacon",
+        "title": "Faro: Previous Beacon"
+      },
+      {
+        "command": "faro.revealCurrentBeacon",
+        "title": "Faro: Reveal Current Beacon"
+      },
+      {
+        "command": "faro.setActivePath",
+        "title": "Faro: Set Active Path"
+      }
+    ]
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "node --test",
+    "test:watch": "node --test --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.110.0",
+    "typescript": "^5.9.3"
+  }
+}
