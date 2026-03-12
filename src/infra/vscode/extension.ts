@@ -1,5 +1,6 @@
 import {
   createExtensionRuntime,
+  type CreateExtensionRuntimeOptions,
   type ExtensionRuntime,
 } from "./create-extension-runtime.ts";
 
@@ -9,12 +10,20 @@ type Disposable = {
 
 type ExtensionContextLike = {
   subscriptions?: Disposable[];
+  workspaceState?: CreateExtensionRuntimeOptions["workspaceState"];
 };
 
 let runtime: ExtensionRuntime | null = null;
 
-function activate(context?: ExtensionContextLike): ExtensionRuntime {
-  runtime = createExtensionRuntime();
+type RuntimeFactory = (options?: CreateExtensionRuntimeOptions) => ExtensionRuntime;
+
+function activate(
+  context?: ExtensionContextLike,
+  runtimeFactory: RuntimeFactory = createExtensionRuntime,
+): ExtensionRuntime {
+  runtime = runtimeFactory({
+    workspaceState: context?.workspaceState,
+  });
 
   if (Array.isArray(context?.subscriptions)) {
     context.subscriptions.push(runtime);

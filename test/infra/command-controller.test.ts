@@ -91,6 +91,24 @@ test("set active path selects the path and reveals its first beacon", async () =
   assert.deepEqual(revealed, ["b10"]);
 });
 
+test("set current beacon selects the beacon and reveals it", async () => {
+  const store = createInMemoryStore(fixtures.createDocument());
+  const revealed: string[] = [];
+  const controller = createCommandController({
+    store,
+    revealBeacon: async (beacon: { id: string }) => {
+      revealed.push(beacon.id);
+      return { status: "revealed" };
+    },
+  });
+
+  await controller.setCurrentBeacon("auth-flow", "b2");
+
+  assert.equal(store.load().activePathId, "auth-flow");
+  assert.equal(store.load().paths[0].current?.beaconId, "b2");
+  assert.deepEqual(revealed, ["b2"]);
+});
+
 test("reveal current beacon returns idle when there is no active path", async () => {
   const store = createInMemoryStore({
     schemaVersion: 1,

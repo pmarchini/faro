@@ -1,11 +1,7 @@
 import type { Beacon, FaroDocument } from "../../core/model/document.ts";
 import type { InMemoryStore } from "../../core/services/in-memory-store.ts";
 import * as pathMachine from "../../core/services/path-machine.ts";
-
-type RevealResult =
-  | { status: "idle" }
-  | { status: "revealed" }
-  | { status: "missing-beacon" };
+import type { RevealResult } from "./reveal-result.ts";
 
 type Dependencies = {
   store: Pick<InMemoryStore, "load" | "replaceDocument">;
@@ -17,6 +13,7 @@ export function createCommandController({ store, revealBeacon }: Dependencies) {
     nextBeacon,
     previousBeacon,
     setActivePath: selectActivePath,
+    setCurrentBeacon: selectCurrentBeacon,
     revealCurrentBeacon,
   };
 
@@ -34,6 +31,12 @@ export function createCommandController({ store, revealBeacon }: Dependencies) {
 
   async function selectActivePath(pathId: string): Promise<RevealResult> {
     const nextDocument = pathMachine.setActivePath(store.load(), pathId);
+    store.replaceDocument(nextDocument);
+    return revealCurrentBeacon();
+  }
+
+  async function selectCurrentBeacon(pathId: string, beaconId: string): Promise<RevealResult> {
+    const nextDocument = pathMachine.setCurrentBeacon(store.load(), pathId, beaconId);
     store.replaceDocument(nextDocument);
     return revealCurrentBeacon();
   }

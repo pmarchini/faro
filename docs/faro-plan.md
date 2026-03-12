@@ -94,6 +94,11 @@ If the extension and server become too coupled, split them later into `packages/
 
 ## Delivery plan
 
+Execution rule:
+
+- create one commit after each completed slice
+- run `npm run check` and `npm test` before each slice commit
+
 ## Phase 0: Bootstrap
 
 Goal: establish a runnable VS Code extension project and the core document model.
@@ -232,6 +237,23 @@ Deliverables:
 Exit criteria:
 
 - a new user can install Faro, create a path through an agent, and navigate it without extra setup guidance
+
+## Phase 6: Agent Guidance
+
+Goal: make Faro usable by a dedicated beacon/path authoring agent without creating schema drift.
+
+Deliverables:
+
+- root `AGENTS.md` that constrains the agent to beacon/path selection only
+- explicit instruction that the agent must use the Faro skill
+- pragmatic guidance grounded in cognitive science and psychology of programming
+- rules for selecting low-cognitive-load, high-signal beacons
+
+Exit criteria:
+
+- the agent role is clearly separated from implementation work
+- the agent uses the canonical Faro schema from `src/core/model/document.ts`
+- the agent is guided to optimize for comprehension rather than raw exhaustiveness
 
 ## Workstreams
 
