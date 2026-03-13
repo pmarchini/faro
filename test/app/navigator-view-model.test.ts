@@ -89,6 +89,18 @@ test("shows current beacon title summary and position", () => {
   assert.equal(viewModel.positionLabel, "1 of 2");
   assert.equal(viewModel.canGoPrevious, false);
   assert.equal(viewModel.canGoNext, true);
+  assert.deepEqual(viewModel.beacons, [
+    {
+      id: "b1",
+      title: "Entry route",
+      isCurrent: true,
+    },
+    {
+      id: "b2",
+      title: "Session load",
+      isCurrent: false,
+    },
+  ]);
 });
 
 test("disables prev at start", () => {
@@ -110,4 +122,35 @@ test("disables next at end", () => {
 
   assert.equal(viewModel.canGoPrevious, true);
   assert.equal(viewModel.canGoNext, false);
+});
+
+test("beacon list follows main path order and marks the current beacon", () => {
+  const viewModel = buildNavigatorViewModel(
+    createDocument({
+      mainPath: ["b2", "b1"],
+      current: {
+        mode: "main",
+        index: 0,
+        beaconId: "b2",
+      },
+    }),
+  );
+
+  assert.equal(viewModel.state, "ready");
+  if (viewModel.state !== "ready") {
+    return;
+  }
+
+  assert.deepEqual(viewModel.beacons, [
+    {
+      id: "b2",
+      title: "Session load",
+      isCurrent: true,
+    },
+    {
+      id: "b1",
+      title: "Entry route",
+      isCurrent: false,
+    },
+  ]);
 });

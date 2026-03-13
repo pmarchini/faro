@@ -1,5 +1,11 @@
 import type { FaroDocument, FaroPath } from "../../core/model/document.ts";
 
+export type NavigatorBeaconListItem = {
+  id: string;
+  title: string;
+  isCurrent: boolean;
+};
+
 export type EmptyNavigatorViewModel = {
   state: "empty";
   title: string;
@@ -21,6 +27,7 @@ export type ReadyNavigatorViewModel = {
   positionLabel: string;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  beacons: NavigatorBeaconListItem[];
 };
 
 export type NavigatorViewModel = EmptyNavigatorViewModel | ReadyNavigatorViewModel;
@@ -68,6 +75,11 @@ export function buildNavigatorViewModel(
     positionLabel: `${Math.min(position + 1, Math.max(total, 1))} of ${Math.max(total, 1)}`,
     canGoPrevious: position > 0,
     canGoNext: position < total - 1,
+    beacons: activePath.mainPath.map((beaconId) => ({
+      id: beaconId,
+      title: activePath.beacons?.[beaconId]?.title ?? beaconId,
+      isCurrent: beaconId === currentBeaconId,
+    })),
   };
 }
 

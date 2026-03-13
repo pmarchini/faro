@@ -18,7 +18,7 @@ type WebviewViewLike = {
 
 type NavigatorCommandSurface = Pick<
   RuntimeCommands,
-  "previousBeacon" | "nextBeacon" | "revealCurrentBeacon"
+  "previousBeacon" | "nextBeacon" | "revealCurrentBeacon" | "setCurrentBeacon"
 >;
 
 export function createNavigatorWebviewViewProvider({
@@ -47,6 +47,9 @@ export function createNavigatorWebviewViewProvider({
         },
         onReveal: async () => {
           await commands.revealCurrentBeacon();
+        },
+        onSelectBeacon: async (pathId, beaconId) => {
+          await commands.setCurrentBeacon(pathId, beaconId);
         },
       });
       adapter.render();

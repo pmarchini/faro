@@ -5,7 +5,11 @@ import { createInMemoryStore } from "../../src/core/services/in-memory-store.ts"
 import { createNavigatorWebviewViewProvider } from "../../src/infra/vscode/navigator-webview-view-provider.ts";
 import * as fixtures from "../core/fixtures.ts";
 
-type NavigatorMessage = { type: string };
+type NavigatorMessage = {
+  type: string;
+  pathId?: string;
+  beaconId?: string;
+};
 
 function createWebviewView() {
   let listener: ((message: NavigatorMessage) => void | Promise<void>) | null = null;
@@ -36,6 +40,7 @@ test("resolved navigator view renders the current beacon", () => {
       previousBeacon: async () => ({ status: "idle" as const }),
       nextBeacon: async () => ({ status: "idle" as const }),
       revealCurrentBeacon: async () => ({ status: "idle" as const }),
+      setCurrentBeacon: async () => ({ status: "idle" as const }),
     },
   });
   const view = createWebviewView();
@@ -65,17 +70,23 @@ test("navigator messages drive runtime commands and rerender the view", async ()
         calls.push("reveal");
         return { status: "revealed" as const, beaconId: "b2" };
       },
+      setCurrentBeacon: async (pathId, beaconId) => {
+        calls.push(`select:${pathId}:${beaconId}`);
+        store.setCurrentBeacon(pathId, beaconId);
+        return { status: "revealed" as const, beaconId };
+      },
     },
   });
   const view = createWebviewView();
 
   provider.resolveWebviewView(view);
   await view.emit({ type: "navigator.next" });
+  await view.emit({ type: "navigator.selectBeacon", pathId: "auth-flow", beaconId: "b1" });
   await view.emit({ type: "navigator.reveal" });
 
-  assert.deepEqual(calls, ["next", "reveal"]);
-  assert.match(view.webview.html, /Beacon b2/);
-  assert.match(view.webview.html, /2 of 2/);
+  assert.deepEqual(calls, ["next", "select:auth-flow:b1", "reveal"]);
+  assert.match(view.webview.html, /Beacon b1/);
+  assert.match(view.webview.html, /1 of 2/);
 });
 
 test("refresh rerenders the resolved navigator from store state", () => {
@@ -86,6 +97,7 @@ test("refresh rerenders the resolved navigator from store state", () => {
       previousBeacon: async () => ({ status: "idle" as const }),
       nextBeacon: async () => ({ status: "idle" as const }),
       revealCurrentBeacon: async () => ({ status: "idle" as const }),
+      setCurrentBeacon: async () => ({ status: "idle" as const }),
     },
   });
   const view = createWebviewView();

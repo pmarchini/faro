@@ -164,9 +164,8 @@ test("reveals and highlights a beacon through the vscode host", async () => {
     [
       "create-decoration",
       {
-        isWholeLine: false,
-        borderWidth: "1px",
-        borderStyle: "solid",
+        isWholeLine: true,
+        backgroundColor: "rgba(255, 208, 0, 0.14)",
       },
     ],
     ["file-exists", "file:///workspace/auth.ts"],

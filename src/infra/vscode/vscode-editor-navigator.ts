@@ -47,12 +47,9 @@ export function createVscodeEditorNavigator({
 }: {
   vscode: EditorVscodeLike;
 }): VscodeEditorNavigator {
-  const activeBeaconDecoration: VscodeDecorationRenderOptions = {
-    isWholeLine: false,
-    borderWidth: "1px",
-    borderStyle: "solid",
-  };
-  const decorationType = vscode.window.createTextEditorDecorationType(activeBeaconDecoration);
+  const decorationType = vscode.window.createTextEditorDecorationType(
+    createActiveBeaconDecoration(),
+  );
   let activeEditor: TextEditorLike | null = null;
 
   const navigator = createEditorNavigator({
@@ -116,6 +113,13 @@ export function createVscodeEditorNavigator({
 
       decorationType.dispose();
     },
+  };
+}
+
+function createActiveBeaconDecoration(): VscodeDecorationRenderOptions {
+  return {
+    isWholeLine: true,
+    backgroundColor: "rgba(255, 208, 0, 0.14)",
   };
 }
 

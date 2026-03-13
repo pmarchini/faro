@@ -9,7 +9,7 @@ export type Disposable = {
 
 export type VscodeDecorationRenderOptions = Pick<
   DecorationRenderOptions,
-  "isWholeLine" | "borderWidth" | "borderStyle"
+  "isWholeLine" | "backgroundColor"
 >;
 
 export type VscodeTextEditorDecorationType = Pick<

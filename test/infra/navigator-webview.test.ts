@@ -11,6 +11,7 @@ type WebviewMessage =
   | { type: "navigator.previous" }
   | { type: "navigator.next" }
   | { type: "navigator.reveal" }
+  | { type: "navigator.selectBeacon"; pathId: string; beaconId: string }
   | { type: "unknown" };
 
 function createReadyViewModel(
@@ -29,6 +30,18 @@ function createReadyViewModel(
     positionLabel: "1 of 2",
     canGoPrevious: false,
     canGoNext: true,
+    beacons: [
+      {
+        id: "b1",
+        title: "Entry route",
+        isCurrent: true,
+      },
+      {
+        id: "b2",
+        title: "Session load",
+        isCurrent: false,
+      },
+    ],
     ...overrides,
   };
 }
@@ -76,6 +89,15 @@ test("renderNavigatorHtml renders the ready state", () => {
   assert.match(html, /data-action="previous"/);
   assert.match(html, /data-action="reveal"/);
   assert.match(html, /data-action="next"/);
+  assert.match(html, /Beacon list/);
+  assert.match(html, /Entry route/);
+  assert.match(html, /Session load/);
+  assert.match(html, /data-action="select-beacon"/);
+  assert.match(html, /data-role="beacon-list"/);
+  assert.match(html, /data-layout="fill"/);
+  assert.match(html, /data-scrollable="true"/);
+  assert.match(html, /color:\s*#ffffff/);
+  assert.match(html, /background:\s*#0b57d0/);
   assert.match(html, /vscode\.postMessage/);
 });
 
@@ -87,6 +109,7 @@ test("adapter renders initial state into the webview", () => {
     onPrevious: async () => {},
     onNext: async () => {},
     onReveal: async () => {},
+    onSelectBeacon: async () => {},
   });
 
   adapter.render();
@@ -109,6 +132,7 @@ test("adapter routes previous messages through the callback and rerenders", asyn
     },
     onNext: async () => {},
     onReveal: async () => {},
+    onSelectBeacon: async () => {},
   });
 
   adapter.render();
@@ -131,6 +155,7 @@ test("adapter routes next and reveal messages through their callbacks", async ()
     onReveal: async () => {
       calls.push("reveal");
     },
+    onSelectBeacon: async () => {},
   });
 
   adapter.render();
@@ -138,6 +163,31 @@ test("adapter routes next and reveal messages through their callbacks", async ()
   await webview.emit({ type: "navigator.reveal" });
 
   assert.deepEqual(calls, ["next", "reveal"]);
+});
+
+test("adapter routes beacon selection through the callback and rerenders", async () => {
+  const webview = createFakeWebview();
+  const calls: string[] = [];
+  let renderCount = 0;
+  const adapter = createNavigatorWebviewAdapter({
+    webview,
+    getViewModel: () => {
+      renderCount += 1;
+      return createReadyViewModel();
+    },
+    onPrevious: async () => {},
+    onNext: async () => {},
+    onReveal: async () => {},
+    onSelectBeacon: async (pathId, beaconId) => {
+      calls.push(`${pathId}:${beaconId}`);
+    },
+  });
+
+  adapter.render();
+  await webview.emit({ type: "navigator.selectBeacon", pathId: "auth-flow", beaconId: "b2" });
+
+  assert.deepEqual(calls, ["auth-flow:b2"]);
+  assert.equal(renderCount, 2);
 });
 
 test("renderNavigatorHtml escapes hostile content", () => {
@@ -148,6 +198,13 @@ test("renderNavigatorHtml escapes hostile content", () => {
       summary: `<script>alert(1)</script>`,
       explanation: `a & b`,
       tags: [`<tag>`],
+      beacons: [
+        {
+          id: "b1",
+          title: `<current>`,
+          isCurrent: true,
+        },
+      ],
     }),
   );
 
@@ -157,6 +214,7 @@ test("renderNavigatorHtml escapes hostile content", () => {
   assert.match(html, /&quot;Entry&quot;/);
   assert.match(html, /a &amp; b/);
   assert.match(html, /&lt;tag&gt;/);
+  assert.match(html, /&lt;current&gt;/);
 });
 
 test("adapter ignores unknown messages", async () => {
@@ -173,6 +231,9 @@ test("adapter ignores unknown messages", async () => {
     },
     onReveal: async () => {
       calls.push("reveal");
+    },
+    onSelectBeacon: async (pathId, beaconId) => {
+      calls.push(`select:${pathId}:${beaconId}`);
     },
   });
 
