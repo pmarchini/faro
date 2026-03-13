@@ -81,23 +81,40 @@ This writes [dist/faro.vsix](/Users/pietro.marchini/Projects/OSS/faro/dist/faro.
 
 ## Upsert Agent Instructions
 
-Upsert the Faro instruction artifacts for Claude Code, GitHub Copilot, VS Code Copilot custom agents, and Codex:
+Use explicit local or global commands so the write scope is unambiguous.
+
+Local workspace-scoped artifacts:
 
 ```sh
-make upsert-agent-instructions
+make upsert-agent-local SCOPE=local
 ```
 
-That command uses [AGENTS.md](./AGENTS.md) and [skills/faro-author-paths/SKILL.md](./skills/faro-author-paths/SKILL.md) as the source of truth and upserts:
+That upserts:
 
 - `CLAUDE.md`
 - `.github/copilot-instructions.md`
 - `.github/agents/faro-path-author.agent.md`
+
+Global Codex artifact:
+
+```sh
+make upsert-agent-global SCOPE=global
+```
+
+That upserts:
+
 - `${CODEX_HOME:-$HOME/.codex}/skills/faro-author-paths/SKILL.md`
+
+If you intentionally want both scopes in one run:
+
+```sh
+make upsert-agent-all SCOPE=all
+```
 
 If you only want the VS Code Copilot custom agent file:
 
 ```sh
-make upsert-copilot-agent
+make upsert-copilot-agent-local SCOPE=local
 ```
 
 That writes `.github/agents/faro-path-author.agent.md`.

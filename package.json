@@ -97,8 +97,10 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json",
-    "upsert:agent-instructions": "node --experimental-strip-types scripts/upsert-agent-instructions.ts",
-    "upsert:copilot-agent": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --copilot-agent-only",
+    "upsert:agent-instructions": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=all",
+    "upsert:agent-instructions:local": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=local",
+    "upsert:agent-instructions:global": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=global",
+    "upsert:copilot-agent": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=local --copilot-agent-only",
     "package:vsix": "vsce package",
     "install:local": "npm run package:vsix -- --out dist/faro.vsix && code --install-extension dist/faro.vsix --force",
     "test": "node --test",

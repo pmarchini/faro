@@ -8,7 +8,9 @@ import {
   buildClaudeInstructions,
   buildCopilotInstructions,
   buildVsCodeCopilotAgent,
+  syncGlobalAgentInstructions,
   syncAgentInstructions,
+  syncLocalAgentInstructions,
   syncVsCodeCopilotAgent,
   upsertManagedMarkdownSection,
 } from "../../src/infra/tooling/agent-instruction-sync.ts";
@@ -66,7 +68,55 @@ test("buildVsCodeCopilotAgent produces a custom agent definition with Faro MCP t
   assert.match(content, /Use faro\.upsertPath\./);
 });
 
-test("syncAgentInstructions upserts Claude, Copilot, VS Code custom agent, and Codex skill outputs", async () => {
+test("syncLocalAgentInstructions upserts only workspace-scoped artifacts", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "faro-agent-sync-local-"));
+  const workspaceRoot = path.join(sandboxRoot, "workspace");
+  const codexHome = path.join(sandboxRoot, ".codex");
+
+  await syncLocalAgentInstructions({
+    workspaceRoot,
+    agentsSource: AGENTS_SOURCE,
+    skillSource: SKILL_SOURCE,
+  });
+
+  const claude = await readFile(path.join(workspaceRoot, "CLAUDE.md"), "utf8");
+  const copilot = await readFile(
+    path.join(workspaceRoot, ".github", "copilot-instructions.md"),
+    "utf8",
+  );
+  const copilotAgent = await readFile(
+    path.join(workspaceRoot, ".github", "agents", "faro-path-author.agent.md"),
+    "utf8",
+  );
+
+  assert.match(claude, /Embedded AGENTS\.md/);
+  assert.match(copilot, /Faro Agent Instructions/);
+  assert.match(copilotAgent, /name: Faro Path Author/);
+  await assert.rejects(
+    readFile(path.join(codexHome, "skills", "faro-author-paths", "SKILL.md"), "utf8"),
+  );
+});
+
+test("syncGlobalAgentInstructions upserts only the global Codex skill", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "faro-agent-sync-global-"));
+  const workspaceRoot = path.join(sandboxRoot, "workspace");
+  const codexHome = path.join(sandboxRoot, ".codex");
+
+  await syncGlobalAgentInstructions({
+    codexHome,
+    skillSource: SKILL_SOURCE,
+  });
+
+  const installedSkill = await readFile(
+    path.join(codexHome, "skills", "faro-author-paths", "SKILL.md"),
+    "utf8",
+  );
+
+  assert.equal(installedSkill, SKILL_SOURCE);
+  await assert.rejects(readFile(path.join(workspaceRoot, "CLAUDE.md"), "utf8"));
+});
+
+test("syncAgentInstructions upserts local artifacts and the global Codex skill", async () => {
   const sandboxRoot = await mkdtemp(path.join(tmpdir(), "faro-agent-sync-"));
   const workspaceRoot = path.join(sandboxRoot, "workspace");
   const codexHome = path.join(sandboxRoot, ".codex");

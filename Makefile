@@ -1,4 +1,4 @@
-.PHONY: check test dev-host package-vsix install-local upsert-agent-instructions upsert-copilot-agent
+.PHONY: check test dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
 
 VSCODE ?= code
 DEV_WORKSPACE ?= $(CURDIR)/faro-dev.code-workspace
@@ -20,8 +20,18 @@ package-vsix:
 install-local: package-vsix
 	@"$(VSCODE)" --install-extension "$(VSIX_PATH)" --force
 
-upsert-agent-instructions:
+upsert-agent-local:
+	@test "$(SCOPE)" = "local" || (echo "Use: make upsert-agent-local SCOPE=local"; exit 1)
+	@npm run upsert:agent-instructions:local
+
+upsert-agent-global:
+	@test "$(SCOPE)" = "global" || (echo "Use: make upsert-agent-global SCOPE=global"; exit 1)
+	@npm run upsert:agent-instructions:global
+
+upsert-agent-all:
+	@test "$(SCOPE)" = "all" || (echo "Use: make upsert-agent-all SCOPE=all"; exit 1)
 	@npm run upsert:agent-instructions
 
-upsert-copilot-agent:
+upsert-copilot-agent-local:
+	@test "$(SCOPE)" = "local" || (echo "Use: make upsert-copilot-agent-local SCOPE=local"; exit 1)
 	@npm run upsert:copilot-agent

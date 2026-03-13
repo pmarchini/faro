@@ -20,13 +20,29 @@ export async function syncAgentInstructions({
   agentsSource,
   skillSource,
 }: SyncAgentInstructionsOptions): Promise<void> {
+  await syncLocalAgentInstructions({
+    workspaceRoot,
+    agentsSource,
+    skillSource,
+  });
+  await syncGlobalAgentInstructions({
+    codexHome,
+    skillSource,
+  });
+}
+
+export async function syncLocalAgentInstructions({
+  workspaceRoot,
+  agentsSource,
+  skillSource,
+}: {
+  workspaceRoot: string;
+} & InstructionSources): Promise<void> {
   const claudePath = path.join(workspaceRoot, "CLAUDE.md");
   const copilotPath = path.join(workspaceRoot, ".github", "copilot-instructions.md");
-  const codexSkillPath = path.join(codexHome, "skills", "faro-author-paths", "SKILL.md");
 
   await mkdir(path.dirname(claudePath), { recursive: true });
   await mkdir(path.dirname(copilotPath), { recursive: true });
-  await mkdir(path.dirname(codexSkillPath), { recursive: true });
 
   const claudeExisting = await readOptionalFile(claudePath);
   const copilotExisting = await readOptionalFile(copilotPath);
@@ -60,6 +76,18 @@ export async function syncAgentInstructions({
     agentsSource,
     skillSource,
   });
+}
+
+export async function syncGlobalAgentInstructions({
+  codexHome = path.join(os.homedir(), ".codex"),
+  skillSource,
+}: {
+  codexHome?: string;
+  skillSource: string;
+}): Promise<void> {
+  const codexSkillPath = path.join(codexHome, "skills", "faro-author-paths", "SKILL.md");
+
+  await mkdir(path.dirname(codexSkillPath), { recursive: true });
   await writeFile(codexSkillPath, skillSource, "utf8");
 }
 
