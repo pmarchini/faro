@@ -5,6 +5,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 type SyncAgentInstructionsOptions = {
   workspaceRoot: string;
   codexHome?: string;
+  claudeHome?: string;
+  copilotHome?: string;
+  force?: boolean;
   agentsSource: string;
   skillSource: string;
 };
@@ -17,6 +20,9 @@ type InstructionSources = {
 export async function syncAgentInstructions({
   workspaceRoot,
   codexHome = path.join(os.homedir(), ".codex"),
+  claudeHome = path.join(os.homedir(), ".claude"),
+  copilotHome = path.join(os.homedir(), ".copilot"),
+  force = false,
   agentsSource,
   skillSource,
 }: SyncAgentInstructionsOptions): Promise<void> {
@@ -27,6 +33,10 @@ export async function syncAgentInstructions({
   });
   await syncGlobalAgentInstructions({
     codexHome,
+    claudeHome,
+    copilotHome,
+    force,
+    agentsSource,
     skillSource,
   });
 }
@@ -40,9 +50,11 @@ export async function syncLocalAgentInstructions({
 } & InstructionSources): Promise<void> {
   const claudePath = path.join(workspaceRoot, "CLAUDE.md");
   const copilotPath = path.join(workspaceRoot, ".github", "copilot-instructions.md");
+  const codexSkillPath = path.join(workspaceRoot, ".codex", "skills", "faro-author-paths", "SKILL.md");
 
   await mkdir(path.dirname(claudePath), { recursive: true });
   await mkdir(path.dirname(copilotPath), { recursive: true });
+  await mkdir(path.dirname(codexSkillPath), { recursive: true });
 
   const claudeExisting = await readOptionalFile(claudePath);
   const copilotExisting = await readOptionalFile(copilotPath);
@@ -76,18 +88,58 @@ export async function syncLocalAgentInstructions({
     agentsSource,
     skillSource,
   });
+  await writeFile(codexSkillPath, skillSource, "utf8");
 }
 
 export async function syncGlobalAgentInstructions({
   codexHome = path.join(os.homedir(), ".codex"),
+  claudeHome = path.join(os.homedir(), ".claude"),
+  copilotHome = path.join(os.homedir(), ".copilot"),
+  force = false,
+  agentsSource,
   skillSource,
 }: {
   codexHome?: string;
+  claudeHome?: string;
+  copilotHome?: string;
+  force?: boolean;
+  agentsSource: string;
   skillSource: string;
 }): Promise<void> {
   const codexSkillPath = path.join(codexHome, "skills", "faro-author-paths", "SKILL.md");
+  const claudePath = path.join(claudeHome, "CLAUDE.md");
+  const copilotInstructionsPath = path.join(copilotHome, "instructions", "faro.instructions.md");
+  const copilotAgentPath = path.join(copilotHome, "agents", "faro-path-author.agent.md");
 
   await mkdir(path.dirname(codexSkillPath), { recursive: true });
+  await mkdir(path.dirname(claudePath), { recursive: true });
+  await mkdir(path.dirname(copilotInstructionsPath), { recursive: true });
+  await mkdir(path.dirname(copilotAgentPath), { recursive: true });
+
+  const claudeExisting = await readOptionalFile(claudePath);
+
+  await writeFile(
+    claudePath,
+    upsertManagedMarkdownSection({
+      existingContent: claudeExisting,
+      blockId: "CLAUDE",
+      content: buildClaudeInstructions({
+        agentsSource,
+        skillSource,
+      }),
+    }),
+    "utf8",
+  );
+  await writeFaroOwnedFile({
+    filePath: copilotInstructionsPath,
+    content: buildGlobalCopilotInstructions({ agentsSource, skillSource }),
+    force,
+  });
+  await writeFaroOwnedFile({
+    filePath: copilotAgentPath,
+    content: buildVsCodeCopilotAgent({ agentsSource, skillSource }),
+    force,
+  });
   await writeFile(codexSkillPath, skillSource, "utf8");
 }
 
@@ -142,6 +194,36 @@ Do not modify source code just to fit a path.
 ${agentsSource.trim()}
 
 ## SKILL Summary
+
+${skillSource.trim()}
+`;
+}
+
+export function buildGlobalCopilotInstructions({
+  agentsSource,
+  skillSource,
+}: InstructionSources): string {
+  return `---
+name: Faro Global Instructions
+description: Global guidance for Faro path authoring across workspaces.
+applyTo: "**"
+---
+
+# Faro Global Instructions
+
+Apply these instructions when authoring or revising Faro paths.
+
+- Start with \`faro.listPaths\` when the Faro MCP surface is available.
+- Use \`faro.getPath\` before revising an existing path.
+- Prefer one \`faro.upsertPath\` whole-path write.
+- Keep paths linear for the current MVP.
+- Do not change source code just to fit a path.
+
+## AGENTS Source
+
+${agentsSource.trim()}
+
+## SKILL Source
 
 ${skillSource.trim()}
 `;
@@ -235,6 +317,24 @@ async function readOptionalFile(filePath: string): Promise<string> {
   } catch {
     return "";
   }
+}
+
+async function writeFaroOwnedFile({
+  filePath,
+  content,
+  force,
+}: {
+  filePath: string;
+  content: string;
+  force: boolean;
+}): Promise<void> {
+  const existingContent = await readOptionalFile(filePath);
+
+  if (existingContent && existingContent !== content && !force) {
+    throw new Error(`Refusing to overwrite existing Faro global file: ${filePath}. Re-run with --force.`);
+  }
+
+  await writeFile(filePath, content, "utf8");
 }
 
 function escapeRegExp(value: string): string {

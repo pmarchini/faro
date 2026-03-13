@@ -11,8 +11,11 @@ import {
 async function main(): Promise<void> {
   const workspaceRoot = process.cwd();
   const codexHome = process.env.CODEX_HOME;
+  const claudeHome = process.env.CLAUDE_HOME;
+  const copilotHome = process.env.COPILOT_HOME;
   const scope = readRequiredScope(process.argv.slice(2));
   const copilotAgentOnly = process.argv.includes("--copilot-agent-only");
+  const force = process.argv.includes("--force");
   const agentsSource = await readFile(path.join(workspaceRoot, "AGENTS.md"), "utf8");
   const skillSource = await readFile(
     path.join(workspaceRoot, "skills", "faro-author-paths", "SKILL.md"),
@@ -45,6 +48,10 @@ async function main(): Promise<void> {
   if (scope === "global") {
     await syncGlobalAgentInstructions({
       codexHome,
+      claudeHome,
+      copilotHome,
+      force,
+      agentsSource,
       skillSource,
     });
     process.stdout.write("Upserted global Faro agent instructions.\n");
@@ -54,6 +61,9 @@ async function main(): Promise<void> {
   await syncAgentInstructions({
     workspaceRoot,
     codexHome,
+    claudeHome,
+    copilotHome,
+    force,
     agentsSource,
     skillSource,
   });

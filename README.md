@@ -94,8 +94,9 @@ That upserts:
 - `CLAUDE.md`
 - `.github/copilot-instructions.md`
 - `.github/agents/faro-path-author.agent.md`
+- `.codex/skills/faro-author-paths/SKILL.md`
 
-Global Codex artifact:
+Global user-level artifacts:
 
 ```sh
 make upsert-agent-global SCOPE=global
@@ -103,13 +104,24 @@ make upsert-agent-global SCOPE=global
 
 That upserts:
 
+- `${CLAUDE_HOME:-$HOME/.claude}/CLAUDE.md`
+- `${COPILOT_HOME:-$HOME/.copilot}/instructions/faro.instructions.md`
+- `${COPILOT_HOME:-$HOME/.copilot}/agents/faro-path-author.agent.md`
 - `${CODEX_HOME:-$HOME/.codex}/skills/faro-author-paths/SKILL.md`
+
+If the Faro-specific global Copilot files already exist and differ, the command refuses to overwrite them unless you opt in:
+
+```sh
+make upsert-agent-global SCOPE=global FORCE=1
+```
 
 If you intentionally want both scopes in one run:
 
 ```sh
 make upsert-agent-all SCOPE=all
 ```
+
+Add `FORCE=1` there too if you want the global Copilot Faro files replaced.
 
 If you only want the VS Code Copilot custom agent file:
 
@@ -118,6 +130,8 @@ make upsert-copilot-agent-local SCOPE=local
 ```
 
 That writes `.github/agents/faro-path-author.agent.md`.
+
+For Codex, the local install writes to `.codex/skills/...` inside this repository. To make Codex consume that local skill home instead of your global one, start Codex with `CODEX_HOME="$(pwd)/.codex"`.
 
 ## Use The Faro Copilot Agent In VS Code
 
