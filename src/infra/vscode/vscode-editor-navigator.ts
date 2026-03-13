@@ -1,20 +1,23 @@
 import type { Beacon, BeaconRange } from "../../core/model/document.ts";
 import { createEditorNavigator } from "./editor-navigator.ts";
 import type { RevealResult } from "./reveal-result.ts";
-import type { VscodeLike } from "./vscode-api.ts";
+import type {
+  VscodeDecorationRenderOptions,
+  VscodeLike,
+  VscodeTextEditorDecorationType,
+} from "./vscode-api.ts";
 
 type RevealTarget = {
   fileUri: string;
   range: BeaconRange;
 };
 
-type DecorationTypeLike = {
-  dispose(): void;
-};
-
 type TextEditorLike = {
   revealRange(range: unknown, revealType: unknown): void | Promise<void>;
-  setDecorations(decorationType: DecorationTypeLike, ranges: unknown[]): void | Promise<void>;
+  setDecorations(
+    decorationType: VscodeTextEditorDecorationType,
+    ranges: unknown[],
+  ): void | Promise<void>;
   setSelection?(selection: unknown): void | Promise<void>;
 };
 
@@ -44,11 +47,12 @@ export function createVscodeEditorNavigator({
 }: {
   vscode: EditorVscodeLike;
 }): VscodeEditorNavigator {
-  const decorationType = vscode.window.createTextEditorDecorationType({
+  const activeBeaconDecoration: VscodeDecorationRenderOptions = {
     isWholeLine: false,
     borderWidth: "1px",
     borderStyle: "solid",
-  });
+  };
+  const decorationType = vscode.window.createTextEditorDecorationType(activeBeaconDecoration);
   let activeEditor: TextEditorLike | null = null;
 
   const navigator = createEditorNavigator({

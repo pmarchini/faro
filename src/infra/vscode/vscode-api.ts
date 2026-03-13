@@ -1,6 +1,21 @@
+import type {
+  DecorationRenderOptions,
+  TextEditorDecorationType,
+} from "vscode";
+
 export type Disposable = {
   dispose(): void;
 };
+
+export type VscodeDecorationRenderOptions = Pick<
+  DecorationRenderOptions,
+  "isWholeLine" | "borderWidth" | "borderStyle"
+>;
+
+export type VscodeTextEditorDecorationType = Pick<
+  TextEditorDecorationType,
+  "dispose"
+>;
 
 export type VscodeWebview = {
   html: string;
@@ -22,7 +37,9 @@ export type VscodeLike = {
   window: {
     registerTreeDataProvider(id: string, provider: unknown): Disposable;
     registerWebviewViewProvider(id: string, provider: unknown): Disposable;
-    createTextEditorDecorationType(options?: Record<string, unknown>): Disposable;
+    createTextEditorDecorationType(
+      options?: VscodeDecorationRenderOptions,
+    ): VscodeTextEditorDecorationType;
     showTextDocument(document: unknown): Promise<{
       revealRange(range: unknown, revealType?: unknown): void | Promise<void>;
       setDecorations(decorationType: Disposable, ranges: unknown[]): void | Promise<void>;
