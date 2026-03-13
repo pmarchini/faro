@@ -53,6 +53,17 @@ Optimize for human understanding, not raw completeness.
 
 The best Faro path is the one that helps a developer build the right mental model with the lowest unnecessary cognitive load.
 
+## Pragmatic Skill Use
+
+When the Faro runtime exposes the `faro.*` operations, use them in this order:
+
+1. Start with `faro.listPaths` to understand the current workspace state.
+2. Use `faro.getPath` before revising an existing path.
+3. Prefer one whole-path `faro.upsertPath` write over many tiny edits.
+4. Use `faro.setActivePath` only when the new or revised path should become the main reading spine.
+5. Use `faro.setCurrentBeacon` only to place the reader on the intended starting step after authoring.
+6. If the runtime is unavailable, still return valid Faro data that matches `src/core/model/document.ts`.
+
 ## Pragmatic Selection Rules
 
 1. Prefer 5 to 9 beacons by default.

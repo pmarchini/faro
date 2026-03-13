@@ -11,6 +11,7 @@ This repository currently contains a working local MVP of the extension:
 - real VS Code host bindings for outline, navigator, commands, and editor reveal
 - an agent-facing Faro service plus MCP tools/resources
 - local stdio MCP server registration through the VS Code MCP provider API
+- a verified protocol-level authoring loop from the registered Faro MCP server into the sidebar state
 - `node:test` coverage and a real TypeScript check
 
 ## Prerequisites
@@ -135,18 +136,34 @@ Implemented:
 - agent-facing Faro contract (`listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, `deletePath`)
 - MCP tools/resources bootstrap over the canonical store
 - VS Code MCP server definition registration for a local stdio Faro server
+- protocol-level Faro authoring verified end to end against the registered stdio MCP bridge and sidebar state
 
 Not implemented yet:
 
-- verified end-to-end chat-driven path authoring in VS Code
+- manual VS Code chat-session validation over the Faro MCP server
 - richer authoring operations such as append/branch editing
 - import/export and stale-range handling polish
+
+## Agent Authoring Contract
+
+The repository now includes both the runtime contract and the agent instructions for path selection:
+
+- [AGENTS.md](./AGENTS.md) constrains the beacon-selection agent role
+- [skills/faro-author-paths/SKILL.md](./skills/faro-author-paths/SKILL.md) defines the pragmatic authoring workflow
+
+When a Faro-aware agent runtime exposes the local `faro.*` tools, the expected workflow is:
+
+1. `faro.listPaths`
+2. `faro.getPath` when revising
+3. `faro.upsertPath` as the main write
+4. `faro.setActivePath` only if the new path should become primary
+5. `faro.setCurrentBeacon` only if the starting step should move
 
 ## Next Steps
 
 The immediate implementation path is:
 
-1. Prove the full chat-to-sidebar agent authoring loop through the registered Faro MCP server.
+1. Manually validate the chat-to-sidebar workflow inside VS Code over the registered Faro MCP server.
 2. Add pragmatic authoring operations only where the workflow actually needs them.
 3. Improve sample and empty-state UX around the first generated path.
 4. Add import/export and stale-range handling polish.

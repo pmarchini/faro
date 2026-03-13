@@ -107,10 +107,11 @@ Verification:
 
 Status: `in_progress`
 
-The local VS Code loop, the in-process agent contract, and VS Code MCP registration now exist, but Faro still lacks the end-to-end chat authoring loop:
+The protocol-backed Faro authoring loop is now verified through the registered local stdio MCP server, but Faro still lacks higher-level authoring ergonomics:
 
-- no chat-driven end-to-end path-authoring loop yet
-- no verified agent flow from a chat prompt to a refreshed sidebar path yet
+- no manual VS Code chat-session validation yet
+- no richer authoring operations beyond whole-path replace/update
+- no dedicated empty-state flow for the first agent-authored path
 
 ## Implementation Status
 
@@ -199,7 +200,7 @@ Acceptance criteria:
 
 ### Slice 7: MCP Integration
 
-Status: `in_progress`
+Status: `done`
 
 Acceptance criteria:
 
@@ -216,20 +217,20 @@ Acceptance criteria:
 
 ### Next Slice
 
-`End-to-end agent authoring loop`
+`Manual chat validation and authoring ergonomics`
 
 Deliverables:
 
-- verify the Faro MCP server can be consumed from chat in VS Code
-- prove an agent can create or replace a path and have the sidebar reflect it
-- document the agent-facing local workflow and current limits
-- close any remaining contract gaps between the skill, MCP surface, and extension UX
+- manually validate the Faro MCP server from a real VS Code chat session
+- tighten the first-path authoring UX and empty states
+- add only the next authoring operation the workflow proves necessary
+- keep `AGENTS.md`, the Faro skill, and the implemented MCP surface aligned
 
 Why this next:
 
-- the stdio MCP server is now registered and exposed through VS Code
-- the next product value is proving the real user loop from chat to sidebar
-- this is the shortest path to a complete Faro happy path
+- the runtime, sidebar, and MCP loop are now proven at the protocol level
+- the highest remaining risk is workflow quality, not basic integration
+- the next product value is making authoring usable from a real agent session
 
 ## Open Risks
 

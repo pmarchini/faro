@@ -34,7 +34,7 @@ Current contract operations are:
 - `faro.setCurrentBeacon`
 - `faro.deletePath`
 
-Do not claim that a full stdio MCP server is registered yet. If the user asks to "use Faro" from an agent runtime that does not expose these operations, produce valid Faro path data or a precise edit plan that fits the canonical model.
+Faro now exposes a local stdio MCP server in VS Code for these operations. Only claim this when the current agent runtime actually exposes the `faro.*` tools. If the runtime does not expose them, produce valid Faro path data or a precise edit plan that fits the canonical model.
 
 ## Required Path Rules
 
@@ -57,11 +57,15 @@ For each `Beacon`:
 ## Workflow
 
 1. Identify the user goal or subsystem to explain.
-2. Decide whether to create a new path or replace/update an existing one.
-3. Draft a Faro document or a single `FaroPath` that fits the canonical schema.
-4. Keep the path narrow and linear unless the user explicitly asks for more.
-5. Make titles and explanations concrete enough to be navigable.
-6. Validate `mainPath`, `beacons`, and `current` consistency before returning.
+2. Start with `faro.listPaths` when tools are available so you do not overwrite state blindly.
+3. Use `faro.getPath` before revising an existing path.
+4. Decide whether to create a new path or replace/update an existing one.
+5. Prefer one `faro.upsertPath` whole-path write rather than many tiny state changes.
+6. Keep the path narrow and linear unless the user explicitly asks for more.
+7. Use `faro.setActivePath` only when the authored path should become the main reading path immediately.
+8. Use `faro.setCurrentBeacon` only when the starting point should move after authoring.
+9. Make titles and explanations concrete enough to be navigable.
+10. Validate `mainPath`, `beacons`, and `current` consistency before returning.
 
 ## Output Preference
 
