@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createFaroAgentService } from "../../src/app/agent/create-faro-agent-service.ts";
+import { createInMemoryStore } from "../../src/core/services/in-memory-store.ts";
+import { createFaroMcpResources } from "../../src/infra/mcp/create-faro-mcp-resources.ts";
+import { createFaroMcpTools } from "../../src/infra/mcp/create-faro-mcp-tools.ts";
 import {
   createExtensionBindings,
   type ExtensionHost,
@@ -18,10 +22,17 @@ function createRuntimeStub() {
   let refreshListener: (() => void) | null = null;
   let unsubscribed = false;
   let disposed = false;
+  const store = createInMemoryStore();
+  const agent = createFaroAgentService({ store });
 
   const runtime = {
     status: "ready",
-    store: {} as ExtensionRuntime["store"],
+    store,
+    agent,
+    mcp: {
+      tools: createFaroMcpTools({ service: agent }),
+      resources: createFaroMcpResources({ service: agent }),
+    },
     commands: {
       nextBeacon: async () => {
         calls.push("next");

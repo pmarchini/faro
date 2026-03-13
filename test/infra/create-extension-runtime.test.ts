@@ -111,6 +111,87 @@ test("runtime exposes setCurrentBeacon through the command surface", async () =>
   runtime.dispose();
 });
 
+test("runtime exposes one agent service and MCP bootstrap over the canonical store", () => {
+  const runtime = createExtensionRuntime();
+
+  assert.equal(runtime.agent.getPath("sample-flow")?.id, "sample-flow");
+
+  const listPaths = runtime.mcp.tools["faro.listPaths"].execute();
+  assert.deepEqual(listPaths, {
+    ok: true,
+    value: {
+      paths: runtime.agent.listPaths(),
+    },
+  });
+
+  const pathResource = runtime.mcp.resources.read("faro://paths/sample-flow");
+  assert.equal(pathResource?.uri, "faro://paths/sample-flow");
+  assert.equal(runtime.store.load().paths[0]?.id, "sample-flow");
+
+  runtime.dispose();
+});
+
+test("runtime MCP writes are visible through agent reads, MCP reads, and the canonical store", () => {
+  const runtime = createExtensionRuntime();
+
+  const upsert = runtime.mcp.tools["faro.upsertPath"].execute({
+    path: {
+      id: "billing-flow",
+      title: "Billing Flow",
+      goal: "Trace billing",
+      mainPath: ["b10"],
+      branches: [],
+      current: {
+        mode: "main",
+        index: 0,
+        beaconId: "b10",
+      },
+      beacons: {
+        b10: {
+          id: "b10",
+          title: "Billing entry",
+          fileUri: "file:///workspace/billing.ts",
+          range: {
+            startLine: 1,
+            startColumn: 1,
+            endLine: 2,
+            endColumn: 1,
+          },
+          summary: "Billing entry",
+          explanation: "Billing entry point",
+          tags: [],
+          children: [],
+        },
+      },
+    },
+  });
+
+  assert.equal(upsert.ok, true);
+  assert.equal(runtime.agent.getPath("billing-flow")?.id, "billing-flow");
+  const billingPathResource = runtime.mcp.resources.read("faro://paths/billing-flow");
+
+  assert.ok(billingPathResource);
+  assert.equal(billingPathResource.uri, "faro://paths/billing-flow");
+  assert.equal(billingPathResource.contents.id, "billing-flow");
+  assert.equal(runtime.store.load().paths.some((path) => path.id === "billing-flow"), true);
+
+  const setCurrent = runtime.mcp.tools["faro.setCurrentBeacon"].execute({
+    pathId: "sample-flow",
+    beaconId: "b2",
+  });
+
+  assert.equal(setCurrent.ok, true);
+  assert.equal(runtime.agent.getPath("sample-flow")?.current?.beaconId, "b2");
+  assert.deepEqual(runtime.mcp.tools["faro.getPath"].execute({ pathId: "sample-flow" }), {
+    ok: true,
+    value: {
+      path: runtime.agent.getPath("sample-flow"),
+    },
+  });
+
+  runtime.dispose();
+});
+
 test("runtime command and outline command payload drive one behavior loop", async () => {
   const revealed: string[] = [];
   const runtime = createExtensionRuntime({

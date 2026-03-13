@@ -25,7 +25,16 @@ Work within the current MVP constraints:
 - `schemaVersion` is `1`
 - `activePathId` must be `null` or match an existing path id
 
-Do not claim that MCP is implemented. If the user asks to "use Faro", produce valid Faro path data or update instructions that fit the canonical model, and point them at the current local runtime limitations if needed.
+Current contract operations are:
+
+- `faro.listPaths`
+- `faro.getPath`
+- `faro.upsertPath`
+- `faro.setActivePath`
+- `faro.setCurrentBeacon`
+- `faro.deletePath`
+
+Do not claim that a full stdio MCP server is registered yet. If the user asks to "use Faro" from an agent runtime that does not expose these operations, produce valid Faro path data or a precise edit plan that fits the canonical model.
 
 ## Required Path Rules
 

@@ -38,6 +38,44 @@ test("rejects a path with a current beacon outside the path index", () => {
   }, /current beacon/);
 });
 
+test("rejects a path with a current index that does not match the current beacon", () => {
+  assert.throws(() => {
+    assertValidDocument({
+      schemaVersion: 1,
+      activePathId: "auth-flow",
+      paths: [
+        createPath({
+          current: {
+            mode: "main",
+            index: 1,
+            beaconId: "b1",
+          },
+        }),
+      ],
+    });
+  }, /current index/);
+});
+
+test("rejects a path whose beacon id does not match the beacon map key", () => {
+  assert.throws(() => {
+    assertValidDocument({
+      schemaVersion: 1,
+      activePathId: "auth-flow",
+      paths: [
+        createPath({
+          beacons: {
+            b1: {
+              ...createPath().beacons.b1,
+              id: "different-id",
+            },
+            b2: createPath().beacons.b2,
+          },
+        }),
+      ],
+    });
+  }, /beacon id must match key/);
+});
+
 test("rejects invalid file uris", () => {
   assert.equal(isValidFileUri("file:///workspace/app.ts"), true);
   assert.equal(isValidFileUri("/workspace/app.ts"), false);

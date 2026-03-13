@@ -60,6 +60,14 @@ function assertValidPath(path: FaroPath): void {
     assertValidBeacon(beacon);
   }
 
+  for (const [beaconKey, beacon] of Object.entries(path.beacons)) {
+    assertValidBeacon(beacon);
+
+    if (beacon.id !== beaconKey) {
+      throw new Error(`Path ${path.id} beacon id must match key ${beaconKey}.`);
+    }
+  }
+
   const currentBeaconId = path.current?.beaconId ?? null;
 
   if (currentBeaconId !== null) {
@@ -69,6 +77,12 @@ function assertValidPath(path: FaroPath): void {
 
     if (!path.beacons[currentBeaconId]) {
       throw new Error(`Path ${path.id} current beacon must exist in beacons.`);
+    }
+
+    const currentIndex = path.mainPath.indexOf(currentBeaconId);
+
+    if (path.current?.index !== currentIndex) {
+      throw new Error(`Path ${path.id} current index must match current beacon.`);
     }
   }
 }

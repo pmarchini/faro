@@ -50,8 +50,8 @@ The first usable MVP is done when all of the following are true:
 - editor reveal for the active beacon
 - active beacon highlight
 - workspace-scoped persistence
-- a minimal agent-facing contract later
-- a Faro skill later, once the agent contract is stable
+- a minimal agent-facing contract
+- a Faro skill aligned with the contract
 
 ### Out Of Scope
 
@@ -107,11 +107,10 @@ Verification:
 
 Status: `in_progress`
 
-The local VS Code loop now exists, but Faro still lacks the agent-facing runtime contract:
+The local VS Code loop and the in-process agent contract now exist, but Faro still lacks full MCP host integration:
 
-- no MCP server bootstrap yet
-- no shared agent read/write surface over the canonical store yet
-- no end-to-end agent flow from prompt to rendered path yet
+- no stdio MCP server registration yet
+- no chat-driven end-to-end path-authoring loop yet
 
 ## Implementation Status
 
@@ -186,11 +185,13 @@ Acceptance criteria:
 
 ### Slice 6: Agent Enablement
 
-Status: `in_progress`
+Status: `done`
 
 Acceptance criteria:
 
-- minimal agent-facing Faro contract is defined
+- a pure app service exposes `listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, and `deletePath`
+- the app service accepts canonical Faro types from `src/core/model/document.ts`
+- every write reuses canonical validation and mutates the same store instance used by the UI
 - Faro skill exists and explains how an agent should create/update paths
 - skill uses the canonical Faro document shape, not a parallel schema
 - root `AGENTS.md` constrains the beacon/path-selection agent role
@@ -198,33 +199,36 @@ Acceptance criteria:
 
 ### Slice 7: MCP Integration
 
-Status: `planned`
+Status: `in_progress`
 
 Acceptance criteria:
 
-- MCP tools reuse the same store and validation rules as the UI
+- MCP tools are a thin adapter over the app service with no duplicated business rules
+- MCP tools expose `listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, and `deletePath`
+- read tools are marked read-only where applicable
 - read/write operations are consistent with extension state
+- invalid inputs fail safely without corrupting persisted state
 - happy-path agent flow works end to end
 
 ## Immediate Next Slice
 
 ### Next Slice
 
-`Agent contract and MCP bootstrap`
+`Stdio MCP server registration`
 
 Deliverables:
 
-- define the minimal Faro read/write surface the agent will target
-- bootstrap a local `stdio` MCP server over the canonical store
-- expose read operations for listing and loading paths
-- expose write operations for replacing and selecting paths
+- register a local stdio MCP server over the existing tool/resource bootstrap
+- expose Faro tools and resources through one concrete server lifecycle
 - keep the MCP layer reusing the same validation and store rules as the UI
+- verify that agent writes and reads hit the same store observed by the sidebar
+- document the local agent flow without overclaiming unsupported features
 
 Why this next:
 
-- the local UX loop is now implemented and verified
-- the next product value is letting an agent create and update paths directly
-- this is the shortest path to a real Faro happy path
+- the agent-facing contract is now defined and verified in-process
+- the next product value is exposing that contract through a real MCP server
+- this is the shortest path to a real Faro happy path from chat to sidebar
 
 ## Open Risks
 

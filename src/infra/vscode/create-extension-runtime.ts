@@ -1,5 +1,14 @@
+import { createFaroAgentService, type FaroAgentService } from "../../app/agent/create-faro-agent-service.ts";
 import type { Beacon } from "../../core/model/document.ts";
 import { createInMemoryStore, type InMemoryStore } from "../../core/services/in-memory-store.ts";
+import {
+  createFaroMcpResources,
+  type FaroMcpResources,
+} from "../mcp/create-faro-mcp-resources.ts";
+import {
+  createFaroMcpTools,
+  type FaroMcpToolSet,
+} from "../mcp/create-faro-mcp-tools.ts";
 import { createCommandController } from "./command-controller.ts";
 import {
   createRuntimeCommands,
@@ -22,6 +31,11 @@ type MementoLike = {
 export type ExtensionRuntime = Disposable & {
   readonly status: "ready";
   readonly store: InMemoryStore;
+  readonly agent: FaroAgentService;
+  readonly mcp: {
+    readonly tools: FaroMcpToolSet;
+    readonly resources: FaroMcpResources;
+  };
   readonly commands: RuntimeCommands;
   subscribeToRefresh(listener: () => void): () => void;
   refresh(): void;
@@ -45,6 +59,11 @@ export function createExtensionRuntime({
         initialDocument,
       })
     : createInMemoryStore(initialDocument);
+  const agent = createFaroAgentService({ store });
+  const mcp = {
+    tools: createFaroMcpTools({ service: agent }),
+    resources: createFaroMcpResources({ service: agent }),
+  };
   const controller = createCommandController({ store, revealBeacon });
   const commands = createRuntimeCommands({
     controller,
@@ -54,6 +73,8 @@ export function createExtensionRuntime({
   return {
     status: "ready",
     store,
+    agent,
+    mcp,
     commands,
     subscribeToRefresh,
     refresh,

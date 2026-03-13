@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createFaroAgentService } from "../../src/app/agent/create-faro-agent-service.ts";
 import { createInMemoryStore } from "../../src/core/services/in-memory-store.ts";
+import { createFaroMcpResources } from "../../src/infra/mcp/create-faro-mcp-resources.ts";
+import { createFaroMcpTools } from "../../src/infra/mcp/create-faro-mcp-tools.ts";
 import { activate, deactivate } from "../../src/infra/vscode/extension.ts";
 import type {
   CreateExtensionRuntimeOptions,
@@ -12,6 +15,33 @@ import * as fixtures from "../core/fixtures.ts";
 type Disposable = {
   dispose(): void;
 };
+
+function createRuntimeStub(): ExtensionRuntime {
+  const store = createInMemoryStore(fixtures.createDocument());
+  const agent = createFaroAgentService({ store });
+
+  return {
+    status: "ready",
+    store,
+    agent,
+    mcp: {
+      tools: createFaroMcpTools({ service: agent }),
+      resources: createFaroMcpResources({ service: agent }),
+    },
+    commands: {
+      nextBeacon: async () => ({ status: "idle" }),
+      previousBeacon: async () => ({ status: "idle" }),
+      setActivePath: async () => ({ status: "idle" }),
+      setCurrentBeacon: async () => ({ status: "idle" }),
+      revealCurrentBeacon: async () => ({ status: "idle" }),
+    },
+    subscribeToRefresh() {
+      return () => {};
+    },
+    refresh() {},
+    dispose() {},
+  };
+}
 
 function createWorkspaceState() {
   return {
@@ -176,22 +206,7 @@ test("activate registers the full faro UI surface through the injected host", as
   const runtime = await activate(
     { subscriptions, workspaceState },
     {
-      runtimeFactory: (): ExtensionRuntime => ({
-        status: "ready",
-        store: createInMemoryStore(fixtures.createDocument()),
-        commands: {
-          nextBeacon: async () => ({ status: "idle" }),
-          previousBeacon: async () => ({ status: "idle" }),
-          setActivePath: async () => ({ status: "idle" }),
-          setCurrentBeacon: async () => ({ status: "idle" }),
-          revealCurrentBeacon: async () => ({ status: "idle" }),
-        },
-        subscribeToRefresh() {
-          return () => {};
-        },
-        refresh() {},
-        dispose() {},
-      }),
+      runtimeFactory: createRuntimeStub,
       loadVscodeApi: async () => host as never,
     },
   );
@@ -220,22 +235,7 @@ test("activate does not focus the faro sidebar when startup autofocusing is disa
   await activate(
     { subscriptions, workspaceState },
     {
-      runtimeFactory: (): ExtensionRuntime => ({
-        status: "ready",
-        store: createInMemoryStore(fixtures.createDocument()),
-        commands: {
-          nextBeacon: async () => ({ status: "idle" }),
-          previousBeacon: async () => ({ status: "idle" }),
-          setActivePath: async () => ({ status: "idle" }),
-          setCurrentBeacon: async () => ({ status: "idle" }),
-          revealCurrentBeacon: async () => ({ status: "idle" }),
-        },
-        subscribeToRefresh() {
-          return () => {};
-        },
-        refresh() {},
-        dispose() {},
-      }),
+      runtimeFactory: createRuntimeStub,
       loadVscodeApi: async () => host as never,
     },
   );
@@ -256,10 +256,10 @@ test("activate passes workspace state and editor-backed reveal to the runtime fa
     {
       runtimeFactory: (options?: CreateExtensionRuntimeOptions): ExtensionRuntime => {
         receivedOptions = options;
+        const runtime = createRuntimeStub();
 
         return {
-          status: "ready",
-          store: createInMemoryStore(fixtures.createDocument()),
+          ...runtime,
           commands: {
             nextBeacon: async () => ({ status: "idle" }),
             previousBeacon: async () => ({ status: "idle" }),
