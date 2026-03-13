@@ -65,10 +65,10 @@ export function createExtensionRuntime({
     resources: createFaroMcpResources({ service: agent }),
   };
   const controller = createCommandController({ store, revealBeacon });
-  const commands = createRuntimeCommands({
-    controller,
-    notifyRefresh: refresh,
+  const unsubscribeStore = store.subscribe(() => {
+    refresh();
   });
+  const commands = createRuntimeCommands({ controller });
 
   return {
     status: "ready",
@@ -79,6 +79,7 @@ export function createExtensionRuntime({
     subscribeToRefresh,
     refresh,
     dispose() {
+      unsubscribeStore();
       listeners.clear();
     },
   };

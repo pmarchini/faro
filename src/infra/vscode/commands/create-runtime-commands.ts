@@ -10,7 +10,6 @@ type Controller = {
 
 type Dependencies = {
   controller: Controller;
-  notifyRefresh(): void;
 };
 
 export type RuntimeCommands = {
@@ -23,22 +22,13 @@ export type RuntimeCommands = {
 
 export function createRuntimeCommands({
   controller,
-  notifyRefresh,
 }: Dependencies): RuntimeCommands {
   return {
-    nextBeacon: runWithRefresh(() => controller.nextBeacon()),
-    previousBeacon: runWithRefresh(() => controller.previousBeacon()),
-    setActivePath: (pathId: string) => runWithRefresh(() => controller.setActivePath(pathId))(),
+    nextBeacon: () => controller.nextBeacon(),
+    previousBeacon: () => controller.previousBeacon(),
+    setActivePath: (pathId: string) => controller.setActivePath(pathId),
     setCurrentBeacon: (pathId: string, beaconId: string) =>
-      runWithRefresh(() => controller.setCurrentBeacon(pathId, beaconId))(),
-    revealCurrentBeacon: runWithRefresh(() => controller.revealCurrentBeacon()),
+      controller.setCurrentBeacon(pathId, beaconId),
+    revealCurrentBeacon: () => controller.revealCurrentBeacon(),
   };
-
-  function runWithRefresh<T>(action: () => Promise<T>) {
-    return async () => {
-      const result = await action();
-      notifyRefresh();
-      return result;
-    };
-  }
 }

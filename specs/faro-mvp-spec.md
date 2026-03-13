@@ -207,6 +207,7 @@ Acceptance criteria:
 - MCP tools expose `listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, and `deletePath`
 - read tools are marked read-only where applicable
 - read/write operations are consistent with extension state
+- MCP-driven writes refresh the same runtime/view loop used by the sidebar
 - invalid inputs fail safely without corrupting persisted state
 - VS Code registers one local stdio MCP server definition over the runtime MCP surface
 - happy-path agent flow works end to end
@@ -235,6 +236,7 @@ Why this next:
 - type drift between layers if local types are reintroduced outside `src/core/model/document.ts`
 - accidental business logic leaking into VS Code adapters
 - duplicated state if future MCP wiring bypasses the canonical store
+- redundant refreshes if future write paths cause multiple equivalent store mutations
 - overbuilding branch support before the linear MVP loop works
 - contract drift between the Faro skill, `AGENTS.md`, and the eventual MCP tool schema
 

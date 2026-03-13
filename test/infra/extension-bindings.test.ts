@@ -11,6 +11,7 @@ import {
   type NavigatorProviderLike,
   type OutlineProviderLike,
 } from "../../src/infra/vscode/bindings/create-extension-bindings.ts";
+import { createExtensionRuntime } from "../../src/infra/vscode/create-extension-runtime.ts";
 import type { ExtensionRuntime } from "../../src/infra/vscode/create-extension-runtime.ts";
 
 type Disposable = {
@@ -24,6 +25,9 @@ function createRuntimeStub() {
   let disposed = false;
   const store = createInMemoryStore();
   const agent = createFaroAgentService({ store });
+  const unsubscribeStore = store.subscribe(() => {
+    refreshListener?.();
+  });
 
   const runtime = {
     status: "ready",
@@ -67,6 +71,7 @@ function createRuntimeStub() {
       refreshListener?.();
     },
     dispose() {
+      unsubscribeStore();
       disposed = true;
     },
   } satisfies ExtensionRuntime;
@@ -260,8 +265,8 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
 
   runtimeState.emitRefresh();
 
-  assert.equal(outlineRefreshes, 1);
-  assert.equal(navigatorRefreshes, 1);
+  assert.ok(outlineRefreshes >= 1);
+  assert.ok(navigatorRefreshes >= 1);
 
   binding.dispose();
 
@@ -269,4 +274,83 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
   assert.equal(navigatorDisposed, 1);
   assert.equal(runtimeState.unsubscribed, true);
   assert.equal(hostState.disposals.includes("mcp:faro.local"), true);
+});
+
+test("bindings refresh the outline and navigator after MCP-driven store changes", async () => {
+  const runtime = createExtensionRuntime();
+  const hostState = createHostStub();
+  let outlineRefreshes = 0;
+  let navigatorRefreshes = 0;
+
+  const binding = await createExtensionBindings({
+    runtime,
+    host: hostState.host,
+    extensionPath: "/workspace/faro",
+    registerMcpServer: async ({ host }) =>
+      host.registerMcpServerDefinitionProvider("faro.local", {
+        provideMcpServerDefinitions() {
+          return [
+            {
+              label: "Faro",
+              command: process.execPath,
+              args: ["server.ts"],
+              env: {},
+            },
+          ];
+        },
+      }),
+    createOutlineProvider: () =>
+      ({
+        refresh() {
+          outlineRefreshes += 1;
+        },
+        dispose() {},
+      }) as OutlineProviderLike,
+    createNavigatorProvider: () =>
+      ({
+        refresh() {
+          navigatorRefreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {},
+      }) as NavigatorProviderLike,
+  });
+
+  runtime.mcp.tools["faro.upsertPath"].execute({
+    path: {
+      id: "billing-flow",
+      title: "Billing Flow",
+      goal: "Trace billing",
+      mainPath: ["b10"],
+      branches: [],
+      current: {
+        mode: "main",
+        index: 0,
+        beaconId: "b10",
+      },
+      beacons: {
+        b10: {
+          id: "b10",
+          title: "Billing entry",
+          fileUri: "file:///workspace/billing.ts",
+          range: {
+            startLine: 1,
+            startColumn: 1,
+            endLine: 2,
+            endColumn: 1,
+          },
+          summary: "Billing entry",
+          explanation: "Billing entry point",
+          tags: [],
+          children: [],
+        },
+      },
+    },
+  });
+
+  assert.equal(outlineRefreshes, 1);
+  assert.equal(navigatorRefreshes, 1);
+
+  binding.dispose();
+  runtime.dispose();
 });

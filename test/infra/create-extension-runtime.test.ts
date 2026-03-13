@@ -192,6 +192,61 @@ test("runtime MCP writes are visible through agent reads, MCP reads, and the can
   runtime.dispose();
 });
 
+test("runtime refreshes listeners after MCP-driven writes", () => {
+  const runtime = createExtensionRuntime();
+  let refreshes = 0;
+
+  const unsubscribe = runtime.subscribeToRefresh(() => {
+    refreshes += 1;
+  });
+
+  const beforeUpsert = refreshes;
+
+  runtime.mcp.tools["faro.upsertPath"].execute({
+    path: {
+      id: "billing-flow",
+      title: "Billing Flow",
+      goal: "Trace billing",
+      mainPath: ["b10"],
+      branches: [],
+      current: {
+        mode: "main",
+        index: 0,
+        beaconId: "b10",
+      },
+      beacons: {
+        b10: {
+          id: "b10",
+          title: "Billing entry",
+          fileUri: "file:///workspace/billing.ts",
+          range: {
+            startLine: 1,
+            startColumn: 1,
+            endLine: 2,
+            endColumn: 1,
+          },
+          summary: "Billing entry",
+          explanation: "Billing entry point",
+          tags: [],
+          children: [],
+        },
+      },
+    },
+  });
+  assert.ok(refreshes > beforeUpsert);
+
+  const beforeSetCurrent = refreshes;
+
+  runtime.mcp.tools["faro.setCurrentBeacon"].execute({
+    pathId: "sample-flow",
+    beaconId: "b2",
+  });
+  assert.ok(refreshes > beforeSetCurrent);
+
+  unsubscribe();
+  runtime.dispose();
+});
+
 test("runtime command and outline command payload drive one behavior loop", async () => {
   const revealed: string[] = [];
   const runtime = createExtensionRuntime({
