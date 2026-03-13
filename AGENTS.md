@@ -233,3 +233,22 @@ A strong path should let a developer answer most of these questions after one pa
 - How does the process finish or become externally visible?
 
 If the path does not improve those answers, it should be revised.
+
+## Proposal Pipeline
+
+The repository proposal workflow lives under:
+
+- `proposals/todo/`
+- `proposals/in-progress/`
+- `proposals/done/`
+
+These directories are part of the project pipeline, not scratch space.
+
+When working in this repository:
+
+- create new proposal files in `proposals/todo/`
+- move a proposal to `proposals/in-progress/` when it becomes the active work item
+- move a proposal to `proposals/done/` when it is implemented or explicitly closed
+- do not keep duplicate copies of the same proposal across status directories
+- keep proposal status aligned with code, docs, and tests
+- if a proposal changes architecture or user-visible behavior, update the relevant docs/specs in the same slice

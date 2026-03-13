@@ -1,5 +1,5 @@
 docs/**
-specs/**
+proposals/**
 test/**
 dist/**
 node_modules/**

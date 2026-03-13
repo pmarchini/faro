@@ -1,5 +1,7 @@
 # Faro MVP Spec
 
+Proposal status directory: `proposals/in-progress/`
+
 ## Purpose
 
 This document is the working spec and status tracker for Faro's first usable MVP.
@@ -232,6 +234,28 @@ Why this next:
 - the highest remaining risk is workflow quality, not basic integration
 - the next product value is making authoring usable from a real agent session
 
+## Product TODOs
+
+### Extension-driven agent install UX
+
+Status: `planned`
+
+Need a first-class extension UX for installing Faro agent/skill artifacts without requiring terminal commands.
+
+Acceptance criteria:
+
+- Faro exposes a visible UI entrypoint inside VS Code for agent/skill installation
+- the UI makes the install scope explicit: `local` vs `global`
+- the UI covers the current Faro targets for Claude, Copilot, and Codex
+- global installs preserve the current overwrite protections and require explicit confirmation when `force` would be needed
+- install state and failure modes are surfaced in the extension UX instead of only through terminal output
+
+Notes:
+
+- this should likely be implemented as a menu, view action, or similar extension-native affordance
+- do not hide scope selection behind opaque commands
+- keep the extension UI aligned with the existing install semantics already implemented in the CLI/Make layer
+
 ## Open Risks
 
 - type drift between layers if local types are reintroduced outside `src/core/model/document.ts`
@@ -256,3 +280,4 @@ When finishing a slice:
 
 - [README.md](/Users/pietro.marchini/Projects/OSS/faro/README.md)
 - [docs/faro-plan.md](/Users/pietro.marchini/Projects/OSS/faro/docs/faro-plan.md)
+- [Proposals README](/Users/pietro.marchini/Projects/OSS/faro/proposals/README.md)
