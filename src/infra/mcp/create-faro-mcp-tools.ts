@@ -24,6 +24,13 @@ export type FaroMcpToolResult<T> =
 
 export type FaroMcpTool<Input, Output> = {
   name: string;
+  description: string;
+  inputSchema: {
+    type: "object";
+    properties?: Record<string, unknown>;
+    required?: string[];
+    additionalProperties: boolean;
+  };
   readOnlyHint: ReadOnlyHint;
   execute: (input: Input) => FaroMcpToolResult<Output>;
 };
@@ -48,6 +55,11 @@ export function createFaroMcpTools({
   return {
     "faro.listPaths": {
       name: "faro.listPaths",
+      description: "List the Faro paths available in the current workspace.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+      },
       readOnlyHint: true,
       execute: () => ({
         ok: true,
@@ -58,6 +70,15 @@ export function createFaroMcpTools({
     },
     "faro.getPath": {
       name: "faro.getPath",
+      description: "Load one Faro path by id.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pathId: { type: "string" },
+        },
+        required: ["pathId"],
+        additionalProperties: false,
+      },
       readOnlyHint: true,
       execute: ({ pathId }) => {
         const path = service.getPath(pathId);
@@ -74,6 +95,15 @@ export function createFaroMcpTools({
     },
     "faro.upsertPath": {
       name: "faro.upsertPath",
+      description: "Create or replace one Faro path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: { type: "object" },
+        },
+        required: ["path"],
+        additionalProperties: false,
+      },
       readOnlyHint: false,
       execute: ({ path }) => {
         try {
@@ -94,6 +124,15 @@ export function createFaroMcpTools({
     },
     "faro.setActivePath": {
       name: "faro.setActivePath",
+      description: "Set the active Faro path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pathId: { type: "string" },
+        },
+        required: ["pathId"],
+        additionalProperties: false,
+      },
       readOnlyHint: false,
       execute: ({ pathId }) => {
         const path = service.setActivePath(pathId);
@@ -110,6 +149,16 @@ export function createFaroMcpTools({
     },
     "faro.setCurrentBeacon": {
       name: "faro.setCurrentBeacon",
+      description: "Set the current Faro beacon in a path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pathId: { type: "string" },
+          beaconId: { type: "string" },
+        },
+        required: ["pathId", "beaconId"],
+        additionalProperties: false,
+      },
       readOnlyHint: false,
       execute: ({ pathId, beaconId }) => {
         const existingPath = service.getPath(pathId);
@@ -138,6 +187,15 @@ export function createFaroMcpTools({
     },
     "faro.deletePath": {
       name: "faro.deletePath",
+      description: "Delete one Faro path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pathId: { type: "string" },
+        },
+        required: ["pathId"],
+        additionalProperties: false,
+      },
       readOnlyHint: false,
       execute: ({ pathId }) => {
         if (!service.getPath(pathId)) {

@@ -13,6 +13,11 @@ export type FaroMcpResource =
     };
 
 export type FaroMcpResources = {
+  list: () => Array<{
+    uri: string;
+    name: string;
+    mimeType: "application/json";
+  }>;
   read: (uri: string) => FaroMcpResource | null;
 };
 
@@ -22,6 +27,22 @@ export function createFaroMcpResources({
   service: FaroAgentService;
 }): FaroMcpResources {
   return {
+    list() {
+      const paths = service.listPaths();
+
+      return [
+        {
+          uri: "faro://paths",
+          name: "Faro Paths",
+          mimeType: "application/json" as const,
+        },
+        ...paths.map((path) => ({
+          uri: `faro://paths/${path.id}`,
+          name: path.title,
+          mimeType: "application/json" as const,
+        })),
+      ];
+    },
     read(uri: string): FaroMcpResource | null {
       if (uri === "faro://paths") {
         return {

@@ -107,10 +107,10 @@ Verification:
 
 Status: `in_progress`
 
-The local VS Code loop and the in-process agent contract now exist, but Faro still lacks full MCP host integration:
+The local VS Code loop, the in-process agent contract, and VS Code MCP registration now exist, but Faro still lacks the end-to-end chat authoring loop:
 
-- no stdio MCP server registration yet
 - no chat-driven end-to-end path-authoring loop yet
+- no verified agent flow from a chat prompt to a refreshed sidebar path yet
 
 ## Implementation Status
 
@@ -208,27 +208,27 @@ Acceptance criteria:
 - read tools are marked read-only where applicable
 - read/write operations are consistent with extension state
 - invalid inputs fail safely without corrupting persisted state
+- VS Code registers one local stdio MCP server definition over the runtime MCP surface
 - happy-path agent flow works end to end
 
 ## Immediate Next Slice
 
 ### Next Slice
 
-`Stdio MCP server registration`
+`End-to-end agent authoring loop`
 
 Deliverables:
 
-- register a local stdio MCP server over the existing tool/resource bootstrap
-- expose Faro tools and resources through one concrete server lifecycle
-- keep the MCP layer reusing the same validation and store rules as the UI
-- verify that agent writes and reads hit the same store observed by the sidebar
-- document the local agent flow without overclaiming unsupported features
+- verify the Faro MCP server can be consumed from chat in VS Code
+- prove an agent can create or replace a path and have the sidebar reflect it
+- document the agent-facing local workflow and current limits
+- close any remaining contract gaps between the skill, MCP surface, and extension UX
 
 Why this next:
 
-- the agent-facing contract is now defined and verified in-process
-- the next product value is exposing that contract through a real MCP server
-- this is the shortest path to a real Faro happy path from chat to sidebar
+- the stdio MCP server is now registered and exposed through VS Code
+- the next product value is proving the real user loop from chat to sidebar
+- this is the shortest path to a complete Faro happy path
 
 ## Open Risks
 

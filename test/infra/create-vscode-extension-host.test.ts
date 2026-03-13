@@ -29,6 +29,12 @@ function createFakeVscodeApi() {
       resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }): void | Promise<void>;
     };
   }> = [];
+  const mcpRegistrations: Array<{
+    id: string;
+    provider: {
+      provideMcpServerDefinitions(): unknown[];
+    };
+  }> = [];
   const disposals: string[] = [];
 
   return {
@@ -74,6 +80,35 @@ function createFakeVscodeApi() {
           };
         },
       },
+      lm: {
+        registerMcpServerDefinitionProvider(
+          id: string,
+          provider: {
+            provideMcpServerDefinitions(): unknown[];
+          },
+        ) {
+          mcpRegistrations.push({ id, provider });
+          return createDisposable(`mcp:${id}`);
+        },
+      },
+      McpStdioServerDefinition: class McpStdioServerDefinition {
+        label: string;
+        command: string;
+        args: string[];
+        env: Record<string, string | number | null>;
+
+        constructor(
+          label: string,
+          command: string,
+          args: string[] = [],
+          env: Record<string, string | number | null> = {},
+        ) {
+          this.label = label;
+          this.command = command;
+          this.args = args;
+          this.env = env;
+        }
+      },
       Uri: {
         parse(value: string) {
           return { value };
@@ -90,6 +125,7 @@ function createFakeVscodeApi() {
     executedCommands,
     outlineRegistrations,
     navigatorRegistrations,
+    mcpRegistrations,
     disposals,
   };
 
@@ -136,6 +172,20 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
       assert.equal(view.webview, webview);
     },
   });
+  const mcp = host.registerMcpServerDefinitionProvider("faro.local", {
+    provideMcpServerDefinitions() {
+      return [
+        {
+          label: "Faro",
+          command: process.execPath,
+          args: ["server.ts"],
+          env: {
+            FARO_MCP_PORT: 1234,
+          },
+        },
+      ];
+    },
+  });
 
   assert.deepEqual(vscode.commandRegistrations, ["faro.nextBeacon"]);
   assert.deepEqual(vscode.outlineRegistrations, ["faro.outline"]);
@@ -149,12 +199,22 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
 
   await host.focusFaroView();
   assert.deepEqual(vscode.executedCommands, ["workbench.view.extension.faro"]);
+  assert.equal(vscode.mcpRegistrations.length, 1);
+  assert.equal(vscode.mcpRegistrations[0]?.id, "faro.local");
+  assert.equal(
+    (
+      vscode.mcpRegistrations[0]?.provider.provideMcpServerDefinitions()[0] as { label: string }
+    ).label,
+    "Faro",
+  );
 
+  mcp.dispose();
   navigator.dispose();
   outline.dispose();
   command.dispose();
 
   assert.deepEqual(vscode.disposals, [
+    "mcp:faro.local",
     "navigator:faro.navigator",
     "outline:faro.outline",
     "command:faro.nextBeacon",

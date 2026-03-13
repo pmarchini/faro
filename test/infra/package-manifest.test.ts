@@ -17,6 +17,10 @@ type PackageManifest = {
       }>;
     };
     views?: Record<string, Array<{ id: string }>>;
+    mcpServerDefinitionProviders?: Array<{
+      id: string;
+      label: string;
+    }>;
   };
 };
 
@@ -38,6 +42,12 @@ test("package manifest contributes the full faro UI and command surface", () => 
     manifest.contributes?.views?.faro?.map((view) => view.id),
     ["faro.outline", "faro.navigator"],
   );
+  assert.deepEqual(manifest.contributes?.mcpServerDefinitionProviders, [
+    {
+      id: "faro.local",
+      label: "Faro",
+    },
+  ]);
   assert.deepEqual(
     manifest.contributes?.commands?.map((command) => command.command),
     [

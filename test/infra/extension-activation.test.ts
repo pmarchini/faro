@@ -10,6 +10,7 @@ import type {
   CreateExtensionRuntimeOptions,
   ExtensionRuntime,
 } from "../../src/infra/vscode/create-extension-runtime.ts";
+import { createExtensionBindings } from "../../src/infra/vscode/bindings/create-extension-bindings.ts";
 import * as fixtures from "../core/fixtures.ts";
 
 type Disposable = {
@@ -54,10 +55,30 @@ function createWorkspaceState() {
   };
 }
 
+async function createBindingsWithoutSocket(options: Parameters<typeof createExtensionBindings>[0]) {
+  return createExtensionBindings({
+    ...options,
+    registerMcpServer: async ({ host }) =>
+      host.registerMcpServerDefinitionProvider("faro.local", {
+        provideMcpServerDefinitions() {
+          return [
+            {
+              label: "Faro",
+              command: process.execPath,
+              args: ["server.ts"],
+              env: {},
+            },
+          ];
+        },
+      }),
+  });
+}
+
 function createHost({ autoFocusOnStartup = false }: { autoFocusOnStartup?: boolean } = {}) {
   const operations: unknown[] = [];
   const commands = new Map<string, (...args: unknown[]) => unknown>();
   const views = new Map<string, unknown>();
+  const mcpProviders = new Map<string, unknown>();
   const decorationType = {
     dispose() {
       operations.push(["dispose-decoration"]);
@@ -68,6 +89,7 @@ function createHost({ autoFocusOnStartup = false }: { autoFocusOnStartup?: boole
     operations,
     commands,
     views,
+    mcpProviders,
     host: {
       commands: {
         registerCommand(id: string, handler: (...args: unknown[]) => unknown): Disposable {
@@ -151,6 +173,34 @@ function createHost({ autoFocusOnStartup = false }: { autoFocusOnStartup?: boole
           };
         },
       },
+      lm: {
+        registerMcpServerDefinitionProvider(id: string, provider: unknown): Disposable {
+          mcpProviders.set(id, provider);
+          return {
+            dispose() {
+              mcpProviders.delete(id);
+            },
+          };
+        },
+      },
+      McpStdioServerDefinition: class McpStdioServerDefinition {
+        label: string;
+        command: string;
+        args: string[];
+        env: Record<string, string | number | null>;
+
+        constructor(
+          label: string,
+          command: string,
+          args: string[] = [],
+          env: Record<string, string | number | null> = {},
+        ) {
+          this.label = label;
+          this.command = command;
+          this.args = args;
+          this.env = env;
+        }
+      },
       Uri: {
         parse(value: string) {
           return { value };
@@ -199,14 +249,15 @@ function createHost({ autoFocusOnStartup = false }: { autoFocusOnStartup?: boole
 test("activate registers the full faro UI surface through the injected host", async () => {
   const subscriptions: Disposable[] = [];
   const workspaceState = createWorkspaceState();
-  const { host, commands, views, operations } = createHost({
+  const { host, commands, views, operations, mcpProviders } = createHost({
     autoFocusOnStartup: true,
   });
 
   const runtime = await activate(
-    { subscriptions, workspaceState },
+    { subscriptions, workspaceState, extensionPath: "/workspace/faro" },
     {
       runtimeFactory: createRuntimeStub,
+      bindingsFactory: createBindingsWithoutSocket,
       loadVscodeApi: async () => host as never,
     },
   );
@@ -222,6 +273,7 @@ test("activate registers the full faro UI surface through the injected host", as
     "faro.setCurrentBeacon",
   ]);
   assert.deepEqual([...views.keys()], ["faro.outline", "faro.navigator"]);
+  assert.deepEqual([...mcpProviders.keys()], ["faro.local"]);
   assert.match(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
 
   deactivate();
@@ -233,9 +285,10 @@ test("activate does not focus the faro sidebar when startup autofocusing is disa
   const { host, operations } = createHost();
 
   await activate(
-    { subscriptions, workspaceState },
+    { subscriptions, workspaceState, extensionPath: "/workspace/faro" },
     {
       runtimeFactory: createRuntimeStub,
+      bindingsFactory: createBindingsWithoutSocket,
       loadVscodeApi: async () => host as never,
     },
   );
@@ -252,7 +305,7 @@ test("activate passes workspace state and editor-backed reveal to the runtime fa
   let receivedOptions: unknown;
 
   await activate(
-    { subscriptions, workspaceState },
+    { subscriptions, workspaceState, extensionPath: "/workspace/faro" },
     {
       runtimeFactory: (options?: CreateExtensionRuntimeOptions): ExtensionRuntime => {
         receivedOptions = options;
@@ -281,6 +334,7 @@ test("activate passes workspace state and editor-backed reveal to the runtime fa
           dispose() {},
         };
       },
+      bindingsFactory: createBindingsWithoutSocket,
       loadVscodeApi: async () => host as never,
     },
   );

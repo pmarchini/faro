@@ -19,13 +19,15 @@ type Disposable = {
 type ExtensionContextLike = {
   subscriptions?: Disposable[];
   workspaceState?: CreateExtensionRuntimeOptions["workspaceState"];
+  extensionPath?: string;
 };
 
 type RuntimeFactory = (options?: CreateExtensionRuntimeOptions) => ExtensionRuntime;
 type BindingsFactory = (options: {
   runtime: ExtensionRuntime;
   host: ExtensionHost;
-}) => Disposable;
+  extensionPath: string;
+}) => Disposable | Promise<Disposable>;
 
 type LoadVscodeApi = () => Promise<VscodeLike>;
 
@@ -58,9 +60,10 @@ async function activate(
     revealBeacon: editorNavigator.revealBeacon,
   });
 
-  const bindings = bindingsFactory({
+  const bindings = await bindingsFactory({
     runtime,
     host,
+    extensionPath: context?.extensionPath ?? process.cwd(),
   });
 
   if (shouldAutoFocusOnStartup(vscodeApi)) {

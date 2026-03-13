@@ -9,6 +9,8 @@ This repository currently contains a working local MVP of the extension:
 - an in-memory store
 - pure app-layer projections for outline and navigator views
 - real VS Code host bindings for outline, navigator, commands, and editor reveal
+- an agent-facing Faro service plus MCP tools/resources
+- local stdio MCP server registration through the VS Code MCP provider API
 - `node:test` coverage and a real TypeScript check
 
 ## Prerequisites
@@ -81,7 +83,7 @@ Current expectation:
 - `Outline` shows the seeded sample path
 - `Navigator` shows the current beacon
 - `Prev` / `Next` updates the current beacon in the sidebar
-- `Reveal` is wired, but the seeded sample currently points to placeholder `file:///workspace/...` URIs, so reveal is not yet meaningful against the local repo
+- `Reveal` opens seeded sample beacons in the local repository
 
 If you want to launch the host manually instead of using the workspace shortcut:
 
@@ -130,18 +132,21 @@ Implemented:
 - navigator webview registration
 - editor reveal/highlight wiring
 - local command surface for navigating and focusing Faro
+- agent-facing Faro contract (`listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, `deletePath`)
+- MCP tools/resources bootstrap over the canonical store
+- VS Code MCP server definition registration for a local stdio Faro server
 
 Not implemented yet:
 
-- MCP server integration
-- agent-driven path creation through MCP
-- real workspace-backed sample paths for meaningful local reveal flows
+- verified end-to-end chat-driven path authoring in VS Code
+- richer authoring operations such as append/branch editing
+- import/export and stale-range handling polish
 
 ## Next Steps
 
 The immediate implementation path is:
 
-1. Bootstrap the minimal Faro MCP contract over the canonical store.
-2. Let an agent create and replace paths end to end.
-3. Replace the seeded placeholder URIs with real workspace-resolved sample data for local reveal testing.
+1. Prove the full chat-to-sidebar agent authoring loop through the registered Faro MCP server.
+2. Add pragmatic authoring operations only where the workflow actually needs them.
+3. Improve sample and empty-state UX around the first generated path.
 4. Add import/export and stale-range handling polish.

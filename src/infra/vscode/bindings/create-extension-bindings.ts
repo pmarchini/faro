@@ -3,6 +3,7 @@ import { createOutlineTreeProvider } from "../outline-tree-provider.ts";
 import type { ExtensionRuntime } from "../create-extension-runtime.ts";
 import { registerRuntimeCommands } from "../register-runtime-commands.ts";
 import type { VscodeWebviewView } from "../vscode-api.ts";
+import { registerRuntimeMcpServer } from "./register-runtime-mcp-server.ts";
 
 type Disposable = {
   dispose(): void;
@@ -23,27 +24,51 @@ export type ExtensionHost = {
   registerCommand(id: string, handler: CommandHandler): Disposable;
   registerOutlineProvider(id: string, provider: OutlineProviderLike): Disposable;
   registerNavigatorProvider(id: string, provider: NavigatorProviderLike): Disposable;
+  registerMcpServerDefinitionProvider(
+    id: string,
+    provider: {
+      provideMcpServerDefinitions(): Array<{
+        label: string;
+        command: string;
+        args: string[];
+        env: Record<string, string | number | null>;
+      }>;
+    },
+  ): Disposable;
   focusFaroView(): void | Promise<void>;
 };
 
 type Dependencies = {
   runtime: ExtensionRuntime;
   host: ExtensionHost;
+  extensionPath: string;
+  registerMcpServer?(options: {
+    runtime: ExtensionRuntime;
+    host: ExtensionHost;
+    extensionPath: string;
+  }): Promise<Disposable>;
   createOutlineProvider?(runtime: ExtensionRuntime): OutlineProviderLike;
   createNavigatorProvider?(runtime: ExtensionRuntime): NavigatorProviderLike;
 };
 
-export function createExtensionBindings({
+export async function createExtensionBindings({
   runtime,
   host,
+  extensionPath,
+  registerMcpServer = registerRuntimeMcpServer,
   createOutlineProvider = defaultCreateOutlineProvider,
   createNavigatorProvider = defaultCreateNavigatorProvider,
-}: Dependencies): Disposable {
+}: Dependencies): Promise<Disposable> {
   const outlineProvider = createOutlineProvider(runtime);
   const navigatorProvider = createNavigatorProvider(runtime);
   const refreshUnsubscribe = runtime.subscribeToRefresh(() => {
     outlineProvider.refresh();
     navigatorProvider.refresh();
+  });
+  const mcpServerRegistration = await registerMcpServer({
+    runtime,
+    extensionPath,
+    host,
   });
   const commandRegistration = registerRuntimeCommands({
     commands: {
@@ -55,6 +80,7 @@ export function createExtensionBindings({
   });
 
   const registrations: Disposable[] = [
+    mcpServerRegistration,
     commandRegistration,
     host.registerCommand("faro.focusSidebar", () => host.focusFaroView()),
     host.registerOutlineProvider("faro.outline", outlineProvider),

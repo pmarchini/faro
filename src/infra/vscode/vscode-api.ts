@@ -44,6 +44,16 @@ export type VscodeLike = {
       get<T>(key: string, defaultValue: T): T;
     };
   };
+  lm: {
+    registerMcpServerDefinitionProvider(id: string, provider: unknown): Disposable;
+  };
+  McpStdioServerDefinition: new (
+    label: string,
+    command: string,
+    args?: string[],
+    env?: Record<string, string | number | null>,
+    version?: string,
+  ) => unknown;
   Uri: {
     parse(value: string): unknown;
   };

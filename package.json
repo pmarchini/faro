@@ -48,6 +48,12 @@
         }
       ]
     },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "faro.local",
+        "label": "Faro"
+      }
+    ],
     "configuration": {
       "title": "Faro",
       "properties": {

@@ -29,6 +29,22 @@ export function createVscodeExtensionHost({
         },
       });
     },
+    registerMcpServerDefinitionProvider(id, provider) {
+      return vscode.lm.registerMcpServerDefinitionProvider(id, {
+        provideMcpServerDefinitions() {
+          return provider.provideMcpServerDefinitions().map((definition) => {
+            const serverDefinition = new vscode.McpStdioServerDefinition(
+              definition.label,
+              definition.command,
+              definition.args,
+              definition.env,
+            );
+
+            return serverDefinition;
+          });
+        },
+      });
+    },
     async focusFaroView() {
       await vscode.commands.executeCommand("workbench.view.extension.faro");
     },
