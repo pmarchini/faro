@@ -6,6 +6,10 @@
   "private": true,
   "publisher": "pmarchini",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pmarchini/faro.git"
+  },
   "type": "module",
   "engines": {
     "vscode": "^1.109.0"
@@ -93,12 +97,17 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json",
+    "upsert:agent-instructions": "node --experimental-strip-types scripts/upsert-agent-instructions.ts",
+    "upsert:copilot-agent": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --copilot-agent-only",
+    "package:vsix": "vsce package",
+    "install:local": "npm run package:vsix -- --out dist/faro.vsix && code --install-extension dist/faro.vsix --force",
     "test": "node --test",
     "test:watch": "node --test --watch"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "@types/vscode": "^1.110.0",
+    "@types/vscode": "^1.109.0",
+    "@vscode/vsce": "^3.7.1",
     "typescript": "^5.9.3"
   }
 }

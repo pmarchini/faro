@@ -1,0 +1,12 @@
+docs/**
+specs/**
+test/**
+dist/**
+node_modules/**
+.git/**
+.github/**
+.gitignore
+faro-dev.code-workspace
+Makefile
+package-lock.json
+tsconfig.json

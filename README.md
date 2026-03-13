@@ -63,6 +63,58 @@ Open the repository root in VS Code:
 code .
 ```
 
+## Install Into Your VS Code
+
+Package the extension as a local VSIX:
+
+```sh
+make package-vsix
+```
+
+Install that VSIX into your normal VS Code profile:
+
+```sh
+make install-local
+```
+
+This writes [dist/faro.vsix](/Users/pietro.marchini/Projects/OSS/faro/dist/faro.vsix) and installs it with `code --install-extension --force`.
+
+## Upsert Agent Instructions
+
+Upsert the Faro instruction artifacts for Claude Code, GitHub Copilot, VS Code Copilot custom agents, and Codex:
+
+```sh
+make upsert-agent-instructions
+```
+
+That command uses [AGENTS.md](./AGENTS.md) and [skills/faro-author-paths/SKILL.md](./skills/faro-author-paths/SKILL.md) as the source of truth and upserts:
+
+- `CLAUDE.md`
+- `.github/copilot-instructions.md`
+- `.github/agents/faro-path-author.agent.md`
+- `${CODEX_HOME:-$HOME/.codex}/skills/faro-author-paths/SKILL.md`
+
+If you only want the VS Code Copilot custom agent file:
+
+```sh
+make upsert-copilot-agent
+```
+
+That writes `.github/agents/faro-path-author.agent.md`.
+
+## Use The Faro Copilot Agent In VS Code
+
+After running `make upsert-copilot-agent` or `make upsert-agent-instructions`:
+
+1. Open the repository in VS Code.
+2. Open the Chat view.
+3. Choose the `Faro Path Author` custom agent from the agent picker.
+4. Ensure the local `Faro` MCP server is enabled for the workspace.
+
+If the agent picker does not show the new custom agent immediately, run `Developer: Reload Window` once.
+
+The custom agent definition is generated from the same [AGENTS.md](./AGENTS.md) and [skills/faro-author-paths/SKILL.md](./skills/faro-author-paths/SKILL.md) sources that drive the other instruction artifacts, so the Copilot agent stays aligned with the Faro authoring rules.
+
 ## Test The Extension In VS Code
 
 The extension can be tried locally in an Extension Development Host on macOS or Linux.
