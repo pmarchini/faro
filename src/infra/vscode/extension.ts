@@ -9,6 +9,7 @@ import {
   type ExtensionRuntime,
 } from "./create-extension-runtime.ts";
 import type { VscodeLike } from "./vscode-api.ts";
+import { createSeedDocument } from "./runtime/create-seed-document.ts";
 import { createVscodeEditorNavigator } from "./vscode-editor-navigator.ts";
 
 type Disposable = {
@@ -51,6 +52,9 @@ async function activate(
 
   runtime = runtimeFactory({
     workspaceState: context?.workspaceState,
+    initialDocument: createSeedDocument({
+      workspaceRootUri: vscodeApi.workspace.workspaceFolders?.[0]?.uri.toString(),
+    }),
     revealBeacon: editorNavigator.revealBeacon,
   });
 
@@ -58,6 +62,10 @@ async function activate(
     runtime,
     host,
   });
+
+  if (shouldAutoFocusOnStartup(vscodeApi)) {
+    await host.focusFaroView();
+  }
 
   orchestration = {
     dispose() {
@@ -81,5 +89,9 @@ function deactivate(): void {
 }
 
 const loadVscodeApiDefault: LoadVscodeApi = () => import("vscode") as unknown as Promise<VscodeLike>;
+
+function shouldAutoFocusOnStartup(vscodeApi: VscodeLike): boolean {
+  return vscodeApi.workspace.getConfiguration("faro").get("autoFocusOnStartup", false);
+}
 
 export { activate, deactivate };

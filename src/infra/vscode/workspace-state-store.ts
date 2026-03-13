@@ -18,8 +18,16 @@ export function createWorkspaceStateStore({
   initialDocument,
   storageKey = "faro.document",
 }: Options): InMemoryStore {
-  const hydratedDocument = readStoredDocument(memento, storageKey, initialDocument);
+  const { document: hydratedDocument, didMigrate } = readStoredDocument(
+    memento,
+    storageKey,
+    initialDocument,
+  );
   const store = createInMemoryStore(hydratedDocument);
+
+  if (didMigrate) {
+    void memento.update(storageKey, hydratedDocument);
+  }
 
   store.subscribe((document) => {
     void memento.update(storageKey, document);
@@ -32,17 +40,62 @@ function readStoredDocument(
   memento: MementoLike,
   storageKey: string,
   fallbackDocument: FaroDocument,
-): FaroDocument {
+): { document: FaroDocument; didMigrate: boolean } {
   const storedDocument = memento.get(storageKey);
 
   if (!storedDocument) {
-    return fallbackDocument;
+    return {
+      document: fallbackDocument,
+      didMigrate: false,
+    };
   }
 
   try {
     assertValidDocument(storedDocument as FaroDocument);
-    return storedDocument as FaroDocument;
+    const migratedDocument = migratePlaceholderWorkspaceUris(
+      storedDocument as FaroDocument,
+      fallbackDocument,
+    );
+
+    return {
+      document: migratedDocument,
+      didMigrate: JSON.stringify(migratedDocument) !== JSON.stringify(storedDocument),
+    };
   } catch {
-    return fallbackDocument;
+    return {
+      document: fallbackDocument,
+      didMigrate: false,
+    };
   }
+}
+
+function migratePlaceholderWorkspaceUris(
+  storedDocument: FaroDocument,
+  fallbackDocument: FaroDocument,
+): FaroDocument {
+  const nextDocument = structuredClone(storedDocument);
+
+  for (const path of nextDocument.paths) {
+    const fallbackPath = fallbackDocument.paths.find((entry) => entry.id === path.id);
+
+    if (!fallbackPath) {
+      continue;
+    }
+
+    for (const [beaconId, beacon] of Object.entries(path.beacons)) {
+      if (!beacon.fileUri.startsWith("file:///workspace/")) {
+        continue;
+      }
+
+      const fallbackBeacon = fallbackPath.beacons[beaconId];
+
+      if (!fallbackBeacon) {
+        continue;
+      }
+
+      beacon.fileUri = fallbackBeacon.fileUri;
+    }
+  }
+
+  return nextDocument;
 }

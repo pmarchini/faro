@@ -71,10 +71,11 @@ test("tree items preserve labels and commands", () => {
   assert.deepEqual(provider.getTreeItem(path), {
     label: "Auth Flow",
     description: "Trace authentication",
-    collapsibleState: "expanded",
+    collapsibleState: 2,
     contextValue: "path",
     command: {
-      id: "faro.setActivePath",
+      command: "faro.setActivePath",
+      title: "Faro: Set Active Path",
       arguments: ["auth-flow"],
     },
   });
@@ -82,10 +83,11 @@ test("tree items preserve labels and commands", () => {
   assert.deepEqual(provider.getTreeItem(beacon), {
     label: "Beacon b1",
     description: "Summary for b1",
-    collapsibleState: "none",
+    collapsibleState: 0,
     contextValue: "current-beacon",
     command: {
-      id: "faro.setCurrentBeacon",
+      command: "faro.setCurrentBeacon",
+      title: "Faro: Set Current Beacon",
       arguments: ["auth-flow", "b1"],
     },
   });

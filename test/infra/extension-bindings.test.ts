@@ -80,6 +80,7 @@ function createHostStub() {
   const outlineProviders: Array<{ id: string; provider: OutlineProviderLike }> = [];
   const navigatorProviders: Array<{ id: string; provider: NavigatorProviderLike }> = [];
   const disposals: string[] = [];
+  let focusCalls = 0;
 
   const host: ExtensionHost = {
     registerCommand(id, handler) {
@@ -94,6 +95,9 @@ function createHostStub() {
       navigatorProviders.push({ id, provider });
       return createDisposable(`navigator:${id}`);
     },
+    async focusFaroView() {
+      focusCalls += 1;
+    },
   };
 
   return {
@@ -102,6 +106,9 @@ function createHostStub() {
     outlineProviders,
     navigatorProviders,
     disposals,
+    get focusCalls() {
+      return focusCalls;
+    },
   };
 
   function createDisposable(label: string): Disposable {
@@ -137,6 +144,7 @@ test("bindings register runtime commands and delegate handlers", async () => {
   await hostState.commands.get("faro.revealCurrentBeacon")?.();
   await hostState.commands.get("faro.setActivePath")?.("billing-flow");
   await hostState.commands.get("faro.setCurrentBeacon")?.("billing-flow", "b10");
+  await hostState.commands.get("faro.focusSidebar")?.();
 
   assert.deepEqual(runtimeState.calls, [
     "next",
@@ -145,6 +153,7 @@ test("bindings register runtime commands and delegate handlers", async () => {
     "setActivePath:billing-flow",
     "setCurrentBeacon:billing-flow:b10",
   ]);
+  assert.equal(hostState.focusCalls, 1);
 
   binding.dispose();
 });

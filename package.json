@@ -15,8 +15,10 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onView:faro.outline",
     "onView:faro.navigator",
+    "onCommand:faro.focusSidebar",
     "onCommand:faro.nextBeacon",
     "onCommand:faro.previousBeacon",
     "onCommand:faro.revealCurrentBeacon",
@@ -46,7 +48,21 @@
         }
       ]
     },
+    "configuration": {
+      "title": "Faro",
+      "properties": {
+        "faro.autoFocusOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Focus the Faro view container automatically when the extension activates."
+        }
+      }
+    },
     "commands": [
+      {
+        "command": "faro.focusSidebar",
+        "title": "Faro: Focus Sidebar"
+      },
       {
         "command": "faro.nextBeacon",
         "title": "Faro: Next Beacon"

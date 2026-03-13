@@ -41,6 +41,7 @@ test("package manifest contributes the full faro UI and command surface", () => 
   assert.deepEqual(
     manifest.contributes?.commands?.map((command) => command.command),
     [
+      "faro.focusSidebar",
       "faro.nextBeacon",
       "faro.previousBeacon",
       "faro.revealCurrentBeacon",
@@ -51,8 +52,10 @@ test("package manifest contributes the full faro UI and command surface", () => 
   assert.deepEqual(
     manifest.activationEvents,
     [
+      "onStartupFinished",
       "onView:faro.outline",
       "onView:faro.navigator",
+      "onCommand:faro.focusSidebar",
       "onCommand:faro.nextBeacon",
       "onCommand:faro.previousBeacon",
       "onCommand:faro.revealCurrentBeacon",

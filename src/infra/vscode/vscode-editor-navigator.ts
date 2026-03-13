@@ -44,7 +44,11 @@ export function createVscodeEditorNavigator({
 }: {
   vscode: EditorVscodeLike;
 }): VscodeEditorNavigator {
-  const decorationType = vscode.window.createTextEditorDecorationType();
+  const decorationType = vscode.window.createTextEditorDecorationType({
+    isWholeLine: false,
+    borderWidth: "1px",
+    borderStyle: "solid",
+  });
   let activeEditor: TextEditorLike | null = null;
 
   const navigator = createEditorNavigator({

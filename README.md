@@ -2,16 +2,14 @@
 
 Faro is a VS Code extension for turning agent reasoning about a codebase into persistent, navigable code landmarks.
 
-This repository currently contains the first TypeScript foundation for the extension:
+This repository currently contains a working local MVP of the extension:
 
 - a canonical Faro document model
 - validation and path navigation logic
 - an in-memory store
 - pure app-layer projections for outline and navigator views
-- thin VS Code-facing adapter modules
+- real VS Code host bindings for outline, navigator, commands, and editor reveal
 - `node:test` coverage and a real TypeScript check
-
-It is not yet a fully usable sidebar extension. The extension entrypoint exists, but the `Outline` TreeView, `Navigator` WebviewView, and editor reveal/highlight loop are the next implementation steps.
 
 ## Prerequisites
 
@@ -41,6 +39,13 @@ Run the test suite:
 npm test
 ```
 
+Or run both with `make` targets:
+
+```sh
+make check
+make test
+```
+
 Watch mode for tests:
 
 ```sh
@@ -57,25 +62,43 @@ code .
 
 ## Test The Extension In VS Code
 
-The extension manifest and activation entrypoint are already in place, so you can load it in an Extension Development Host.
+The extension can be tried locally in an Extension Development Host on macOS or Linux.
 
-1. Open this repository in VS Code.
-2. Open the Run and Debug view.
-3. Create a `launch.json` if VS Code does not offer one automatically.
-4. Use the `Extension` debug target.
-5. Start debugging to open an Extension Development Host window.
+```sh
+make dev-host
+```
+
+That target will:
+
+1. open [faro-dev.code-workspace](/Users/pietro.marchini/Projects/OSS/faro/faro-dev.code-workspace) in a new Extension Development Host window
+2. load the extension from this repository with `--extensionDevelopmentPath`
+3. enable `faro.autoFocusOnStartup` through the dev workspace settings
+4. let the extension focus the `Faro` activity bar container on startup
 
 Current expectation:
 
-- the extension should load without TypeScript or runtime errors
-- the `Faro` activity contribution and extension entrypoint are present in the manifest
-- the runtime is still a minimal shell, so the sidebar UI and end-to-end navigation flow are not fully wired yet
+- the `Faro` activity bar container is visible
+- `Outline` shows the seeded sample path
+- `Navigator` shows the current beacon
+- `Prev` / `Next` updates the current beacon in the sidebar
+- `Reveal` is wired, but the seeded sample currently points to placeholder `file:///workspace/...` URIs, so reveal is not yet meaningful against the local repo
+
+If you want to launch the host manually instead of using the workspace shortcut:
+
+```sh
+code --new-window --extensionDevelopmentPath="$(pwd)" "$(pwd)"
+```
+
+Then either:
+
+- run `Faro: Focus Sidebar` manually from the Command Palette
+- or open [faro-dev.code-workspace](/Users/pietro.marchini/Projects/OSS/faro/faro-dev.code-workspace), which enables startup autofocusing
 
 If you want the extension host run to stay aligned with repo quality gates, run these before launching:
 
 ```sh
-npm run check
-npm test
+make check
+make test
 ```
 
 ## Repository Structure
@@ -102,21 +125,23 @@ Implemented:
 - `npm run check`
 - `node:test` suite
 - typed core/app/infra boundaries
+- real extension composition root
+- outline tree provider registration
+- navigator webview registration
+- editor reveal/highlight wiring
+- local command surface for navigating and focusing Faro
 
 Not implemented yet:
 
-- real extension composition root
-- outline tree provider
-- navigator webview
-- editor reveal/highlight
 - MCP server integration
+- agent-driven path creation through MCP
+- real workspace-backed sample paths for meaningful local reveal flows
 
 ## Next Steps
 
 The immediate implementation path is:
 
-1. Wire a real extension composition root around one canonical store instance.
-2. Implement the `Outline` TreeView from the existing app projection.
-3. Implement the `Navigator` WebviewView from the existing app projection.
-4. Add editor reveal/highlight for the active beacon.
-5. Add extension-host integration tests, then layer in MCP.
+1. Bootstrap the minimal Faro MCP contract over the canonical store.
+2. Let an agent create and replace paths end to end.
+3. Replace the seeded placeholder URIs with real workspace-resolved sample data for local reveal testing.
+4. Add import/export and stale-range handling polish.

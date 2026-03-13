@@ -24,7 +24,7 @@ function createWorkspaceState() {
   };
 }
 
-function createHost() {
+function createHost({ autoFocusOnStartup = false }: { autoFocusOnStartup?: boolean } = {}) {
   const operations: unknown[] = [];
   const commands = new Map<string, (...args: unknown[]) => unknown>();
   const views = new Map<string, unknown>();
@@ -47,6 +47,9 @@ function createHost() {
               commands.delete(id);
             },
           };
+        },
+        async executeCommand(id: string) {
+          operations.push(["execute-command", id]);
         },
       },
       window: {
@@ -86,6 +89,15 @@ function createHost() {
         },
       },
       workspace: {
+        workspaceFolders: [
+          {
+            uri: {
+              toString() {
+                return "file:///Users/pietro.marchini/Projects/OSS/faro";
+              },
+            },
+          },
+        ],
         fs: {
           async stat(uri: { value: string }) {
             operations.push(["file-exists", uri.value]);
@@ -95,6 +107,18 @@ function createHost() {
         async openTextDocument(uri: { value: string }) {
           operations.push(["open-document", uri.value]);
           return { uri };
+        },
+        getConfiguration(section: string) {
+          assert.equal(section, "faro");
+          return {
+            get<T>(key: string, defaultValue: T): T {
+              if (key === "autoFocusOnStartup") {
+                return autoFocusOnStartup as T;
+              }
+
+              return defaultValue;
+            },
+          };
         },
       },
       Uri: {
@@ -145,7 +169,9 @@ function createHost() {
 test("activate registers the full faro UI surface through the injected host", async () => {
   const subscriptions: Disposable[] = [];
   const workspaceState = createWorkspaceState();
-  const { host, commands, views } = createHost();
+  const { host, commands, views, operations } = createHost({
+    autoFocusOnStartup: true,
+  });
 
   const runtime = await activate(
     { subscriptions, workspaceState },
@@ -172,7 +198,8 @@ test("activate registers the full faro UI surface through the injected host", as
 
   assert.equal(runtime.status, "ready");
   assert.equal(subscriptions.length, 2);
-  assert.deepEqual([...commands.keys()], [
+  assert.deepEqual([...commands.keys()].sort(), [
+    "faro.focusSidebar",
     "faro.nextBeacon",
     "faro.previousBeacon",
     "faro.revealCurrentBeacon",
@@ -180,6 +207,40 @@ test("activate registers the full faro UI surface through the injected host", as
     "faro.setCurrentBeacon",
   ]);
   assert.deepEqual([...views.keys()], ["faro.outline", "faro.navigator"]);
+  assert.match(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
+
+  deactivate();
+});
+
+test("activate does not focus the faro sidebar when startup autofocusing is disabled", async () => {
+  const subscriptions: Disposable[] = [];
+  const workspaceState = createWorkspaceState();
+  const { host, operations } = createHost();
+
+  await activate(
+    { subscriptions, workspaceState },
+    {
+      runtimeFactory: (): ExtensionRuntime => ({
+        status: "ready",
+        store: createInMemoryStore(fixtures.createDocument()),
+        commands: {
+          nextBeacon: async () => ({ status: "idle" }),
+          previousBeacon: async () => ({ status: "idle" }),
+          setActivePath: async () => ({ status: "idle" }),
+          setCurrentBeacon: async () => ({ status: "idle" }),
+          revealCurrentBeacon: async () => ({ status: "idle" }),
+        },
+        subscribeToRefresh() {
+          return () => {};
+        },
+        refresh() {},
+        dispose() {},
+      }),
+      loadVscodeApi: async () => host as never,
+    },
+  );
+
+  assert.doesNotMatch(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
 
   deactivate();
 });
@@ -226,11 +287,22 @@ test("activate passes workspace state and editor-backed reveal to the runtime fa
 
   const runtimeOptions = receivedOptions as {
     workspaceState: unknown;
+    initialDocument?: {
+      paths: Array<{
+        beacons: {
+          b1: { fileUri: string };
+        };
+      }>;
+    };
     revealBeacon?(beacon: ReturnType<typeof fixtures.createBeacon>): Promise<unknown>;
   };
 
   assert.equal(runtimeOptions.workspaceState, workspaceState);
   assert.equal(typeof runtimeOptions.revealBeacon, "function");
+  assert.equal(
+    runtimeOptions.initialDocument?.paths[0]?.beacons.b1.fileUri,
+    "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/extension.ts",
+  );
 
   await commands.get("faro.revealCurrentBeacon")?.();
   deactivate();

@@ -1,6 +1,19 @@
 import type { FaroDocument } from "../../../core/model/document.ts";
 
-export function createSeedDocument(): FaroDocument {
+export function createSeedDocument({
+  workspaceRootUri,
+}: {
+  workspaceRootUri?: string;
+} = {}): FaroDocument {
+  const extensionFileUri = resolveWorkspaceFileUri(
+    workspaceRootUri,
+    "src/infra/vscode/extension.ts",
+  );
+  const controllerFileUri = resolveWorkspaceFileUri(
+    workspaceRootUri,
+    "src/infra/vscode/command-controller.ts",
+  );
+
   return {
     schemaVersion: 1,
     activePathId: "sample-flow",
@@ -20,7 +33,7 @@ export function createSeedDocument(): FaroDocument {
           b1: {
             id: "b1",
             title: "Runtime entrypoint",
-            fileUri: "file:///workspace/src/infra/vscode/extension.ts",
+            fileUri: extensionFileUri,
             range: {
               startLine: 1,
               startColumn: 1,
@@ -35,7 +48,7 @@ export function createSeedDocument(): FaroDocument {
           b2: {
             id: "b2",
             title: "Command controller",
-            fileUri: "file:///workspace/src/infra/vscode/command-controller.ts",
+            fileUri: controllerFileUri,
             range: {
               startLine: 1,
               startColumn: 1,
@@ -51,4 +64,16 @@ export function createSeedDocument(): FaroDocument {
       },
     ],
   };
+}
+
+function resolveWorkspaceFileUri(workspaceRootUri: string | undefined, relativePath: string): string {
+  if (!workspaceRootUri) {
+    return `file:///workspace/${relativePath}`;
+  }
+
+  const baseUri = workspaceRootUri.endsWith("/")
+    ? workspaceRootUri
+    : `${workspaceRootUri}/`;
+
+  return new URL(relativePath, baseUri).toString();
 }

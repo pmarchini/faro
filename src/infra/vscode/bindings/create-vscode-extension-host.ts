@@ -29,6 +29,9 @@ export function createVscodeExtensionHost({
         },
       });
     },
+    async focusFaroView() {
+      await vscode.commands.executeCommand("workbench.view.extension.faro");
+    },
   };
 }
 

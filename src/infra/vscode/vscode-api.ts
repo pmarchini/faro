@@ -17,6 +17,7 @@ export type VscodeWebviewView = {
 export type VscodeLike = {
   commands: {
     registerCommand(id: string, handler: (...args: unknown[]) => unknown): Disposable;
+    executeCommand(id: string, ...args: unknown[]): unknown;
   };
   window: {
     registerTreeDataProvider(id: string, provider: unknown): Disposable;
@@ -30,10 +31,18 @@ export type VscodeLike = {
     } | null>;
   };
   workspace: {
+    workspaceFolders?: Array<{
+      uri: {
+        toString(): string;
+      };
+    }>;
     fs: {
       stat(uri: unknown): Promise<unknown>;
     };
     openTextDocument(uri: unknown): Promise<unknown>;
+    getConfiguration(section: string): {
+      get<T>(key: string, defaultValue: T): T;
+    };
   };
   Uri: {
     parse(value: string): unknown;

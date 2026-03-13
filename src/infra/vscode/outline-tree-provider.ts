@@ -3,12 +3,18 @@ import type { InMemoryStore } from "../../core/services/in-memory-store.ts";
 
 export type OutlineTreeElement = PathItem | BeaconItem;
 
+type OutlineCommand = {
+  command: string;
+  title: string;
+  arguments: unknown[];
+};
+
 export type OutlineTreeItem = {
   label: string;
   description: string;
-  collapsibleState: "expanded" | "collapsed" | "none";
+  collapsibleState: 0 | 1 | 2;
   contextValue: "path" | "beacon" | "current-beacon";
-  command?: PathItem["command"] | BeaconItem["command"];
+  command?: OutlineCommand;
 };
 
 type ChangeListener = () => void;
@@ -51,18 +57,18 @@ export function createOutlineTreeProvider({ store }: { store: OutlineStore }) {
       return {
         label: element.title,
         description: element.description,
-        collapsibleState: element.collapsibleState,
+        collapsibleState: toCollapsibleState(element.collapsibleState),
         contextValue: "path",
-        command: element.command,
+        command: toOutlineCommand(element.command, "Faro: Set Active Path"),
       };
     }
 
     return {
       label: element.title,
       description: element.description,
-      collapsibleState: "none",
+      collapsibleState: 0,
       contextValue: element.isCurrent ? "current-beacon" : "beacon",
-      command: element.command,
+      command: toOutlineCommand(element.command, "Faro: Set Current Beacon"),
     };
   }
 
@@ -81,4 +87,19 @@ export function createOutlineTreeProvider({ store }: { store: OutlineStore }) {
       listener();
     }
   }
+}
+
+function toCollapsibleState(value: PathItem["collapsibleState"]): 1 | 2 {
+  return value === "expanded" ? 2 : 1;
+}
+
+function toOutlineCommand(
+  command: PathItem["command"] | BeaconItem["command"],
+  title: string,
+): OutlineCommand {
+  return {
+    command: command.id,
+    title,
+    arguments: command.arguments,
+  };
 }

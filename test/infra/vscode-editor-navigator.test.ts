@@ -23,6 +23,7 @@ function createVscodeHost() {
             dispose() {},
           };
         },
+        executeCommand() {},
       },
       Uri: {
         parse(value: string) {
@@ -76,6 +77,13 @@ function createVscodeHost() {
           operations.push(["open-document", uri.value]);
           return { uri };
         },
+        getConfiguration() {
+          return {
+            get<T>(_key: string, defaultValue: T): T {
+              return defaultValue;
+            },
+          };
+        },
       },
       window: {
         registerTreeDataProvider() {
@@ -94,8 +102,8 @@ function createVscodeHost() {
           editors.set(document.uri.value, editor);
           return editor;
         },
-        createTextEditorDecorationType() {
-          operations.push(["create-decoration"]);
+        createTextEditorDecorationType(options?: unknown) {
+          operations.push(["create-decoration", options]);
           return decorationType;
         },
       },
@@ -153,7 +161,14 @@ test("reveals and highlights a beacon through the vscode host", async () => {
 
   assert.deepEqual(result, { status: "revealed", beaconId: "b1" });
   assert.deepEqual(normalize(operations), [
-    ["create-decoration"],
+    [
+      "create-decoration",
+      {
+        isWholeLine: false,
+        borderWidth: "1px",
+        borderStyle: "solid",
+      },
+    ],
     ["file-exists", "file:///workspace/auth.ts"],
     ["open-document", "file:///workspace/auth.ts"],
     ["show-editor", "file:///workspace/auth.ts"],

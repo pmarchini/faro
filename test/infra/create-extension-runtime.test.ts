@@ -141,10 +141,11 @@ test("runtime command and outline command payload drive one behavior loop", asyn
 
   const command = outline.getTreeItem(secondBeacon).command;
   assert.deepEqual(command, {
-    id: "faro.setCurrentBeacon",
+    command: "faro.setCurrentBeacon",
+    title: "Faro: Set Current Beacon",
     arguments: ["sample-flow", "b2"],
   });
-  if (!command || command.id !== "faro.setCurrentBeacon") {
+  if (!command || command.command !== "faro.setCurrentBeacon") {
     assert.fail("expected setCurrentBeacon command");
   }
 

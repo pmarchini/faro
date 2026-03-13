@@ -21,6 +21,7 @@ function createFakeWebview() {
 
 function createFakeVscodeApi() {
   const commandRegistrations: string[] = [];
+  const executedCommands: string[] = [];
   const outlineRegistrations: string[] = [];
   const navigatorRegistrations: Array<{
     id: string;
@@ -36,6 +37,9 @@ function createFakeVscodeApi() {
         registerCommand(id: string) {
           commandRegistrations.push(id);
           return createDisposable(`command:${id}`);
+        },
+        async executeCommand(id: string) {
+          executedCommands.push(id);
         },
       },
       window: {
@@ -53,8 +57,37 @@ function createFakeVscodeApi() {
           return createDisposable(`navigator:${id}`);
         },
       },
+      workspace: {
+        fs: {
+          async stat() {
+            return {};
+          },
+        },
+        async openTextDocument() {
+          return {};
+        },
+        getConfiguration() {
+          return {
+            get<T>(_key: string, defaultValue: T): T {
+              return defaultValue;
+            },
+          };
+        },
+      },
+      Uri: {
+        parse(value: string) {
+          return { value };
+        },
+      },
+      Position: class Position {},
+      Range: class Range {},
+      Selection: class Selection {},
+      TextEditorRevealType: {
+        InCenterIfOutsideViewport: "center",
+      },
     },
     commandRegistrations,
+    executedCommands,
     outlineRegistrations,
     navigatorRegistrations,
     disposals,
@@ -113,6 +146,9 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
 
   assert.equal(navigatorResolved, 1);
   assert.equal((webview.options as Record<string, unknown> | undefined)?.enableScripts, true);
+
+  await host.focusFaroView();
+  assert.deepEqual(vscode.executedCommands, ["workbench.view.extension.faro"]);
 
   navigator.dispose();
   outline.dispose();

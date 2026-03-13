@@ -8,6 +8,7 @@ import {
 import type { RevealResult } from "./reveal-result.ts";
 import { createSeedDocument } from "./runtime/create-seed-document.ts";
 import { createWorkspaceStateStore } from "./workspace-state-store.ts";
+import type { FaroDocument } from "../../core/model/document.ts";
 
 type Disposable = {
   dispose(): void;
@@ -29,19 +30,21 @@ export type ExtensionRuntime = Disposable & {
 export type CreateExtensionRuntimeOptions = {
   workspaceState?: MementoLike;
   revealBeacon?(beacon: Beacon): Promise<RevealResult>;
+  initialDocument?: FaroDocument;
 };
 
 export function createExtensionRuntime({
   workspaceState,
   revealBeacon = async () => ({ status: "revealed" }),
+  initialDocument = createSeedDocument(),
 }: CreateExtensionRuntimeOptions = {}): ExtensionRuntime {
   const listeners = new Set<() => void>();
   const store = workspaceState
     ? createWorkspaceStateStore({
         memento: workspaceState,
-        initialDocument: createSeedDocument(),
+        initialDocument,
       })
-    : createInMemoryStore(createSeedDocument());
+    : createInMemoryStore(initialDocument);
   const controller = createCommandController({ store, revealBeacon });
   const commands = createRuntimeCommands({
     controller,

@@ -23,6 +23,7 @@ export type ExtensionHost = {
   registerCommand(id: string, handler: CommandHandler): Disposable;
   registerOutlineProvider(id: string, provider: OutlineProviderLike): Disposable;
   registerNavigatorProvider(id: string, provider: NavigatorProviderLike): Disposable;
+  focusFaroView(): void | Promise<void>;
 };
 
 type Dependencies = {
@@ -55,6 +56,7 @@ export function createExtensionBindings({
 
   const registrations: Disposable[] = [
     commandRegistration,
+    host.registerCommand("faro.focusSidebar", () => host.focusFaroView()),
     host.registerOutlineProvider("faro.outline", outlineProvider),
     host.registerNavigatorProvider("faro.navigator", navigatorProvider),
   ];
