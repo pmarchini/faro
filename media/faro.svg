@@ -6,37 +6,38 @@
   xmlns="http://www.w3.org/2000/svg"
 >
   <rect
-    x="20"
-    y="20"
-    width="216"
-    height="216"
-    rx="52"
+    x="10"
+    y="10"
+    width="236"
+    height="236"
+    rx="58"
     stroke="#3C5A74"
     stroke-width="6"
   />
+  <g transform="translate(128 128) scale(1.3) translate(-128 -128)">
+    <path
+      d="M86 92L128 70L170 92L170 140L128 162L86 140Z"
+      stroke="#67D2FF"
+      stroke-width="7"
+      stroke-linejoin="round"
+    />
+    <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" />
 
-  <path
-    d="M86 92L128 70L170 92L170 140L128 162L86 140Z"
-    stroke="#67D2FF"
-    stroke-width="7"
-    stroke-linejoin="round"
-  />
-  <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" />
+    <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+    <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+    <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+    <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+    <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+    <circle cx="170" cy="140" r="7" fill="#67D2FF" />
 
-  <circle cx="86" cy="92" r="7" fill="#67D2FF" />
-  <circle cx="128" cy="70" r="7" fill="#67D2FF" />
-  <circle cx="170" cy="92" r="7" fill="#67D2FF" />
-  <circle cx="86" cy="140" r="7" fill="#67D2FF" />
-  <circle cx="128" cy="118" r="7" fill="#67D2FF" />
-  <circle cx="170" cy="140" r="7" fill="#67D2FF" />
-
-  <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
-  <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
-  <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
-  <path
-    d="M102 186H154"
-    stroke="#F4F7FB"
-    stroke-width="9"
-    stroke-linecap="round"
-  />
+    <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+    <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+    <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+    <path
+      d="M102 186H154"
+      stroke="#F4F7FB"
+      stroke-width="9"
+      stroke-linecap="round"
+    />
+  </g>
 </svg>
