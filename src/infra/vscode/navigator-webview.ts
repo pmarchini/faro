@@ -366,6 +366,11 @@ function renderLayout({
         <main>${content}</main>
         <script>
           const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
+          const currentBeacon = document.querySelector('.beacon-button[data-current="true"]');
+          if (currentBeacon instanceof HTMLElement) {
+            currentBeacon.scrollIntoView({ block: "center", inline: "nearest" });
+          }
+
           document.addEventListener("click", (event) => {
             const target = event.target;
             if (!(target instanceof HTMLElement)) {

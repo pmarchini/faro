@@ -18,10 +18,12 @@ type WebviewMessage =
 class FakeElement {
   dataset: Record<string, string>;
   parentElement: FakeElement | null;
+  scrollCalls: Array<Record<string, string>>;
 
   constructor(dataset: Record<string, string> = {}, parentElement: FakeElement | null = null) {
     this.dataset = dataset;
     this.parentElement = parentElement;
+    this.scrollCalls = [];
   }
 
   closest(selector: string): FakeElement | null {
@@ -36,6 +38,10 @@ class FakeElement {
     }
 
     return null;
+  }
+
+  scrollIntoView(options: Record<string, string>) {
+    this.scrollCalls.push(options);
   }
 }
 
@@ -96,7 +102,15 @@ function createFakeWebview() {
   };
 }
 
-function dispatchClickFromHtml(html: string, target: FakeElement): WebviewMessage[] {
+function runNavigatorScript({
+  html,
+  clickTarget,
+  currentElement,
+}: {
+  html: string;
+  clickTarget?: FakeElement;
+  currentElement?: FakeElement | null;
+}): { messages: WebviewMessage[] } {
   const messages: WebviewMessage[] = [];
   const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
 
@@ -118,19 +132,28 @@ function dispatchClickFromHtml(html: string, target: FakeElement): WebviewMessag
           clickListener = listener;
         }
       },
+      querySelector(selector: string) {
+        if (selector === '.beacon-button[data-current="true"]') {
+          return currentElement ?? null;
+        }
+
+        return null;
+      }
     },
     HTMLElement: FakeElement,
   };
 
   vm.runInNewContext(scriptMatch[1], context);
-  assert.ok(clickListener, "expected navigator html to register a click listener");
-  if (!clickListener) {
-    throw new Error("expected navigator html to register a click listener");
+  if (clickTarget) {
+    assert.ok(clickListener, "expected navigator html to register a click listener");
+    if (!clickListener) {
+      throw new Error("expected navigator html to register a click listener");
+    }
+    const listener = clickListener as (event: { target: FakeElement }) => void;
+    listener({ target: clickTarget });
   }
-  const listener = clickListener as (event: { target: FakeElement }) => void;
-  listener({ target });
 
-  return messages;
+  return { messages };
 }
 
 test("renderNavigatorHtml renders the empty state", () => {
@@ -275,7 +298,7 @@ test("renderNavigatorHtml delegates nested clicks inside a beacon card", () => {
   });
   const nestedTitle = new FakeElement({}, beaconButton);
 
-  const messages = dispatchClickFromHtml(html, nestedTitle);
+  const { messages } = runNavigatorScript({ html, clickTarget: nestedTitle });
 
   assert.equal(messages.length, 1);
   assert.deepEqual(JSON.parse(JSON.stringify(messages[0])), {
@@ -283,6 +306,23 @@ test("renderNavigatorHtml delegates nested clicks inside a beacon card", () => {
     pathId: "auth-flow",
     beaconId: "b2",
   });
+});
+
+test("renderNavigatorHtml scrolls the current beacon card into view", () => {
+  const html = renderNavigatorHtml(createReadyViewModel());
+  const currentBeacon = new FakeElement({ current: "true" });
+
+  runNavigatorScript({
+    html,
+    currentElement: currentBeacon,
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(currentBeacon.scrollCalls)), [
+    {
+      block: "center",
+      inline: "nearest",
+    },
+  ]);
 });
 
 test("renderNavigatorHtml escapes hostile content", () => {
