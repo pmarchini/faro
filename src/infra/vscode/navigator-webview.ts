@@ -1,6 +1,7 @@
 import type { NavigatorViewModel } from "../../app/views/navigator-view-model.ts";
 
 type NavigatorMessage =
+  | { type: "navigator.primaryAction" }
   | { type: "navigator.previous" }
   | { type: "navigator.next" }
   | { type: "navigator.reveal" }
@@ -21,6 +22,7 @@ type WebviewLike = {
 type NavigatorWebviewDependencies = {
   webview: WebviewLike;
   getViewModel(): NavigatorViewModel;
+  onPrimaryAction(): Promise<void>;
   onPrevious(): Promise<void>;
   onNext(): Promise<void>;
   onReveal(): Promise<void>;
@@ -34,12 +36,19 @@ type NavigatorWebviewAdapter = Disposable & {
 export function createNavigatorWebviewAdapter({
   webview,
   getViewModel,
+  onPrimaryAction,
   onPrevious,
   onNext,
   onReveal,
   onSelectBeacon,
 }: NavigatorWebviewDependencies): NavigatorWebviewAdapter {
   const subscription = webview.onDidReceiveMessage(async (message) => {
+    if (message.type === "navigator.primaryAction") {
+      await onPrimaryAction();
+      render();
+      return;
+    }
+
     if (message.type === "navigator.previous") {
       await onPrevious();
       render();
@@ -58,9 +67,7 @@ export function createNavigatorWebviewAdapter({
       return;
     }
 
-    if (
-      isSelectBeaconMessage(message)
-    ) {
+    if (isSelectBeaconMessage(message)) {
       await onSelectBeacon(message.pathId, message.beaconId);
       render();
     }
@@ -79,6 +86,12 @@ export function createNavigatorWebviewAdapter({
 }
 
 export function renderNavigatorHtml(viewModel: NavigatorViewModel): string {
+  if (viewModel.state === "welcome") {
+    return renderLayout({
+      content: renderWelcomeState(viewModel),
+    });
+  }
+
   if (viewModel.state === "empty") {
     return renderLayout({
       content: `
@@ -91,26 +104,18 @@ export function renderNavigatorHtml(viewModel: NavigatorViewModel): string {
         </section>
         ${renderActions({ canGoPrevious: false, canGoNext: false })}
       `,
-      canGoPrevious: false,
-      canGoNext: false,
     });
   }
 
   return renderLayout({
     content: renderReadyState(viewModel),
-    canGoPrevious: viewModel.canGoPrevious,
-    canGoNext: viewModel.canGoNext,
   });
 }
 
 function renderLayout({
   content,
-  canGoPrevious,
-  canGoNext,
 }: {
   content: string;
-  canGoPrevious: boolean;
-  canGoNext: boolean;
 }): string {
   return `
     <!doctype html>
@@ -189,6 +194,47 @@ function renderLayout({
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--surface-raised);
+          }
+
+          .welcome-shell {
+            flex: 1 1 auto;
+            display: grid;
+            place-items: center;
+            min-height: 0;
+          }
+
+          .welcome-card {
+            width: 100%;
+            display: grid;
+            justify-items: center;
+            gap: 1rem;
+            padding: 1.4rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+            text-align: center;
+          }
+
+          .welcome-mark {
+            width: 7rem;
+            height: 7rem;
+          }
+
+          .welcome-copy {
+            display: grid;
+            gap: 0.55rem;
+            justify-items: center;
+          }
+
+          .welcome-copy .page-title {
+            font-size: 1.6rem;
+          }
+
+          .welcome-action {
+            width: 100%;
+            min-height: 2.75rem;
+            border-radius: 12px;
+            font-weight: 700;
           }
 
           .path-meta {
@@ -485,6 +531,40 @@ function renderReadyState(viewModel: Extract<NavigatorViewModel, { state: "ready
       canGoNext: viewModel.canGoNext,
     })}
     ${renderBeaconList(viewModel)}
+  `;
+}
+
+function renderWelcomeState(
+  viewModel: Extract<NavigatorViewModel, { state: "welcome" }>,
+): string {
+  return `
+    <section class="welcome-shell" aria-label="Faro welcome view">
+      <div class="welcome-card" data-section="welcome">
+        <svg class="welcome-mark" viewBox="0 0 256 256" aria-hidden="true">
+          <rect x="10" y="10" width="236" height="236" rx="58" stroke="#3C5A74" stroke-width="6" fill="none" />
+          <g transform="translate(128 128) scale(1.3) translate(-128 -128)">
+            <path d="M86 92L128 70L170 92L170 140L128 162L86 140Z" stroke="#67D2FF" stroke-width="7" stroke-linejoin="round" fill="none" />
+            <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" fill="none" />
+            <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+            <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+            <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+            <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+            <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+            <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+            <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+            <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+            <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+            <path d="M102 186H154" stroke="#F4F7FB" stroke-width="9" stroke-linecap="round" />
+          </g>
+        </svg>
+        <div class="welcome-copy">
+          <span class="eyebrow">Welcome to Faro</span>
+          <h1 class="page-title">${escapeHtml(viewModel.title)}</h1>
+          <p class="body-copy">${escapeHtml(viewModel.message)}</p>
+        </div>
+        <button class="action-button welcome-action" data-action="primaryAction">${escapeHtml(viewModel.primaryActionLabel)}</button>
+      </div>
+    </section>
   `;
 }
 

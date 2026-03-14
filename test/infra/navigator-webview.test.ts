@@ -9,6 +9,7 @@ import {
 } from "../../src/infra/vscode/navigator-webview.ts";
 
 type WebviewMessage =
+  | { type: "navigator.primaryAction" }
   | { type: "navigator.previous" }
   | { type: "navigator.next" }
   | { type: "navigator.reveal" }
@@ -79,6 +80,20 @@ function createReadyViewModel(
         isCurrent: false,
       },
     ],
+    ...overrides,
+  };
+}
+
+function createWelcomeViewModel(
+  overrides: Partial<Extract<NavigatorViewModel, { state: "welcome" }>> = {},
+): NavigatorViewModel {
+  return {
+    state: "welcome",
+    title: "Welcome to Faro",
+    message: "Turn codebase reasoning into a clear path of beacons you can follow inside VS Code.",
+    primaryActionLabel: "Open Faro",
+    canGoPrevious: false,
+    canGoNext: false,
     ...overrides,
   };
 }
@@ -170,6 +185,15 @@ test("renderNavigatorHtml renders the empty state", () => {
   assert.match(html, /disabled/);
 });
 
+test("renderNavigatorHtml renders the welcome state", () => {
+  const html = renderNavigatorHtml(createWelcomeViewModel());
+
+  assert.match(html, /Welcome to Faro/);
+  assert.match(html, /Open Faro/);
+  assert.match(html, /data-action="primaryAction"/);
+  assert.doesNotMatch(html, /Current Beacon/);
+});
+
 test("renderNavigatorHtml renders the ready state", () => {
   const html = renderNavigatorHtml(createReadyViewModel());
 
@@ -205,6 +229,7 @@ test("adapter renders initial state into the webview", () => {
   const adapter = createNavigatorWebviewAdapter({
     webview,
     getViewModel: () => createReadyViewModel(),
+    onPrimaryAction: async () => {},
     onPrevious: async () => {},
     onNext: async () => {},
     onReveal: async () => {},
@@ -226,6 +251,7 @@ test("adapter routes previous messages through the callback and rerenders", asyn
       renderCount += 1;
       return createReadyViewModel();
     },
+    onPrimaryAction: async () => {},
     onPrevious: async () => {
       calls.push("previous");
     },
@@ -247,6 +273,7 @@ test("adapter routes next and reveal messages through their callbacks", async ()
   const adapter = createNavigatorWebviewAdapter({
     webview,
     getViewModel: () => createReadyViewModel(),
+    onPrimaryAction: async () => {},
     onPrevious: async () => {},
     onNext: async () => {
       calls.push("next");
@@ -274,6 +301,7 @@ test("adapter routes beacon selection through the callback and rerenders", async
       renderCount += 1;
       return createReadyViewModel();
     },
+    onPrimaryAction: async () => {},
     onPrevious: async () => {},
     onNext: async () => {},
     onReveal: async () => {},
@@ -287,6 +315,31 @@ test("adapter routes beacon selection through the callback and rerenders", async
 
   assert.deepEqual(calls, ["auth-flow:b2"]);
   assert.equal(renderCount, 2);
+});
+
+test("adapter routes the welcome primary action through the callback and rerenders", async () => {
+  const webview = createFakeWebview();
+  const calls: string[] = [];
+  let welcomeVisible = true;
+  const adapter = createNavigatorWebviewAdapter({
+    webview,
+    getViewModel: () => (welcomeVisible ? createWelcomeViewModel() : createReadyViewModel()),
+    onPrimaryAction: async () => {
+      calls.push("open");
+      welcomeVisible = false;
+    },
+    onPrevious: async () => {},
+    onNext: async () => {},
+    onReveal: async () => {},
+    onSelectBeacon: async () => {},
+  });
+
+  adapter.render();
+  await webview.emit({ type: "navigator.primaryAction" });
+
+  assert.deepEqual(calls, ["open"]);
+  assert.match(webview.html, /Current Beacon/);
+  assert.doesNotMatch(webview.html, /Open Faro/);
 });
 
 test("renderNavigatorHtml delegates nested clicks inside a beacon card", () => {
@@ -360,6 +413,9 @@ test("adapter ignores unknown messages", async () => {
   const adapter = createNavigatorWebviewAdapter({
     webview,
     getViewModel: () => createReadyViewModel(),
+    onPrimaryAction: async () => {
+      calls.push("primary");
+    },
     onPrevious: async () => {
       calls.push("previous");
     },

@@ -32,10 +32,26 @@ function createWebviewView() {
   };
 }
 
-test("resolved navigator view renders the current beacon", () => {
+function createUiState(welcomeDismissed = false) {
+  let dismissed = welcomeDismissed;
+
+  return {
+    load() {
+      return {
+        welcomeDismissed: dismissed,
+      };
+    },
+    async dismissWelcome() {
+      dismissed = true;
+    },
+  };
+}
+
+test("resolved navigator view renders the welcome state before faro is opened", () => {
   const store = createInMemoryStore(fixtures.createDocument());
   const provider = createNavigatorWebviewViewProvider({
     store,
+    uiState: createUiState(false),
     commands: {
       previousBeacon: async () => ({ status: "idle" as const }),
       nextBeacon: async () => ({ status: "idle" as const }),
@@ -47,17 +63,18 @@ test("resolved navigator view renders the current beacon", () => {
 
   provider.resolveWebviewView(view);
 
-  assert.match(view.webview.html, /Auth Flow/);
-  assert.match(view.webview.html, /Current Beacon/);
-  assert.match(view.webview.html, /Beacon b1/);
-  assert.match(view.webview.html, /1 of 2/);
+  assert.match(view.webview.html, /Welcome to Faro/);
+  assert.match(view.webview.html, /Open Faro/);
+  assert.doesNotMatch(view.webview.html, /Current Beacon/);
 });
 
-test("navigator messages drive runtime commands and rerender the view", async () => {
+test("primary action dismisses welcome and rerenders the current navigator state", async () => {
   const store = createInMemoryStore(fixtures.createDocument());
+  const uiState = createUiState(false);
   const calls: string[] = [];
   const provider = createNavigatorWebviewViewProvider({
     store,
+    uiState,
     commands: {
       previousBeacon: async () => {
         calls.push("previous");
@@ -82,6 +99,7 @@ test("navigator messages drive runtime commands and rerender the view", async ()
   const view = createWebviewView();
 
   provider.resolveWebviewView(view);
+  await view.emit({ type: "navigator.primaryAction" });
   await view.emit({ type: "navigator.next" });
   await view.emit({ type: "navigator.selectBeacon", pathId: "auth-flow", beaconId: "b1" });
   await view.emit({ type: "navigator.reveal" });
@@ -89,12 +107,15 @@ test("navigator messages drive runtime commands and rerender the view", async ()
   assert.deepEqual(calls, ["next", "select:auth-flow:b1", "reveal"]);
   assert.match(view.webview.html, /Beacon b1/);
   assert.match(view.webview.html, /1 of 2/);
+  assert.doesNotMatch(view.webview.html, /Welcome to Faro/);
 });
 
-test("refresh rerenders the resolved navigator from store state", () => {
+test("refresh keeps the welcome dismissed state and rerenders from store state", async () => {
   const store = createInMemoryStore(fixtures.createDocument());
+  const uiState = createUiState(false);
   const provider = createNavigatorWebviewViewProvider({
     store,
+    uiState,
     commands: {
       previousBeacon: async () => ({ status: "idle" as const }),
       nextBeacon: async () => ({ status: "idle" as const }),
@@ -105,9 +126,11 @@ test("refresh rerenders the resolved navigator from store state", () => {
   const view = createWebviewView();
 
   provider.resolveWebviewView(view);
+  await view.emit({ type: "navigator.primaryAction" });
   store.setCurrentBeacon("auth-flow", "b2");
   provider.refresh();
 
   assert.match(view.webview.html, /Beacon b2/);
   assert.match(view.webview.html, /2 of 2/);
+  assert.doesNotMatch(view.webview.html, /Welcome to Faro/);
 });

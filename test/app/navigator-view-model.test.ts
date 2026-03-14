@@ -74,8 +74,46 @@ test("shows empty state without active path", () => {
   });
 });
 
+test("shows the welcome state when requested", () => {
+  const viewModel = buildNavigatorViewModel(createDocument(), {
+    showWelcome: true,
+  });
+
+  assert.deepEqual(viewModel, {
+    state: "welcome",
+    title: "Welcome to Faro",
+    message: "Turn codebase reasoning into a clear path of beacons you can follow inside VS Code.",
+    primaryActionLabel: "Open Faro",
+    canGoPrevious: false,
+    canGoNext: false,
+  });
+});
+
+test("shows empty state after welcome is dismissed and there is no active path", () => {
+  const viewModel = buildNavigatorViewModel(
+    {
+      schemaVersion: 1,
+      activePathId: null,
+      paths: [],
+    },
+    {
+      showWelcome: false,
+    },
+  );
+
+  assert.deepEqual(viewModel, {
+    state: "empty",
+    title: "No active path",
+    message: "Ask an agent to create a Faro path to get started.",
+    canGoPrevious: false,
+    canGoNext: false,
+  });
+});
+
 test("shows current beacon title summary and position", () => {
-  const viewModel = buildNavigatorViewModel(createDocument());
+  const viewModel = buildNavigatorViewModel(createDocument(), {
+    showWelcome: false,
+  });
 
   assert.equal(viewModel.state, "ready");
   if (viewModel.state !== "ready") {
@@ -119,6 +157,9 @@ test("derives the current step number from the active beacon index", () => {
         beaconId: "b2",
       },
     }),
+    {
+      showWelcome: false,
+    },
   );
 
   assert.equal(viewModel.state, "ready");
@@ -132,7 +173,9 @@ test("derives the current step number from the active beacon index", () => {
 });
 
 test("disables prev at start", () => {
-  const viewModel = buildNavigatorViewModel(createDocument());
+  const viewModel = buildNavigatorViewModel(createDocument(), {
+    showWelcome: false,
+  });
 
   assert.equal(viewModel.canGoPrevious, false);
 });
@@ -146,6 +189,9 @@ test("disables next at end", () => {
         beaconId: "b2",
       },
     }),
+    {
+      showWelcome: false,
+    },
   );
 
   assert.equal(viewModel.canGoPrevious, true);
@@ -162,6 +208,9 @@ test("beacon list follows main path order and marks the current beacon", () => {
         beaconId: "b2",
       },
     }),
+    {
+      showWelcome: false,
+    },
   );
 
   assert.equal(viewModel.state, "ready");
@@ -222,6 +271,9 @@ test("beacon list exposes a stable summary fallback for missing beacon summaries
         },
       },
     }),
+    {
+      showWelcome: false,
+    },
   );
 
   assert.equal(viewModel.state, "ready");
@@ -242,6 +294,9 @@ test("shows an empty state when the current beacon is missing", () => {
         beaconId: "missing",
       },
     }),
+    {
+      showWelcome: false,
+    },
   );
 
   assert.deepEqual(viewModel, {

@@ -6,21 +6,25 @@ import { createOutlineTreeProvider } from "../../src/infra/vscode/outline-tree-p
 import type { FaroDocument } from "../../src/core/model/document.ts";
 
 function createWorkspaceState(initialValue: FaroDocument | undefined) {
-  let storedValue = initialValue;
+  const values = new Map<string, unknown>();
+
+  if (initialValue) {
+    values.set("faro.document", initialValue);
+  }
 
   return {
     get(key: string) {
-      return key === "faro.document" ? storedValue : undefined;
+      return values.get(key);
     },
-    update(key: string, value: FaroDocument) {
-      if (key === "faro.document") {
-        storedValue = value;
-      }
-
+    update(key: string, value: unknown) {
+      values.set(key, value);
       return Promise.resolve();
     },
     snapshot() {
-      return storedValue;
+      return {
+        document: values.get("faro.document"),
+        ui: values.get("faro.ui"),
+      };
     },
   };
 }
@@ -89,6 +93,25 @@ test("runtime uses workspace state when available", () => {
   const runtime = createExtensionRuntime({ workspaceState });
 
   assert.equal(runtime.store.load().activePathId, "stored-flow");
+  assert.deepEqual(runtime.uiState.load(), {
+    welcomeDismissed: false,
+  });
+
+  runtime.dispose();
+});
+
+test("runtime persists welcome dismissal in workspace ui state", async () => {
+  const workspaceState = createWorkspaceState(undefined);
+  const runtime = createExtensionRuntime({ workspaceState });
+
+  await runtime.uiState.dismissWelcome();
+
+  assert.deepEqual(runtime.uiState.load(), {
+    welcomeDismissed: true,
+  });
+  assert.deepEqual(workspaceState.snapshot().ui, {
+    welcomeDismissed: true,
+  });
 
   runtime.dispose();
 });

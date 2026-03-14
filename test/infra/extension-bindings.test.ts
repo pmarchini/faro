@@ -32,6 +32,14 @@ function createRuntimeStub() {
   const runtime = {
     status: "ready",
     store,
+    uiState: {
+      load() {
+        return {
+          welcomeDismissed: false,
+        };
+      },
+      async dismissWelcome() {},
+    },
     agent,
     mcp: {
       tools: createFaroMcpTools({ service: agent }),

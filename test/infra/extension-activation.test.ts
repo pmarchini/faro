@@ -24,6 +24,14 @@ function createRuntimeStub(): ExtensionRuntime {
   return {
     status: "ready",
     store,
+    uiState: {
+      load() {
+        return {
+          welcomeDismissed: false,
+        };
+      },
+      async dismissWelcome() {},
+    },
     agent,
     mcp: {
       tools: createFaroMcpTools({ service: agent }),

@@ -21,11 +21,20 @@ type NavigatorCommandSurface = Pick<
   "previousBeacon" | "nextBeacon" | "revealCurrentBeacon" | "setCurrentBeacon"
 >;
 
+type NavigatorUiStateSurface = {
+  load(): {
+    welcomeDismissed: boolean;
+  };
+  dismissWelcome(): Promise<void>;
+};
+
 export function createNavigatorWebviewViewProvider({
   store,
+  uiState,
   commands,
 }: {
   store: Pick<InMemoryStore, "load">;
+  uiState: NavigatorUiStateSurface;
   commands: NavigatorCommandSurface;
 }): Disposable & {
   resolveWebviewView(view: WebviewViewLike): void;
@@ -38,7 +47,13 @@ export function createNavigatorWebviewViewProvider({
       adapter?.dispose();
       adapter = createNavigatorWebviewAdapter({
         webview: view.webview,
-        getViewModel: () => buildNavigatorViewModel(store.load()),
+        getViewModel: () =>
+          buildNavigatorViewModel(store.load(), {
+            showWelcome: !uiState.load().welcomeDismissed,
+          }),
+        onPrimaryAction: async () => {
+          await uiState.dismissWelcome();
+        },
         onPrevious: async () => {
           await commands.previousBeacon();
         },

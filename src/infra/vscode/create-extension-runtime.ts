@@ -18,6 +18,7 @@ import type { RevealResult } from "./reveal-result.ts";
 import { createSeedDocument } from "./runtime/create-seed-document.ts";
 import { createWorkspaceStateStore } from "./workspace-state-store.ts";
 import type { FaroDocument } from "../../core/model/document.ts";
+import { createWorkspaceUiState, type WorkspaceUiState } from "./workspace-ui-state.ts";
 
 type Disposable = {
   dispose(): void;
@@ -31,6 +32,7 @@ type MementoLike = {
 export type ExtensionRuntime = Disposable & {
   readonly status: "ready";
   readonly store: InMemoryStore;
+  readonly uiState: WorkspaceUiState;
   readonly agent: FaroAgentService;
   readonly mcp: {
     readonly tools: FaroMcpToolSet;
@@ -53,6 +55,13 @@ export function createExtensionRuntime({
   initialDocument = createSeedDocument(),
 }: CreateExtensionRuntimeOptions = {}): ExtensionRuntime {
   const listeners = new Set<() => void>();
+  const uiState = workspaceState
+    ? createWorkspaceUiState({
+        memento: workspaceState,
+      })
+    : createWorkspaceUiState({
+        memento: createInMemoryMemento(),
+      });
   const store = workspaceState
     ? createWorkspaceStateStore({
         memento: workspaceState,
@@ -73,6 +82,7 @@ export function createExtensionRuntime({
   return {
     status: "ready",
     store,
+    uiState,
     agent,
     mcp,
     commands,
@@ -97,4 +107,18 @@ export function createExtensionRuntime({
       listener();
     }
   }
+}
+
+function createInMemoryMemento(): MementoLike {
+  const state = new Map<string, unknown>();
+
+  return {
+    get(key: string) {
+      return state.get(key);
+    },
+    update(key: string, value: unknown) {
+      state.set(key, value);
+      return Promise.resolve();
+    },
+  };
 }

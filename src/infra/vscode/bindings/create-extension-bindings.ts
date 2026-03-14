@@ -107,6 +107,7 @@ function defaultCreateOutlineProvider(runtime: ExtensionRuntime): OutlineProvide
 function defaultCreateNavigatorProvider(runtime: ExtensionRuntime): NavigatorProviderLike {
   return createNavigatorWebviewViewProvider({
     store: runtime.store,
+    uiState: runtime.uiState,
     commands: runtime.commands,
   });
 }

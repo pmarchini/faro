@@ -16,6 +16,15 @@ export type EmptyNavigatorViewModel = {
   canGoNext: false;
 };
 
+export type WelcomeNavigatorViewModel = {
+  state: "welcome";
+  title: string;
+  message: string;
+  primaryActionLabel: string;
+  canGoPrevious: false;
+  canGoNext: false;
+};
+
 export type ReadyNavigatorViewModel = {
   state: "ready";
   pathId: string;
@@ -34,11 +43,28 @@ export type ReadyNavigatorViewModel = {
   beacons: NavigatorBeaconListItem[];
 };
 
-export type NavigatorViewModel = EmptyNavigatorViewModel | ReadyNavigatorViewModel;
+export type NavigatorViewModel =
+  | WelcomeNavigatorViewModel
+  | EmptyNavigatorViewModel
+  | ReadyNavigatorViewModel;
 
 export function buildNavigatorViewModel(
   document: FaroDocument | null | undefined,
+  options: {
+    showWelcome?: boolean;
+  } = {},
 ): NavigatorViewModel {
+  if (options.showWelcome) {
+    return {
+      state: "welcome",
+      title: "Welcome to Faro",
+      message: "Turn codebase reasoning into a clear path of beacons you can follow inside VS Code.",
+      primaryActionLabel: "Open Faro",
+      canGoPrevious: false,
+      canGoNext: false,
+    };
+  }
+
   const activePath = findActivePath(document);
 
   if (!activePath) {
