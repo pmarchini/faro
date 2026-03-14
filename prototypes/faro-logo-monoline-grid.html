@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Faro Monoline Grid</title>
+    <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #08111a;
+        --panel: #0f1925;
+        --panel-border: rgba(255, 255, 255, 0.08);
+        --text: #f4f7fb;
+        --muted: #9eb1c4;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top, rgba(103, 210, 255, 0.12), transparent 28%),
+          linear-gradient(180deg, #09121b 0%, #08111a 100%);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 64px 32px 80px;
+        display: grid;
+        gap: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        padding: 6px 10px;
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        color: var(--muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(38px, 6vw, 64px);
+        line-height: 0.96;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .lede {
+        max-width: 680px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      .frame {
+        display: grid;
+        justify-items: center;
+        gap: 24px;
+        padding: 36px;
+        border-radius: 28px;
+        border: 1px solid var(--panel-border);
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      }
+
+      .icon-card {
+        width: 360px;
+        height: 360px;
+        display: grid;
+        place-items: center;
+        border-radius: 40px;
+        background: rgba(255,255,255,0.02);
+      }
+
+      .sizes {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .size-chip {
+        width: 72px;
+        height: 72px;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        border: 1px solid var(--panel-border);
+        background: rgba(255,255,255,0.02);
+      }
+
+      .size-chip svg {
+        width: 80%;
+        height: 80%;
+      }
+
+      .mark {
+        width: 256px;
+        height: 256px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="eyebrow">Faro Logo Finalist</span>
+      <h1>Monoline Grid</h1>
+      <p class="lede">
+        The selected direction for Faro: a clean lighthouse anchored inside a graph frame, optimized for extension icon readability and easy SVG reuse.
+      </p>
+
+      <section class="frame">
+        <div class="icon-card">
+          <svg class="mark" viewBox="0 0 256 256" aria-label="Faro Monoline Grid logo">
+            <rect x="20" y="20" width="216" height="216" rx="52" stroke="#3C5A74" stroke-width="6" fill="none" />
+            <path
+              d="M86 92L128 70L170 92L170 140L128 162L86 140Z"
+              stroke="#67D2FF"
+              stroke-width="7"
+              stroke-linejoin="round"
+              fill="none"
+            />
+            <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" fill="none" />
+            <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+            <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+            <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+            <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+            <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+            <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+            <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+            <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+            <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+            <path d="M102 186H154" stroke="#F4F7FB" stroke-width="9" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <div class="sizes" aria-label="Logo size previews">
+          <div class="size-chip">
+            <svg viewBox="0 0 256 256" aria-hidden="true">
+              <rect x="20" y="20" width="216" height="216" rx="52" stroke="#3C5A74" stroke-width="6" fill="none" />
+              <path d="M86 92L128 70L170 92L170 140L128 162L86 140Z" stroke="#67D2FF" stroke-width="7" stroke-linejoin="round" fill="none" />
+              <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" fill="none" />
+              <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+              <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+              <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+              <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+              <path d="M102 186H154" stroke="#F4F7FB" stroke-width="9" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="size-chip">
+            <svg viewBox="0 0 256 256" aria-hidden="true">
+              <rect x="20" y="20" width="216" height="216" rx="52" stroke="#3C5A74" stroke-width="6" fill="none" />
+              <path d="M86 92L128 70L170 92L170 140L128 162L86 140Z" stroke="#67D2FF" stroke-width="7" stroke-linejoin="round" fill="none" />
+              <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" fill="none" />
+              <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+              <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+              <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+              <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+              <path d="M102 186H154" stroke="#F4F7FB" stroke-width="9" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="size-chip">
+            <svg viewBox="0 0 256 256" aria-hidden="true">
+              <rect x="20" y="20" width="216" height="216" rx="52" stroke="#3C5A74" stroke-width="6" fill="none" />
+              <path d="M86 92L128 70L170 92L170 140L128 162L86 140Z" stroke="#67D2FF" stroke-width="7" stroke-linejoin="round" fill="none" />
+              <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" fill="none" />
+              <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+              <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+              <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+              <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+              <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+              <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+              <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+              <path d="M102 186H154" stroke="#F4F7FB" stroke-width="9" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
