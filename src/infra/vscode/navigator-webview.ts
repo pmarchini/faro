@@ -372,14 +372,19 @@ function renderLayout({
               return;
             }
 
-            const action = target.dataset.action;
-            if (!action || !vscode) {
+            const actionTarget = target.closest("[data-action]");
+            if (!(actionTarget instanceof HTMLElement) || !vscode) {
+              return;
+            }
+
+            const action = actionTarget.dataset.action;
+            if (!action) {
               return;
             }
 
             if (action === "select-beacon") {
-              const pathId = target.dataset.pathId;
-              const beaconId = target.dataset.beaconId;
+              const pathId = actionTarget.dataset.pathId;
+              const beaconId = actionTarget.dataset.beaconId;
 
               if (!pathId || !beaconId) {
                 return;

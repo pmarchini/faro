@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 
 import type { NavigatorViewModel } from "../../src/app/views/navigator-view-model.ts";
 import {
@@ -13,6 +14,30 @@ type WebviewMessage =
   | { type: "navigator.reveal" }
   | { type: "navigator.selectBeacon"; pathId: string; beaconId: string }
   | { type: "unknown" };
+
+class FakeElement {
+  dataset: Record<string, string>;
+  parentElement: FakeElement | null;
+
+  constructor(dataset: Record<string, string> = {}, parentElement: FakeElement | null = null) {
+    this.dataset = dataset;
+    this.parentElement = parentElement;
+  }
+
+  closest(selector: string): FakeElement | null {
+    let current: FakeElement | null = this;
+
+    while (current) {
+      if (selector === "[data-action]" && typeof current.dataset.action === "string") {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+}
 
 function createReadyViewModel(
   overrides: Partial<Extract<NavigatorViewModel, { state: "ready" }>> = {},
@@ -69,6 +94,43 @@ function createFakeWebview() {
       await listener?.(message);
     },
   };
+}
+
+function dispatchClickFromHtml(html: string, target: FakeElement): WebviewMessage[] {
+  const messages: WebviewMessage[] = [];
+  const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
+
+  assert.ok(scriptMatch, "expected navigator html to include a script block");
+
+  let clickListener: ((event: { target: FakeElement }) => void) | null = null;
+
+  const context = {
+    acquireVsCodeApi() {
+      return {
+        postMessage(message: WebviewMessage) {
+          messages.push(message);
+        },
+      };
+    },
+    document: {
+      addEventListener(eventName: string, listener: (event: { target: FakeElement }) => void) {
+        if (eventName === "click") {
+          clickListener = listener;
+        }
+      },
+    },
+    HTMLElement: FakeElement,
+  };
+
+  vm.runInNewContext(scriptMatch[1], context);
+  assert.ok(clickListener, "expected navigator html to register a click listener");
+  if (!clickListener) {
+    throw new Error("expected navigator html to register a click listener");
+  }
+  const listener = clickListener as (event: { target: FakeElement }) => void;
+  listener({ target });
+
+  return messages;
 }
 
 test("renderNavigatorHtml renders the empty state", () => {
@@ -202,6 +264,25 @@ test("adapter routes beacon selection through the callback and rerenders", async
 
   assert.deepEqual(calls, ["auth-flow:b2"]);
   assert.equal(renderCount, 2);
+});
+
+test("renderNavigatorHtml delegates nested clicks inside a beacon card", () => {
+  const html = renderNavigatorHtml(createReadyViewModel());
+  const beaconButton = new FakeElement({
+    action: "select-beacon",
+    pathId: "auth-flow",
+    beaconId: "b2",
+  });
+  const nestedTitle = new FakeElement({}, beaconButton);
+
+  const messages = dispatchClickFromHtml(html, nestedTitle);
+
+  assert.equal(messages.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(messages[0])), {
+    type: "navigator.selectBeacon",
+    pathId: "auth-flow",
+    beaconId: "b2",
+  });
 });
 
 test("renderNavigatorHtml escapes hostile content", () => {
