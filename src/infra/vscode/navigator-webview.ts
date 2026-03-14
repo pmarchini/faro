@@ -278,23 +278,20 @@ function renderLayout({
             min-height: 0;
             overflow-y: auto;
             display: grid;
-            gap: 0.35rem;
+            gap: 0.5rem;
           }
 
           .beacon-button {
-            display: block;
+            display: grid;
+            gap: 0.45rem;
             width: 100%;
-            padding: 0.55rem 0.65rem;
+            padding: 0.7rem 0.75rem;
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 10px;
             background: var(--list-inactive);
             color: var(--list-inactive-foreground);
             font: inherit;
-            font-weight: 500;
             text-align: left;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             cursor: pointer;
           }
 
@@ -302,6 +299,66 @@ function renderLayout({
             background: var(--list-active);
             color: var(--list-active-foreground);
             border-color: transparent;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+          }
+
+          .beacon-row-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+          }
+
+          .step-chip,
+          .current-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.3rem;
+            padding: 0 0.45rem;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+
+          .step-chip {
+            background: var(--surface-muted);
+            color: var(--foreground-muted);
+          }
+
+          .beacon-button[data-current="true"] .step-chip {
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+          }
+
+          .current-chip {
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+          }
+
+          .beacon-button[data-current="false"] .current-chip {
+            display: none;
+          }
+
+          .beacon-row-title {
+            margin: 0;
+            font-size: 0.94rem;
+            line-height: 1.25;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .beacon-row-caption {
+            color: var(--foreground-muted);
+            font-size: 0.82rem;
+            line-height: 1.35;
+          }
+
+          .beacon-button[data-current="true"] .beacon-row-caption {
+            color: inherit;
+            opacity: 0.88;
           }
         </style>
       </head>
@@ -356,7 +413,7 @@ function renderBeaconList(viewModel: Extract<NavigatorViewModel, { state: "ready
   const items = viewModel.beacons
     .map(
       (beacon) => `
-        <li>
+        <li data-role="beacon-row">
           <button
             class="beacon-button"
             data-action="select-beacon"
@@ -364,7 +421,12 @@ function renderBeaconList(viewModel: Extract<NavigatorViewModel, { state: "ready
             data-beacon-id="${escapeHtml(beacon.id)}"
             data-current="${beacon.isCurrent ? "true" : "false"}"
           >
-            ${escapeHtml(beacon.title)}
+            <span class="beacon-row-header">
+              <span class="step-chip">Step ${String(beacon.stepNumber)}</span>
+              <span class="current-chip">Current step</span>
+            </span>
+            <span class="beacon-row-title">${escapeHtml(beacon.title)}</span>
+            <span class="beacon-row-caption">${escapeHtml(beacon.summary ?? "")}</span>
           </button>
         </li>
       `,

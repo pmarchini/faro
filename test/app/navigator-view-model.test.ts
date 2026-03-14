@@ -96,11 +96,15 @@ test("shows current beacon title summary and position", () => {
     {
       id: "b1",
       title: "Entry route",
+      summary: "The request enters the app here.",
+      stepNumber: 1,
       isCurrent: true,
     },
     {
       id: "b2",
       title: "Session load",
+      summary: "Existing session lookup.",
+      stepNumber: 2,
       isCurrent: false,
     },
   ]);
@@ -169,14 +173,64 @@ test("beacon list follows main path order and marks the current beacon", () => {
     {
       id: "b2",
       title: "Session load",
+      summary: "Existing session lookup.",
+      stepNumber: 1,
       isCurrent: true,
     },
     {
       id: "b1",
       title: "Entry route",
+      summary: "The request enters the app here.",
+      stepNumber: 2,
       isCurrent: false,
     },
   ]);
+});
+
+test("beacon list exposes a stable summary fallback for missing beacon summaries", () => {
+  const viewModel = buildNavigatorViewModel(
+    createDocument({
+      beacons: {
+        b1: {
+          id: "b1",
+          title: "Entry route",
+          fileUri: "file:///workspace/src/router.ts",
+          range: {
+            startLine: 10,
+            startColumn: 1,
+            endLine: 20,
+            endColumn: 1,
+          },
+          explanation: "The route normalizes auth headers.",
+          tags: ["entrypoint"],
+          children: [],
+        },
+        b2: {
+          id: "b2",
+          title: "Session load",
+          fileUri: "file:///workspace/src/session.ts",
+          range: {
+            startLine: 5,
+            startColumn: 1,
+            endLine: 12,
+            endColumn: 1,
+          },
+          summary: "Existing session lookup.",
+          explanation: "Loads the session from storage.",
+          tags: ["session"],
+          children: [],
+        },
+      },
+    }),
+  );
+
+  assert.equal(viewModel.state, "ready");
+  if (viewModel.state !== "ready") {
+    return;
+  }
+
+  assert.equal(viewModel.beacons[0]?.summary, "");
+  assert.equal(viewModel.beacons[0]?.stepNumber, 1);
 });
 
 test("shows an empty state when the current beacon is missing", () => {

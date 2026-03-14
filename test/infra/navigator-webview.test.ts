@@ -36,11 +36,15 @@ function createReadyViewModel(
       {
         id: "b1",
         title: "Entry route",
+        summary: "The request enters here.",
+        stepNumber: 1,
         isCurrent: true,
       },
       {
         id: "b2",
         title: "Session load",
+        summary: "Session state is restored here.",
+        stepNumber: 2,
         isCurrent: false,
       },
     ],
@@ -92,6 +96,11 @@ test("renderNavigatorHtml renders the ready state", () => {
   assert.match(html, /1 of 2/);
   assert.match(html, /Current Beacon/);
   assert.match(html, /Beacon Sequence/);
+  assert.match(html, /Step 1/);
+  assert.match(html, /Step 2/);
+  assert.match(html, /Current step/);
+  assert.match(html, /The request enters here\./);
+  assert.match(html, /Session state is restored here\./);
   assert.match(html, />Prev</);
   assert.match(html, />Reveal</);
   assert.match(html, />Next</);
@@ -99,7 +108,9 @@ test("renderNavigatorHtml renders the ready state", () => {
   assert.match(html, /Session load/);
   assert.match(html, /data-action="select-beacon"/);
   assert.match(html, /data-role="beacon-list"/);
+  assert.match(html, /data-role="beacon-row"/);
   assert.match(html, /data-scrollable="true"/);
+  assert.match(html, /data-current="true"/);
   assert.doesNotMatch(html, /Saved Paths/);
   assert.match(html, /vscode\.postMessage/);
 });
@@ -205,6 +216,8 @@ test("renderNavigatorHtml escapes hostile content", () => {
         {
           id: "b1",
           title: `<current>`,
+          summary: `<summary>`,
+          stepNumber: 1,
           isCurrent: true,
         },
       ],
