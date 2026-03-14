@@ -40,7 +40,7 @@ test("package manifest contributes the full faro UI and command surface", () => 
   );
   assert.deepEqual(
     manifest.contributes?.views?.faro?.map((view) => view.id),
-    ["faro.outline", "faro.navigator"],
+    ["faro.outline", "faro.navigator", "faro.setup"],
   );
   assert.deepEqual(manifest.contributes?.mcpServerDefinitionProviders, [
     {
@@ -65,6 +65,7 @@ test("package manifest contributes the full faro UI and command surface", () => 
       "onStartupFinished",
       "onView:faro.outline",
       "onView:faro.navigator",
+      "onView:faro.setup",
       "onCommand:faro.focusSidebar",
       "onCommand:faro.nextBeacon",
       "onCommand:faro.previousBeacon",

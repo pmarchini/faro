@@ -22,6 +22,7 @@
     "onStartupFinished",
     "onView:faro.outline",
     "onView:faro.navigator",
+    "onView:faro.setup",
     "onCommand:faro.focusSidebar",
     "onCommand:faro.nextBeacon",
     "onCommand:faro.previousBeacon",
@@ -48,6 +49,11 @@
         {
           "id": "faro.navigator",
           "name": "Navigator",
+          "type": "webview"
+        },
+        {
+          "id": "faro.setup",
+          "name": "Setup",
           "type": "webview"
         }
       ]

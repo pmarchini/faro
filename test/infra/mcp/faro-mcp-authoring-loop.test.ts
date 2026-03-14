@@ -11,6 +11,7 @@ import {
   type ExtensionHost,
   type NavigatorProviderLike,
   type OutlineProviderLike,
+  type SetupProviderLike,
 } from "../../../src/infra/vscode/bindings/create-extension-bindings.ts";
 import { createExtensionRuntime } from "../../../src/infra/vscode/create-extension-runtime.ts";
 import { registerRuntimeMcpServer } from "../../../src/infra/vscode/bindings/register-runtime-mcp-server.ts";
@@ -56,6 +57,7 @@ test("registered stdio MCP authoring updates the runtime-backed outline and navi
     runtime,
     host: hostState.host,
     extensionPath,
+    workspaceRoot: extensionPath,
     registerMcpServer: async (options) => {
       state.mcpRegistration = await registerRuntimeMcpServer(options);
 
@@ -351,6 +353,10 @@ function createHostState() {
     id: string;
     provider: NavigatorProviderLike;
   }> = [];
+  const setupProviders: Array<{
+    id: string;
+    provider: SetupProviderLike;
+  }> = [];
   const mcpProviders: Array<{
     id: string;
     provider: {
@@ -381,6 +387,13 @@ function createHostState() {
         dispose() {},
       };
     },
+    registerSetupProvider(id, provider) {
+      setupProviders.push({ id, provider });
+
+      return {
+        dispose() {},
+      };
+    },
     registerMcpServerDefinitionProvider(id, provider) {
       mcpProviders.push({ id, provider });
 
@@ -395,6 +408,7 @@ function createHostState() {
     host,
     outlineProviders,
     navigatorProviders,
+    setupProviders,
     mcpProviders,
   };
 }

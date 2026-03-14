@@ -10,6 +10,7 @@ import {
   type ExtensionHost,
   type NavigatorProviderLike,
   type OutlineProviderLike,
+  type SetupProviderLike,
 } from "../../src/infra/vscode/bindings/create-extension-bindings.ts";
 import { createExtensionRuntime } from "../../src/infra/vscode/create-extension-runtime.ts";
 import type { ExtensionRuntime } from "../../src/infra/vscode/create-extension-runtime.ts";
@@ -103,6 +104,7 @@ function createHostStub() {
   const commands = new Map<string, (...args: unknown[]) => unknown>();
   const outlineProviders: Array<{ id: string; provider: OutlineProviderLike }> = [];
   const navigatorProviders: Array<{ id: string; provider: NavigatorProviderLike }> = [];
+  const setupProviders: Array<{ id: string; provider: SetupProviderLike }> = [];
   const mcpProviders: Array<{
     id: string;
     provider: {
@@ -130,6 +132,10 @@ function createHostStub() {
       navigatorProviders.push({ id, provider });
       return createDisposable(`navigator:${id}`);
     },
+    registerSetupProvider(id, provider) {
+      setupProviders.push({ id, provider });
+      return createDisposable(`setup:${id}`);
+    },
     registerMcpServerDefinitionProvider(id, provider) {
       mcpProviders.push({ id, provider });
       return createDisposable(`mcp:${id}`);
@@ -144,6 +150,7 @@ function createHostStub() {
     commands,
     outlineProviders,
     navigatorProviders,
+    setupProviders,
     mcpProviders,
     disposals,
     get focusCalls() {
@@ -167,6 +174,7 @@ test("bindings register runtime commands and delegate handlers", async () => {
     runtime: runtimeState.runtime,
     host: hostState.host,
     extensionPath: "/workspace/faro",
+    workspaceRoot: "/workspace/faro",
     registerMcpServer: async ({ host }) =>
       host.registerMcpServerDefinitionProvider("faro.local", {
         provideMcpServerDefinitions() {
@@ -191,6 +199,12 @@ test("bindings register runtime commands and delegate handlers", async () => {
         resolveWebviewView() {},
         dispose() {},
       }) as NavigatorProviderLike,
+    createSetupProvider: () =>
+      ({
+        refresh() {},
+        resolveWebviewView() {},
+        dispose() {},
+      }) as SetupProviderLike,
   });
 
   await hostState.commands.get("faro.nextBeacon")?.();
@@ -217,13 +231,16 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
   const hostState = createHostStub();
   let outlineRefreshes = 0;
   let navigatorRefreshes = 0;
+  let setupRefreshes = 0;
   let outlineDisposed = 0;
   let navigatorDisposed = 0;
+  let setupDisposed = 0;
 
   const binding = await createExtensionBindings({
     runtime: runtimeState.runtime,
     host: hostState.host,
     extensionPath: "/workspace/faro",
+    workspaceRoot: "/workspace/faro",
     registerMcpServer: async ({ host }) =>
       host.registerMcpServerDefinitionProvider("faro.local", {
         provideMcpServerDefinitions() {
@@ -256,6 +273,16 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
           navigatorDisposed += 1;
         },
       }) as NavigatorProviderLike,
+    createSetupProvider: () =>
+      ({
+        refresh() {
+          setupRefreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {
+          setupDisposed += 1;
+        },
+      }) as SetupProviderLike,
   });
 
   assert.equal(hostState.outlineProviders.length, 1);
@@ -268,6 +295,11 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
     id: "faro.navigator",
     provider: hostState.navigatorProviders[0]?.provider,
   });
+  assert.equal(hostState.setupProviders.length, 1);
+  assert.deepEqual(hostState.setupProviders[0], {
+    id: "faro.setup",
+    provider: hostState.setupProviders[0]?.provider,
+  });
   assert.equal(hostState.mcpProviders.length, 1);
   assert.equal(hostState.mcpProviders[0]?.id, "faro.local");
 
@@ -275,13 +307,16 @@ test("bindings register outline, navigator, and MCP providers and fan out refres
 
   assert.ok(outlineRefreshes >= 1);
   assert.ok(navigatorRefreshes >= 1);
+  assert.equal(setupRefreshes, 0);
 
   binding.dispose();
 
   assert.equal(outlineDisposed, 1);
   assert.equal(navigatorDisposed, 1);
+  assert.equal(setupDisposed, 1);
   assert.equal(runtimeState.unsubscribed, true);
   assert.equal(hostState.disposals.includes("mcp:faro.local"), true);
+  assert.equal(hostState.disposals.includes("setup:faro.setup"), true);
 });
 
 test("bindings refresh the outline and navigator after MCP-driven store changes", async () => {
@@ -289,11 +324,13 @@ test("bindings refresh the outline and navigator after MCP-driven store changes"
   const hostState = createHostStub();
   let outlineRefreshes = 0;
   let navigatorRefreshes = 0;
+  let setupRefreshes = 0;
 
   const binding = await createExtensionBindings({
     runtime,
     host: hostState.host,
     extensionPath: "/workspace/faro",
+    workspaceRoot: "/workspace/faro",
     registerMcpServer: async ({ host }) =>
       host.registerMcpServerDefinitionProvider("faro.local", {
         provideMcpServerDefinitions() {
@@ -322,6 +359,14 @@ test("bindings refresh the outline and navigator after MCP-driven store changes"
         resolveWebviewView() {},
         dispose() {},
       }) as NavigatorProviderLike,
+    createSetupProvider: () =>
+      ({
+        refresh() {
+          setupRefreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {},
+      }) as SetupProviderLike,
   });
 
   runtime.mcp.tools["faro.upsertPath"].execute({
@@ -358,6 +403,7 @@ test("bindings refresh the outline and navigator after MCP-driven store changes"
 
   assert.equal(outlineRefreshes, 1);
   assert.equal(navigatorRefreshes, 1);
+  assert.equal(setupRefreshes, 0);
 
   binding.dispose();
   runtime.dispose();

@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import {
   createExtensionBindings,
   type ExtensionHost,
@@ -27,6 +29,7 @@ type BindingsFactory = (options: {
   runtime: ExtensionRuntime;
   host: ExtensionHost;
   extensionPath: string;
+  workspaceRoot: string;
 }) => Disposable | Promise<Disposable>;
 
 type LoadVscodeApi = () => Promise<VscodeLike>;
@@ -51,6 +54,8 @@ async function activate(
   const vscodeApi = await loadVscodeApi();
   const host = createVscodeExtensionHost({ vscode: vscodeApi });
   const editorNavigator = createVscodeEditorNavigator({ vscode: vscodeApi });
+  const workspaceRoot =
+    getPrimaryWorkspaceRoot(vscodeApi) ?? context?.extensionPath ?? process.cwd();
 
   runtime = runtimeFactory({
     workspaceState: context?.workspaceState,
@@ -64,6 +69,7 @@ async function activate(
     runtime,
     host,
     extensionPath: context?.extensionPath ?? process.cwd(),
+    workspaceRoot,
   });
 
   if (shouldAutoFocusOnStartup(vscodeApi)) {
@@ -95,6 +101,16 @@ const loadVscodeApiDefault: LoadVscodeApi = () => import("vscode") as unknown as
 
 function shouldAutoFocusOnStartup(vscodeApi: VscodeLike): boolean {
   return vscodeApi.workspace.getConfiguration("faro").get("autoFocusOnStartup", false);
+}
+
+function getPrimaryWorkspaceRoot(vscodeApi: VscodeLike): string | null {
+  const rootUri = vscodeApi.workspace.workspaceFolders?.[0]?.uri?.toString();
+
+  if (!rootUri?.startsWith("file://")) {
+    return null;
+  }
+
+  return fileURLToPath(rootUri);
 }
 
 export { activate, deactivate };

@@ -17,6 +17,12 @@ type InstructionSources = {
   skillSource: string;
 };
 
+export type AgentInstructionTargetId =
+  | "claude"
+  | "copilotInstructions"
+  | "copilotAgent"
+  | "codexSkill";
+
 export async function syncAgentInstructions({
   workspaceRoot,
   codexHome = path.join(os.homedir(), ".codex"),
@@ -91,6 +97,67 @@ export async function syncLocalAgentInstructions({
   await writeFile(codexSkillPath, skillSource, "utf8");
 }
 
+export async function syncLocalAgentInstructionTarget({
+  workspaceRoot,
+  target,
+  agentsSource,
+  skillSource,
+}: {
+  workspaceRoot: string;
+  target: AgentInstructionTargetId;
+} & InstructionSources): Promise<void> {
+  const paths = resolveLocalAgentInstructionPaths(workspaceRoot);
+
+  await mkdir(path.dirname(paths.claude), { recursive: true });
+  await mkdir(path.dirname(paths.copilotInstructions), { recursive: true });
+  await mkdir(path.dirname(paths.codexSkill), { recursive: true });
+
+  if (target === "claude") {
+    const existingContent = await readOptionalFile(paths.claude);
+    await writeFile(
+      paths.claude,
+      upsertManagedMarkdownSection({
+        existingContent,
+        blockId: "CLAUDE",
+        content: buildClaudeInstructions({
+          agentsSource,
+          skillSource,
+        }),
+      }),
+      "utf8",
+    );
+    return;
+  }
+
+  if (target === "copilotInstructions") {
+    const existingContent = await readOptionalFile(paths.copilotInstructions);
+    await writeFile(
+      paths.copilotInstructions,
+      upsertManagedMarkdownSection({
+        existingContent,
+        blockId: "COPILOT",
+        content: buildCopilotInstructions({
+          agentsSource,
+          skillSource,
+        }),
+      }),
+      "utf8",
+    );
+    return;
+  }
+
+  if (target === "copilotAgent") {
+    await syncVsCodeCopilotAgent({
+      workspaceRoot,
+      agentsSource,
+      skillSource,
+    });
+    return;
+  }
+
+  await writeFile(paths.codexSkill, skillSource, "utf8");
+}
+
 export async function syncGlobalAgentInstructions({
   codexHome = path.join(os.homedir(), ".codex"),
   claudeHome = path.join(os.homedir(), ".claude"),
@@ -141,6 +208,76 @@ export async function syncGlobalAgentInstructions({
     force,
   });
   await writeFile(codexSkillPath, skillSource, "utf8");
+}
+
+export async function syncGlobalAgentInstructionTarget({
+  codexHome = path.join(os.homedir(), ".codex"),
+  claudeHome = path.join(os.homedir(), ".claude"),
+  copilotHome = path.join(os.homedir(), ".copilot"),
+  force = false,
+  target,
+  agentsSource,
+  skillSource,
+}: {
+  codexHome?: string;
+  claudeHome?: string;
+  copilotHome?: string;
+  force?: boolean;
+  target: AgentInstructionTargetId;
+} & InstructionSources): Promise<void> {
+  const paths = resolveGlobalAgentInstructionPaths({
+    codexHome,
+    claudeHome,
+    copilotHome,
+  });
+
+  await mkdir(path.dirname(paths.claude), { recursive: true });
+  await mkdir(path.dirname(paths.copilotInstructions), { recursive: true });
+  await mkdir(path.dirname(paths.copilotAgent), { recursive: true });
+  await mkdir(path.dirname(paths.codexSkill), { recursive: true });
+
+  if (target === "claude") {
+    const existingContent = await readOptionalFile(paths.claude);
+    await writeFile(
+      paths.claude,
+      upsertManagedMarkdownSection({
+        existingContent,
+        blockId: "CLAUDE",
+        content: buildClaudeInstructions({
+          agentsSource,
+          skillSource,
+        }),
+      }),
+      "utf8",
+    );
+    return;
+  }
+
+  if (target === "copilotInstructions") {
+    await writeFaroOwnedFile({
+      filePath: paths.copilotInstructions,
+      content: buildGlobalCopilotInstructions({
+        agentsSource,
+        skillSource,
+      }),
+      force,
+    });
+    return;
+  }
+
+  if (target === "copilotAgent") {
+    await writeFaroOwnedFile({
+      filePath: paths.copilotAgent,
+      content: buildVsCodeCopilotAgent({
+        agentsSource,
+        skillSource,
+      }),
+      force,
+    });
+    return;
+  }
+
+  await writeFile(paths.codexSkill, skillSource, "utf8");
 }
 
 export function buildClaudeInstructions({
@@ -252,6 +389,35 @@ export async function syncVsCodeCopilotAgent({
     }),
     "utf8",
   );
+}
+
+export function resolveLocalAgentInstructionPaths(workspaceRoot: string): Record<
+  AgentInstructionTargetId,
+  string
+> {
+  return {
+    claude: path.join(workspaceRoot, "CLAUDE.md"),
+    copilotInstructions: path.join(workspaceRoot, ".github", "copilot-instructions.md"),
+    copilotAgent: path.join(workspaceRoot, ".github", "agents", "faro-path-author.agent.md"),
+    codexSkill: path.join(workspaceRoot, ".codex", "skills", "faro-author-paths", "SKILL.md"),
+  };
+}
+
+export function resolveGlobalAgentInstructionPaths({
+  codexHome = path.join(os.homedir(), ".codex"),
+  claudeHome = path.join(os.homedir(), ".claude"),
+  copilotHome = path.join(os.homedir(), ".copilot"),
+}: {
+  codexHome?: string;
+  claudeHome?: string;
+  copilotHome?: string;
+} = {}): Record<AgentInstructionTargetId, string> {
+  return {
+    claude: path.join(claudeHome, "CLAUDE.md"),
+    copilotInstructions: path.join(copilotHome, "instructions", "faro.instructions.md"),
+    copilotAgent: path.join(copilotHome, "agents", "faro-path-author.agent.md"),
+    codexSkill: path.join(codexHome, "skills", "faro-author-paths", "SKILL.md"),
+  };
 }
 
 export function buildVsCodeCopilotAgent({

@@ -3,6 +3,7 @@ import type {
   ExtensionHost,
   NavigatorProviderLike,
   OutlineProviderLike,
+  SetupProviderLike,
 } from "./create-extension-bindings.ts";
 
 export function createVscodeExtensionHost({
@@ -18,6 +19,18 @@ export function createVscodeExtensionHost({
       return vscode.window.registerTreeDataProvider(id, provider as OutlineProviderLike);
     },
     registerNavigatorProvider(id, provider) {
+      return vscode.window.registerWebviewViewProvider(id, {
+        resolveWebviewView(view: VscodeWebviewView) {
+          view.webview.options = {
+            ...(view.webview.options ?? {}),
+            enableScripts: true,
+          };
+
+          return provider.resolveWebviewView(view);
+        },
+      });
+    },
+    registerSetupProvider(id, provider) {
       return vscode.window.registerWebviewViewProvider(id, {
         resolveWebviewView(view: VscodeWebviewView) {
           view.webview.options = {
@@ -51,4 +64,4 @@ export function createVscodeExtensionHost({
   };
 }
 
-export type { NavigatorProviderLike, OutlineProviderLike };
+export type { NavigatorProviderLike, OutlineProviderLike, SetupProviderLike };
