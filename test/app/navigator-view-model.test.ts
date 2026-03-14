@@ -83,9 +83,12 @@ test("shows current beacon title summary and position", () => {
   }
 
   assert.equal(viewModel.pathTitle, "Auth Flow");
+  assert.equal(viewModel.goal, "Trace auth");
   assert.equal(viewModel.beaconTitle, "Entry route");
   assert.equal(viewModel.summary, "The request enters the app here.");
   assert.equal(viewModel.explanation, "The route normalizes auth headers.");
+  assert.equal(viewModel.currentStepNumber, 1);
+  assert.equal(viewModel.beaconCount, 2);
   assert.equal(viewModel.positionLabel, "1 of 2");
   assert.equal(viewModel.canGoPrevious, false);
   assert.equal(viewModel.canGoNext, true);
@@ -101,6 +104,27 @@ test("shows current beacon title summary and position", () => {
       isCurrent: false,
     },
   ]);
+});
+
+test("derives the current step number from the active beacon index", () => {
+  const viewModel = buildNavigatorViewModel(
+    createDocument({
+      current: {
+        mode: "main",
+        index: 1,
+        beaconId: "b2",
+      },
+    }),
+  );
+
+  assert.equal(viewModel.state, "ready");
+  if (viewModel.state !== "ready") {
+    return;
+  }
+
+  assert.equal(viewModel.currentStepNumber, 2);
+  assert.equal(viewModel.beaconCount, 2);
+  assert.equal(viewModel.positionLabel, "2 of 2");
 });
 
 test("disables prev at start", () => {
@@ -153,4 +177,24 @@ test("beacon list follows main path order and marks the current beacon", () => {
       isCurrent: false,
     },
   ]);
+});
+
+test("shows an empty state when the current beacon is missing", () => {
+  const viewModel = buildNavigatorViewModel(
+    createDocument({
+      current: {
+        mode: "main",
+        index: 0,
+        beaconId: "missing",
+      },
+    }),
+  );
+
+  assert.deepEqual(viewModel, {
+    state: "empty",
+    title: "Current beacon unavailable",
+    message: "The active path does not have a valid current beacon.",
+    canGoPrevious: false,
+    canGoNext: false,
+  });
 });

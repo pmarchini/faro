@@ -22,6 +22,8 @@ function createReadyViewModel(
     pathId: "auth-flow",
     pathTitle: "Auth Flow",
     goal: "Trace authentication",
+    currentStepNumber: 1,
+    beaconCount: 2,
     beaconId: "b1",
     beaconTitle: "Entry route",
     summary: "The request enters here.",
@@ -83,21 +85,22 @@ test("renderNavigatorHtml renders the ready state", () => {
   const html = renderNavigatorHtml(createReadyViewModel());
 
   assert.match(html, /Auth Flow/);
+  assert.match(html, /Active Path/);
   assert.match(html, /Entry route/);
+  assert.match(html, /Trace authentication/);
   assert.match(html, /Headers are normalized here\./);
   assert.match(html, /1 of 2/);
-  assert.match(html, /data-action="previous"/);
-  assert.match(html, /data-action="reveal"/);
-  assert.match(html, /data-action="next"/);
-  assert.match(html, /Beacon list/);
+  assert.match(html, /Current Beacon/);
+  assert.match(html, /Beacon Sequence/);
+  assert.match(html, />Prev</);
+  assert.match(html, />Reveal</);
+  assert.match(html, />Next</);
   assert.match(html, /Entry route/);
   assert.match(html, /Session load/);
   assert.match(html, /data-action="select-beacon"/);
   assert.match(html, /data-role="beacon-list"/);
-  assert.match(html, /data-layout="fill"/);
   assert.match(html, /data-scrollable="true"/);
-  assert.match(html, /color:\s*#ffffff/);
-  assert.match(html, /background:\s*#0b57d0/);
+  assert.doesNotMatch(html, /Saved Paths/);
   assert.match(html, /vscode\.postMessage/);
 });
 

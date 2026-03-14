@@ -19,6 +19,8 @@ export type ReadyNavigatorViewModel = {
   pathId: string;
   pathTitle: string;
   goal: string;
+  currentStepNumber: number;
+  beaconCount: number;
   beaconId: string;
   beaconTitle: string;
   summary: string;
@@ -67,6 +69,8 @@ export function buildNavigatorViewModel(
     pathId: activePath.id,
     pathTitle: activePath.title ?? activePath.id,
     goal: activePath.goal ?? "",
+    currentStepNumber: Math.min(position + 1, Math.max(total, 1)),
+    beaconCount: Math.max(total, 1),
     beaconId: currentBeaconId,
     beaconTitle: beacon.title ?? currentBeaconId,
     summary: beacon.summary ?? "",

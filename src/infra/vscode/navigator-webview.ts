@@ -1,9 +1,5 @@
 import type { NavigatorViewModel } from "../../app/views/navigator-view-model.ts";
 
-const ACTIVE_BEACON_BUTTON_BACKGROUND = "#0b57d0";
-const INACTIVE_BEACON_BUTTON_BACKGROUND = "#2f3640";
-const BEACON_BUTTON_TEXT_COLOR = "#ffffff";
-
 type NavigatorMessage =
   | { type: "navigator.previous" }
   | { type: "navigator.next" }
@@ -85,66 +81,232 @@ export function createNavigatorWebviewAdapter({
 export function renderNavigatorHtml(viewModel: NavigatorViewModel): string {
   if (viewModel.state === "empty") {
     return renderLayout({
-      title: viewModel.title,
-      body: `<p>${escapeHtml(viewModel.message)}</p>`,
-      position: "",
+      content: `
+        <header data-role="navigator-header" class="navigator-header">
+          <span class="eyebrow">Faro</span>
+          <h1 class="page-title">${escapeHtml(viewModel.title)}</h1>
+        </header>
+        <section data-section="empty-state" class="panel">
+          <p class="body-copy">${escapeHtml(viewModel.message)}</p>
+        </section>
+        ${renderActions({ canGoPrevious: false, canGoNext: false })}
+      `,
       canGoPrevious: false,
       canGoNext: false,
-      beaconList: "",
     });
   }
 
-  const tags =
-    viewModel.tags.length === 0
-      ? ""
-      : `<ul>${viewModel.tags
-          .map((tag) => `<li>${escapeHtml(tag)}</li>`)
-          .join("")}</ul>`;
-
   return renderLayout({
-    title: `${viewModel.pathTitle} / ${viewModel.beaconTitle}`,
-    body: `
-      <p>${escapeHtml(viewModel.summary)}</p>
-      <p>${escapeHtml(viewModel.explanation)}</p>
-      ${tags}
-    `,
-    position: viewModel.positionLabel,
+    content: renderReadyState(viewModel),
     canGoPrevious: viewModel.canGoPrevious,
     canGoNext: viewModel.canGoNext,
-    beaconList: renderBeaconList(viewModel),
   });
 }
 
 function renderLayout({
-  title,
-  body,
-  position,
+  content,
   canGoPrevious,
   canGoNext,
-  beaconList,
 }: {
-  title: string;
-  body: string;
-  position: string;
+  content: string;
   canGoPrevious: boolean;
   canGoNext: boolean;
-  beaconList: string;
 }): string {
   return `
     <!doctype html>
     <html lang="en">
+      <head>
+        <style>
+          :root {
+            color-scheme: light dark;
+            --surface: var(--vscode-sideBar-background);
+            --surface-muted: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.12));
+            --surface-raised: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.08));
+            --border: var(--vscode-sideBar-border, rgba(128, 128, 128, 0.28));
+            --foreground: var(--vscode-foreground);
+            --foreground-muted: var(--vscode-descriptionForeground);
+            --button: var(--vscode-button-background);
+            --button-foreground: var(--vscode-button-foreground);
+            --button-hover: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+            --button-disabled: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.28));
+            --list-active: var(--vscode-list-activeSelectionBackground, var(--vscode-button-background));
+            --list-active-foreground: var(--vscode-list-activeSelectionForeground, #ffffff);
+            --list-inactive: var(--vscode-list-inactiveSelectionBackground, rgba(128, 128, 128, 0.12));
+            --list-inactive-foreground: var(--vscode-list-inactiveSelectionForeground, var(--vscode-foreground));
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html,
+          body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--surface);
+            color: var(--foreground);
+            font-family: var(--vscode-font-family, sans-serif);
+            font-size: 13px;
+          }
+
+          body {
+            height: 100vh;
+          }
+
+          main {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            min-height: 0;
+          }
+
+          .navigator-header {
+            display: grid;
+            gap: 0.2rem;
+          }
+
+          .eyebrow,
+          .section-label {
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--foreground-muted);
+          }
+
+          .page-title,
+          .section-title {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.2;
+          }
+
+          .panel {
+            display: grid;
+            gap: 0.45rem;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface-raised);
+          }
+
+          .path-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+          }
+
+          .position-pill {
+            padding: 0.18rem 0.45rem;
+            border-radius: 999px;
+            background: var(--surface-muted);
+            color: var(--foreground);
+            white-space: nowrap;
+          }
+
+          .body-copy {
+            margin: 0;
+            color: var(--foreground-muted);
+            line-height: 1.45;
+          }
+
+          .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+          }
+
+          .tag {
+            padding: 0.12rem 0.4rem;
+            border-radius: 999px;
+            background: var(--surface-muted);
+            color: var(--foreground-muted);
+            font-size: 0.82rem;
+          }
+
+          .actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.45rem;
+          }
+
+          .action-button {
+            min-height: 2rem;
+            border: 0;
+            border-radius: 6px;
+            background: var(--button);
+            color: var(--button-foreground);
+            font: inherit;
+            cursor: pointer;
+          }
+
+          .action-button:hover:enabled {
+            background: var(--button-hover);
+          }
+
+          .action-button:disabled {
+            background: var(--button-disabled);
+            cursor: default;
+            opacity: 0.72;
+          }
+
+          .sequence-section {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            gap: 0.5rem;
+          }
+
+          .sequence-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.5rem;
+          }
+
+          .beacon-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            display: grid;
+            gap: 0.35rem;
+          }
+
+          .beacon-button {
+            display: block;
+            width: 100%;
+            padding: 0.55rem 0.65rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--list-inactive);
+            color: var(--list-inactive-foreground);
+            font: inherit;
+            font-weight: 500;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+          }
+
+          .beacon-button[data-current="true"] {
+            background: var(--list-active);
+            color: var(--list-active-foreground);
+            border-color: transparent;
+          }
+        </style>
+      </head>
       <body>
-        <main style="height: 100vh; display: flex; flex-direction: column; min-height: 0;">
-          <h1>${escapeHtml(title)}</h1>
-          <div>${body}</div>
-          <p>${escapeHtml(position)}</p>
-          <section>
-            <button ${canGoPrevious ? "" : "disabled"} data-action="previous">Prev</button>
-            <button data-action="reveal">Reveal</button>
-            <button ${canGoNext ? "" : "disabled"} data-action="next">Next</button>
-          </section>
-          ${beaconList}
-        </main>
+        <main>${content}</main>
         <script>
           const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
           document.addEventListener("click", (event) => {
@@ -194,29 +356,13 @@ function renderBeaconList(viewModel: Extract<NavigatorViewModel, { state: "ready
   const items = viewModel.beacons
     .map(
       (beacon) => `
-        <li data-current="${beacon.isCurrent ? "true" : "false"}">
+        <li>
           <button
+            class="beacon-button"
             data-action="select-beacon"
             data-path-id="${escapeHtml(viewModel.pathId)}"
             data-beacon-id="${escapeHtml(beacon.id)}"
-            style="
-              display: block;
-              width: 100%;
-              padding: 0.4rem 0.5rem;
-              border: 0;
-              border-radius: 4px;
-              background: ${
-                beacon.isCurrent
-                  ? ACTIVE_BEACON_BUTTON_BACKGROUND
-                  : INACTIVE_BEACON_BUTTON_BACKGROUND
-              };
-              color: ${BEACON_BUTTON_TEXT_COLOR};
-              font-weight: ${beacon.isCurrent ? "600" : "400"};
-              text-align: left;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            "
+            data-current="${beacon.isCurrent ? "true" : "false"}"
           >
             ${escapeHtml(beacon.title)}
           </button>
@@ -226,29 +372,75 @@ function renderBeaconList(viewModel: Extract<NavigatorViewModel, { state: "ready
     .join("");
 
   return `
-    <section
-      aria-label="Beacon list"
-      data-layout="fill"
-      style="margin-top: 1rem; display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0;"
-    >
-      <h2 style="font-size: 0.9rem; margin: 0 0 0.5rem 0;">Beacon list</h2>
+    <section aria-label="Beacon sequence" data-section="beacon-sequence" class="sequence-section">
+      <div class="sequence-header">
+        <span class="section-label">Reading Spine</span>
+        <h2 class="section-title">Beacon Sequence</h2>
+      </div>
       <ol
+        class="beacon-list"
         data-role="beacon-list"
         data-scrollable="true"
-        style="
-          margin: 0;
-          padding: 0;
-          list-style: none;
-          flex: 1 1 auto;
-          min-height: 0;
-          overflow-y: auto;
-          display: grid;
-          gap: 0.3rem;
-        "
       >
         ${items}
       </ol>
     </section>
+  `;
+}
+
+function renderReadyState(viewModel: Extract<NavigatorViewModel, { state: "ready" }>): string {
+  return `
+    <header data-role="navigator-header" class="navigator-header">
+      <span class="eyebrow">Faro</span>
+      <h1 class="page-title">${escapeHtml(viewModel.pathTitle)}</h1>
+    </header>
+    <section data-section="active-path-summary" class="panel">
+      <div class="path-meta">
+        <span class="section-label">Active Path</span>
+        <span class="position-pill">${escapeHtml(viewModel.positionLabel)}</span>
+      </div>
+      <p class="body-copy">${escapeHtml(viewModel.goal)}</p>
+    </section>
+    <section data-section="current-beacon" class="panel">
+      <span class="section-label">Current Beacon</span>
+      <h2 class="section-title">${escapeHtml(viewModel.beaconTitle)}</h2>
+      <p class="body-copy">${escapeHtml(viewModel.summary)}</p>
+      <p class="body-copy">${escapeHtml(viewModel.explanation)}</p>
+      ${renderTags(viewModel.tags)}
+    </section>
+    ${renderActions({
+      canGoPrevious: viewModel.canGoPrevious,
+      canGoNext: viewModel.canGoNext,
+    })}
+    ${renderBeaconList(viewModel)}
+  `;
+}
+
+function renderActions({
+  canGoPrevious,
+  canGoNext,
+}: {
+  canGoPrevious: boolean;
+  canGoNext: boolean;
+}): string {
+  return `
+    <section class="actions" aria-label="Navigator actions">
+      <button class="action-button" ${canGoPrevious ? "" : "disabled"} data-action="previous">Prev</button>
+      <button class="action-button" data-action="reveal">Reveal</button>
+      <button class="action-button" ${canGoNext ? "" : "disabled"} data-action="next">Next</button>
+    </section>
+  `;
+}
+
+function renderTags(tags: string[]): string {
+  if (tags.length === 0) {
+    return "";
+  }
+
+  return `
+    <ul class="tag-list">
+      ${tags.map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`).join("")}
+    </ul>
   `;
 }
 

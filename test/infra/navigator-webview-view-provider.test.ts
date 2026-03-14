@@ -47,7 +47,9 @@ test("resolved navigator view renders the current beacon", () => {
 
   provider.resolveWebviewView(view);
 
-  assert.match(view.webview.html, /Auth Flow \/ Beacon b1/);
+  assert.match(view.webview.html, /Auth Flow/);
+  assert.match(view.webview.html, /Current Beacon/);
+  assert.match(view.webview.html, /Beacon b1/);
   assert.match(view.webview.html, /1 of 2/);
 });
 
