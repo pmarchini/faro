@@ -1,14 +1,6 @@
-import { createFaroAgentService, type FaroAgentService } from "../../app/agent/create-faro-agent-service.ts";
+import { createFaroRuntime, type FaroRuntime } from "../../app/runtime/create-faro-runtime.ts";
 import type { Beacon } from "../../core/model/document.ts";
 import { createInMemoryStore, type InMemoryStore } from "../../core/services/in-memory-store.ts";
-import {
-  createFaroMcpResources,
-  type FaroMcpResources,
-} from "../mcp/create-faro-mcp-resources.ts";
-import {
-  createFaroMcpTools,
-  type FaroMcpToolSet,
-} from "../mcp/create-faro-mcp-tools.ts";
 import { createCommandController } from "./command-controller.ts";
 import {
   createRuntimeCommands,
@@ -33,10 +25,10 @@ export type ExtensionRuntime = Disposable & {
   readonly status: "ready";
   readonly store: InMemoryStore;
   readonly uiState: WorkspaceUiState;
-  readonly agent: FaroAgentService;
+  readonly agent: FaroRuntime<WorkspaceUiState>["agent"];
   readonly mcp: {
-    readonly tools: FaroMcpToolSet;
-    readonly resources: FaroMcpResources;
+    readonly tools: FaroRuntime<WorkspaceUiState>["mcp"]["tools"];
+    readonly resources: FaroRuntime<WorkspaceUiState>["mcp"]["resources"];
   };
   readonly commands: RuntimeCommands;
   subscribeToRefresh(listener: () => void): () => void;
@@ -54,7 +46,6 @@ export function createExtensionRuntime({
   revealBeacon = async () => ({ status: "revealed" }),
   initialDocument = createSeedDocument(),
 }: CreateExtensionRuntimeOptions = {}): ExtensionRuntime {
-  const listeners = new Set<() => void>();
   const uiState = workspaceState
     ? createWorkspaceUiState({
         memento: workspaceState,
@@ -68,45 +59,17 @@ export function createExtensionRuntime({
         initialDocument,
       })
     : createInMemoryStore(initialDocument);
-  const agent = createFaroAgentService({ store });
-  const mcp = {
-    tools: createFaroMcpTools({ service: agent }),
-    resources: createFaroMcpResources({ service: agent }),
-  };
-  const controller = createCommandController({ store, revealBeacon });
-  const unsubscribeStore = store.subscribe(() => {
-    refresh();
+  const runtime = createFaroRuntime({
+    store,
+    uiState,
   });
+  const controller = createCommandController({ store, revealBeacon });
   const commands = createRuntimeCommands({ controller });
 
   return {
-    status: "ready",
-    store,
-    uiState,
-    agent,
-    mcp,
+    ...runtime,
     commands,
-    subscribeToRefresh,
-    refresh,
-    dispose() {
-      unsubscribeStore();
-      listeners.clear();
-    },
   };
-
-  function subscribeToRefresh(listener: () => void): () => void {
-    listeners.add(listener);
-
-    return () => {
-      listeners.delete(listener);
-    };
-  }
-
-  function refresh(): void {
-    for (const listener of listeners) {
-      listener();
-    }
-  }
 }
 
 function createInMemoryMemento(): MementoLike {

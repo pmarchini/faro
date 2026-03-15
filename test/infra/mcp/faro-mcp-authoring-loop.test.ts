@@ -7,10 +7,10 @@ import test from "node:test";
 
 import { createBeacon, createPath } from "../../core/fixtures.ts";
 import {
-  createExtensionBindings,
+  registerVscodeBindings as createExtensionBindings,
   type ExtensionHost,
   type MainProviderLike,
-} from "../../../src/infra/vscode/bindings/create-extension-bindings.ts";
+} from "../../../src/infra/vscode/composition/register-vscode-bindings.ts";
 import { createExtensionRuntime } from "../../../src/infra/vscode/create-extension-runtime.ts";
 import { registerRuntimeMcpServer } from "../../../src/infra/vscode/bindings/register-runtime-mcp-server.ts";
 

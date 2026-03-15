@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 import {
-  createExtensionBindings,
+  registerVscodeBindings,
   type ExtensionHost,
-} from "./bindings/create-extension-bindings.ts";
+} from "./composition/register-vscode-bindings.ts";
 import { createVscodeExtensionHost } from "./bindings/create-vscode-extension-host.ts";
 import {
   createExtensionRuntime,
@@ -47,7 +47,7 @@ async function activate(
   context?: ExtensionContextLike,
   {
     runtimeFactory = createExtensionRuntime,
-    bindingsFactory = createExtensionBindings,
+    bindingsFactory = registerVscodeBindings,
     loadVscodeApi = loadVscodeApiDefault,
   }: ActivateOptions = {},
 ): Promise<ExtensionRuntime> {

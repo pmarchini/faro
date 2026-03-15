@@ -2,7 +2,7 @@ import type { VscodeLike, VscodeWebviewView } from "../vscode-api.ts";
 import type {
   ExtensionHost,
   MainProviderLike,
-} from "./create-extension-bindings.ts";
+} from "../composition/register-vscode-bindings.ts";
 
 export function createVscodeExtensionHost({
   vscode,
