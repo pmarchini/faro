@@ -194,6 +194,80 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             gap: 0.45rem;
           }
 
+          .home-hero {
+            gap: 0.8rem;
+          }
+
+          .home-mark {
+            width: 3.2rem;
+            height: 3.2rem;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface-muted);
+            color: var(--foreground);
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+          }
+
+          .home-actions {
+            display: grid;
+            gap: 0.75rem;
+          }
+
+          .home-card {
+            width: 100%;
+            display: grid;
+            gap: 0.7rem;
+            padding: 0.95rem;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface-raised);
+            color: var(--foreground);
+            text-align: left;
+            cursor: pointer;
+          }
+
+          .home-card[data-variant="primary"] {
+            background: var(--list-active);
+            color: var(--list-active-foreground);
+            border-color: transparent;
+          }
+
+          .home-card[data-variant="primary"] .muted,
+          .home-card[data-variant="primary"] .home-card-action {
+            color: var(--list-active-foreground);
+          }
+
+          .home-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+          }
+
+          .home-card-title {
+            margin: 0;
+            font-size: 0.98rem;
+            line-height: 1.25;
+          }
+
+          .home-card-action {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--foreground-muted);
+          }
+
+          .home-card-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+
           .nav-button,
           .action-button,
           .entry-button,
@@ -274,6 +348,7 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             letter-spacing: 0.06em;
             text-transform: uppercase;
             font-weight: 700;
+            border: 0;
           }
 
           .beacon-list,
@@ -324,7 +399,8 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
         <main>
           <section class="shell">
             <span class="eyebrow">Faro</span>
-            <h1 class="title">One entry point for paths and setup.</h1>
+            <h1 class="title">One sidebar, three focused destinations.</h1>
+            <p class="body-copy">Move between home, path reading, and setup without adding more views to the VS Code activity bar.</p>
             <div class="nav">
               ${viewModel.routes
                 .map(
@@ -416,21 +492,38 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 function renderSelectedRoute(viewModel: MainWebviewViewModel): string {
   if (viewModel.selectedRoute === "home") {
     return `
-      <section class="entry">
-        <span class="eyebrow">Home</span>
-        <div class="entry-top">
-          <h2 class="section-title">${escapeHtml(viewModel.home.currentPathTitle)}</h2>
-          <span class="pill">Current</span>
-        </div>
-        <p class="body-copy">${escapeHtml(viewModel.home.currentPathSummary)}</p>
-        <button class="entry-button" data-action="open-path">${escapeHtml(viewModel.home.resumeLabel)}</button>
+      <section class="panel home-hero">
+        <span class="eyebrow">Faro Home</span>
+        <div class="home-mark" aria-hidden="true">F</div>
+        <span class="pill">Main Page</span>
+        <h2 class="section-title">${escapeHtml(viewModel.home.title)}</h2>
+        <p class="body-copy">${escapeHtml(viewModel.home.message)}</p>
       </section>
 
-      <section class="entry">
-        <span class="eyebrow">Setup</span>
-        <h2 class="section-title">${escapeHtml(viewModel.home.setupLabel)}</h2>
-        <p class="body-copy">${escapeHtml(viewModel.home.setupSummary)}</p>
-        <button class="entry-button" data-action="open-setup">${escapeHtml(viewModel.home.setupLabel)}</button>
+      <section class="panel">
+        <span class="eyebrow">Start Here</span>
+        <div class="home-actions">
+          <button class="home-card" data-action="open-path" data-variant="primary">
+            <div class="home-card-top">
+              <h3 class="home-card-title">${escapeHtml(viewModel.home.resumeLabel)}</h3>
+              <span class="badge">1</span>
+            </div>
+            <p class="body-copy">${escapeHtml(viewModel.home.currentPathSummary)}</p>
+            <div class="home-card-footer">
+              <span class="pill">${escapeHtml(viewModel.home.currentPathTitle)}</span>
+              <span class="pill">${escapeHtml(viewModel.home.currentStepLabel)}</span>
+            </div>
+          </button>
+
+          <button class="home-card" data-action="open-setup" data-variant="secondary">
+            <div class="home-card-top">
+              <h3 class="home-card-title">${escapeHtml(viewModel.home.setupLabel)}</h3>
+              <span class="badge">S</span>
+            </div>
+            <p class="body-copy">${escapeHtml(viewModel.home.setupSummary)}</p>
+            <div class="home-card-action">Inspect local and global integrations</div>
+          </button>
+        </div>
       </section>
     `;
   }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 import { buildHomeViewModel } from "../../src/app/views/home-view-model.ts";
@@ -32,7 +33,10 @@ class FakeElement {
   }
 }
 
-function createMainViewModel(route: "home" | "path" | "setup" = "home") {
+function createMainViewModel(
+  route: "home" | "path" | "setup" = "home",
+  options: { setupLoading?: boolean } = {},
+) {
   const document = fixtures.createDocument();
 
   return {
@@ -46,7 +50,7 @@ function createMainViewModel(route: "home" | "path" | "setup" = "home") {
     path: buildNavigatorViewModel(document, { showWelcome: false }),
     setup: buildSetupViewModel({
       scope: "local",
-      isLoading: false,
+      isLoading: options.setupLoading ?? false,
       targets: [
         { id: "claude", status: "missing" },
         { id: "copilotInstructions", status: "installed" },
@@ -99,6 +103,27 @@ function runScript({
   return messages;
 }
 
+function extractMainContent(html: string): string {
+  const mainMatch = html.match(/<main>([\s\S]*?)<\/main>/);
+
+  assert.ok(mainMatch, "expected main html to contain a main element");
+
+  return mainMatch[1];
+}
+
+function normalizeSnapshotHtml(html: string): string {
+  return html
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line, index, lines) => line.length > 0 || lines[index - 1] !== "")
+    .join("\n")
+    .trim();
+}
+
+function snapshotPath(name: string): string {
+  return fileURLToPath(new URL(`./__snapshots__/main-webview/${name}.html`, import.meta.url));
+}
+
 test("renderMainHtml renders the home launcher", () => {
   const html = renderMainHtml(createMainViewModel("home"));
 
@@ -124,4 +149,40 @@ test("renderMainHtml delegates nested clicks to route actions", () => {
   const messages = runScript({ html, clickTarget: nested });
 
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "main.openSetup" }]);
+});
+
+test("renderMainHtml matches the home route snapshot", (t) => {
+  const html = renderMainHtml(createMainViewModel("home"));
+
+  t.assert.fileSnapshot(
+    normalizeSnapshotHtml(extractMainContent(html)),
+    snapshotPath("home.route"),
+  );
+});
+
+test("renderMainHtml matches the path route snapshot", (t) => {
+  const html = renderMainHtml(createMainViewModel("path"));
+
+  t.assert.fileSnapshot(
+    normalizeSnapshotHtml(extractMainContent(html)),
+    snapshotPath("path.route"),
+  );
+});
+
+test("renderMainHtml matches the setup route snapshot", (t) => {
+  const html = renderMainHtml(createMainViewModel("setup"));
+
+  t.assert.fileSnapshot(
+    normalizeSnapshotHtml(extractMainContent(html)),
+    snapshotPath("setup.route"),
+  );
+});
+
+test("renderMainHtml matches the loading setup route snapshot", (t) => {
+  const html = renderMainHtml(createMainViewModel("setup", { setupLoading: true }));
+
+  t.assert.fileSnapshot(
+    normalizeSnapshotHtml(extractMainContent(html)),
+    snapshotPath("setup-loading.route"),
+  );
 });
