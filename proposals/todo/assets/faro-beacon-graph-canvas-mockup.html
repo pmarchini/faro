@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Faro Graph Canvas Mockup</title>
+    <style>
+      :root {
+        --bg: #0b1320;
+        --panel: rgba(11, 19, 32, 0.82);
+        --panel-strong: rgba(15, 24, 39, 0.94);
+        --panel-soft: rgba(21, 32, 53, 0.88);
+        --border: rgba(147, 197, 253, 0.18);
+        --accent: #7dd3fc;
+        --accent-strong: #38bdf8;
+        --accent-warm: #fbbf24;
+        --text: #e5eefc;
+        --muted: #9bb0ce;
+        --success: #34d399;
+        --danger: #fb7185;
+        --code-bg: #08111d;
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.12), transparent 24%),
+          linear-gradient(180deg, #09101a 0%, #0b1320 100%);
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) 320px;
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--panel);
+        backdrop-filter: blur(16px);
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar,
+      .inspector {
+        padding: 18px;
+        display: grid;
+        align-content: start;
+        gap: 16px;
+      }
+
+      .eyebrow {
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+
+      .route-bar {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .route-chip,
+      .toolbar button,
+      .jump-button,
+      .detail-button {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        background: rgba(125, 211, 252, 0.08);
+        color: var(--text);
+        font: inherit;
+      }
+
+      .route-chip {
+        padding: 10px 12px;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .route-chip.active {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(14, 165, 233, 0.12));
+        color: var(--text);
+        border-color: rgba(125, 211, 252, 0.28);
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .stat-card,
+      .list-card,
+      .detail-card {
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--panel-soft);
+      }
+
+      .stat-value {
+        margin-top: 8px;
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .list-card {
+        display: grid;
+        gap: 10px;
+      }
+
+      .beacon-row {
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(147, 197, 253, 0.12);
+        background: rgba(8, 17, 29, 0.5);
+      }
+
+      .beacon-row.current {
+        border-color: rgba(125, 211, 252, 0.35);
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(8, 17, 29, 0.65));
+      }
+
+      .beacon-row h3,
+      .detail-card h3,
+      .node h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .canvas-shell {
+        padding: 16px;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 14px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .toolbar-left,
+      .toolbar-right {
+        display: flex;
+        gap: 8px;
+      }
+
+      .toolbar button,
+      .jump-button,
+      .detail-button {
+        padding: 10px 14px;
+        cursor: default;
+      }
+
+      .toolbar .primary,
+      .jump-button {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.34), rgba(14, 165, 233, 0.18));
+        border-color: rgba(125, 211, 252, 0.28);
+      }
+
+      .canvas {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background:
+          linear-gradient(rgba(125, 211, 252, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(125, 211, 252, 0.04) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(6, 12, 22, 0.98), rgba(11, 19, 32, 0.98));
+        background-size: 28px 28px, 28px 28px, auto;
+      }
+
+      .edge-layer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .edge {
+        fill: none;
+        stroke: rgba(125, 211, 252, 0.42);
+        stroke-width: 2.2;
+      }
+
+      .edge.highlight {
+        stroke: rgba(251, 191, 36, 0.66);
+      }
+
+      .node {
+        position: absolute;
+        width: 300px;
+        padding: 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(147, 197, 253, 0.16);
+        background: rgba(8, 17, 29, 0.9);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      .node.current {
+        border-color: rgba(251, 191, 36, 0.5);
+        box-shadow: 0 20px 50px rgba(251, 191, 36, 0.12);
+      }
+
+      .node-header,
+      .node-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .step {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(56, 189, 248, 0.12);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .file-pill {
+        display: inline-flex;
+        margin-top: 10px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(147, 197, 253, 0.08);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      pre {
+        margin: 12px 0;
+        padding: 12px;
+        border-radius: 14px;
+        background: var(--code-bg);
+        color: #dbeafe;
+        font: 12px/1.5 "IBM Plex Mono", "SFMono-Regular", monospace;
+        overflow: hidden;
+      }
+
+      .mini-map {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        width: 176px;
+        height: 116px;
+        border-radius: 18px;
+        border: 1px solid rgba(147, 197, 253, 0.16);
+        background: rgba(8, 17, 29, 0.85);
+        padding: 10px;
+      }
+
+      .mini-map .viewport {
+        position: absolute;
+        left: 68px;
+        top: 28px;
+        width: 72px;
+        height: 48px;
+        border: 1px solid rgba(251, 191, 36, 0.6);
+        border-radius: 8px;
+      }
+
+      .mini-node {
+        position: absolute;
+        border-radius: 8px;
+        background: rgba(125, 211, 252, 0.4);
+      }
+
+      .detail-card {
+        display: grid;
+        gap: 10px;
+      }
+
+      .detail-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        padding: 6px 9px;
+        border-radius: 999px;
+        background: rgba(52, 211, 153, 0.12);
+        color: var(--success);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .detail-button {
+        width: 100%;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar panel">
+        <div>
+          <div class="eyebrow">Faro Graph</div>
+          <h1 class="title">Spatial flow reading for beacons</h1>
+          <p class="copy">See the path as a map. Keep the current beacon highlighted. Jump back to source instantly.</p>
+        </div>
+
+        <div class="route-bar">
+          <div class="route-chip">Home</div>
+          <div class="route-chip">Path</div>
+          <div class="route-chip active">Graph</div>
+          <div class="route-chip">Setup</div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="eyebrow">Visible Nodes</div>
+            <div class="stat-value">7</div>
+          </div>
+          <div class="stat-card">
+            <div class="eyebrow">Current Step</div>
+            <div class="stat-value">3</div>
+          </div>
+        </div>
+
+        <div class="list-card">
+          <div class="eyebrow">Graph Legend</div>
+          <div class="copy">Amber outline marks the current beacon. Thin blue edges are canonical path links. The larger node card shows the focused code preview.</div>
+        </div>
+
+        <div class="list-card">
+          <div class="eyebrow">Beacon Queue</div>
+          <div class="beacon-row">
+            <h3>Runtime entrypoint</h3>
+            <p class="copy">Activation starts here.</p>
+          </div>
+          <div class="beacon-row">
+            <h3>Register VS Code bindings</h3>
+            <p class="copy">Commands, main view, MCP wiring.</p>
+          </div>
+          <div class="beacon-row current">
+            <h3>Main graph node selected</h3>
+            <p class="copy">This card is driving the inspector and code jump.</p>
+          </div>
+        </div>
+      </aside>
+
+      <main class="canvas-shell panel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="primary">Fit</button>
+            <button>Auto layout</button>
+            <button>Center on current</button>
+          </div>
+          <div class="toolbar-right">
+            <button>Minimap</button>
+            <button>Edge labels</button>
+          </div>
+        </div>
+
+        <section class="canvas">
+          <svg class="edge-layer" viewBox="0 0 1200 860" preserveAspectRatio="none">
+            <path class="edge" d="M260 180 C340 180, 390 220, 470 260" />
+            <path class="edge highlight" d="M580 300 C660 300, 710 260, 790 220" />
+            <path class="edge" d="M580 360 C660 400, 720 470, 820 520" />
+            <path class="edge" d="M860 250 C930 280, 980 340, 1020 430" />
+            <path class="edge" d="M220 510 C350 510, 430 520, 510 540" />
+          </svg>
+
+          <article class="node" style="left: 80px; top: 100px;">
+            <div class="node-header">
+              <span class="step">Step 1</span>
+              <span class="badge">entrypoint</span>
+            </div>
+            <h3>Extension activation</h3>
+            <div class="file-pill">src/infra/vscode/extension.ts</div>
+            <p class="copy">The VS Code host loads Faro, creates the runtime, and hands control to the active view bindings.</p>
+          </article>
+
+          <article class="node" style="left: 430px; top: 220px;">
+            <div class="node-header">
+              <span class="step">Step 2</span>
+              <span class="badge">composition</span>
+            </div>
+            <h3>Register VS Code bindings</h3>
+            <div class="file-pill">src/infra/vscode/composition/register-vscode-bindings.ts</div>
+            <p class="copy">Main view, command surface, and local MCP registration are all composed here.</p>
+          </article>
+
+          <article class="node current" style="left: 760px; top: 140px; width: 340px;">
+            <div class="node-header">
+              <span class="step">Step 3</span>
+              <span class="badge">current beacon</span>
+            </div>
+            <h3>Main view provider</h3>
+            <div class="file-pill">src/infra/vscode/ui/main-view/main-view-provider.ts</div>
+            <p class="copy">The selected beacon card shows the real code context, summary, and a direct jump action without leaving the graph mental model.</p>
+            <pre>adapter = createMainWebviewAdapter({
+  webview: view.webview,
+  getViewModel: buildViewModel,
+  onSelectBeacon: async (pathId, beaconId) =&gt; {
+    await commands.setCurrentBeacon(pathId, beaconId);
+  },
+});</pre>
+            <div class="node-footer">
+              <span class="copy">Keeps graph and code navigation in sync</span>
+              <button class="jump-button">Jump to file</button>
+            </div>
+          </article>
+
+          <article class="node" style="left: 790px; top: 460px;">
+            <div class="node-header">
+              <span class="step">Step 4</span>
+              <span class="badge">navigation</span>
+            </div>
+            <h3>Path traversal service</h3>
+            <div class="file-pill">src/app/path/path-traversal-service.ts</div>
+            <p class="copy">Canonical beacon movement stays in app logic. The graph route projects it spatially.</p>
+          </article>
+
+          <article class="node" style="left: 120px; top: 460px;">
+            <div class="node-header">
+              <span class="step">Branch</span>
+              <span class="badge">legacy ui</span>
+            </div>
+            <h3>Navigator compatibility layer</h3>
+            <div class="file-pill">src/infra/vscode/ui/legacy/navigator/*</div>
+            <p class="copy">Legacy paths can still appear as side branches or compatibility context without competing with the current graph route.</p>
+          </article>
+
+          <div class="mini-map">
+            <div class="mini-node" style="left: 16px; top: 24px; width: 34px; height: 18px;"></div>
+            <div class="mini-node" style="left: 58px; top: 40px; width: 42px; height: 22px;"></div>
+            <div class="mini-node" style="left: 108px; top: 32px; width: 48px; height: 26px; background: rgba(251, 191, 36, 0.45);"></div>
+            <div class="mini-node" style="left: 120px; top: 76px; width: 38px; height: 18px;"></div>
+            <div class="mini-node" style="left: 10px; top: 84px; width: 42px; height: 18px;"></div>
+            <div class="viewport"></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="inspector panel">
+        <div class="detail-card">
+          <div class="eyebrow">Selected Beacon</div>
+          <h3>Main view provider</h3>
+          <div class="detail-meta">
+            <span class="tag">current</span>
+            <span class="tag">ui</span>
+            <span class="tag">jump enabled</span>
+          </div>
+          <p class="copy">The graph is not just a topology view. Each node behaves like a compact reading surface with enough code and prose to help a developer decide where to jump next.</p>
+        </div>
+
+        <div class="detail-card">
+          <div class="eyebrow">Interaction Model</div>
+          <p class="copy">Click a node to focus it. Press `Jump to file` to reveal the code range. Use `Fit` and `Center on current` to recover orientation on large paths.</p>
+          <button class="detail-button">Open in editor</button>
+        </div>
+
+        <div class="detail-card">
+          <div class="eyebrow">Library Fit</div>
+          <p class="copy"><strong>X6</strong> is the best fit for the first version because Faro already uses a lightweight VS Code webview stack and this concept needs rich HTML-like node cards more than pure graph analytics.</p>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>

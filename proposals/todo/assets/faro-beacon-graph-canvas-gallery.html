@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Faro Graph Canvas Proposals</title>
+    <style>
+      :root {
+        --bg: #08111d;
+        --bg-alt: #0d1726;
+        --panel: rgba(12, 22, 36, 0.86);
+        --panel-strong: rgba(13, 23, 38, 0.94);
+        --panel-soft: rgba(16, 29, 47, 0.88);
+        --border: rgba(148, 163, 184, 0.18);
+        --grid: rgba(125, 211, 252, 0.06);
+        --text: #e7eef7;
+        --muted: #98acc4;
+        --accent: #7dd3fc;
+        --accent-strong: #38bdf8;
+        --accent-warm: #fbbf24;
+        --shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+        --code: #07101a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 22%),
+          radial-gradient(circle at top right, rgba(251, 191, 36, 0.12), transparent 20%),
+          linear-gradient(180deg, #08111d 0%, #0b1320 100%);
+      }
+
+      .page {
+        width: 1600px;
+        margin: 0 auto;
+        padding: 40px 32px 80px;
+        display: grid;
+        gap: 28px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 12px;
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .hero p,
+      .variant-copy,
+      .small-copy,
+      .node-copy,
+      .meta,
+      .list-item,
+      .toolbar button,
+      .detail-button,
+      .chip,
+      .mini-pill {
+        color: var(--muted);
+      }
+
+      .hero p {
+        max-width: 900px;
+        line-height: 1.55;
+      }
+
+      .variant {
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        background: rgba(11, 19, 32, 0.56);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .variant-header {
+        padding: 24px 28px 20px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        background:
+          linear-gradient(180deg, rgba(125, 211, 252, 0.06), transparent),
+          rgba(13, 23, 38, 0.7);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .variant-header-left {
+        display: grid;
+        gap: 10px;
+      }
+
+      .variant-copy {
+        max-width: 760px;
+        line-height: 1.5;
+      }
+
+      .variant-tag {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(125, 211, 252, 0.08);
+        border: 1px solid rgba(125, 211, 252, 0.18);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .frame {
+        padding: 24px;
+        background:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(6, 12, 22, 0.96), rgba(11, 19, 32, 0.96));
+        background-size: 28px 28px, 28px 28px, auto;
+      }
+
+      .shell {
+        min-height: 780px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgba(8, 17, 29, 0.84);
+      }
+
+      .shell-grid-a,
+      .shell-grid-b,
+      .shell-grid-c {
+        display: grid;
+        min-height: 780px;
+      }
+
+      .shell-grid-a {
+        grid-template-columns: 264px minmax(0, 1fr) 320px;
+      }
+
+      .shell-grid-b {
+        grid-template-columns: 220px minmax(0, 1fr) 280px;
+      }
+
+      .shell-grid-c {
+        grid-template-columns: minmax(0, 1.2fr) 430px;
+      }
+
+      .rail,
+      .panel,
+      .focus-side,
+      .workbench-side {
+        padding: 18px;
+        display: grid;
+        align-content: start;
+        gap: 14px;
+        background: rgba(12, 22, 36, 0.82);
+      }
+
+      .panel,
+      .focus-side,
+      .workbench-side {
+        border-left: 1px solid var(--border);
+      }
+
+      .card,
+      .stat,
+      .node,
+      .detail-card,
+      .mini-card,
+      .inspector-card,
+      .code-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--panel);
+      }
+
+      .card,
+      .stat,
+      .detail-card,
+      .mini-card,
+      .inspector-card,
+      .code-card {
+        padding: 14px;
+      }
+
+      .route-group,
+      .list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .chip {
+        padding: 11px 12px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: rgba(125, 211, 252, 0.06);
+      }
+
+      .chip.active {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.24), rgba(14, 165, 233, 0.08));
+        border-color: rgba(125, 211, 252, 0.24);
+        color: var(--text);
+      }
+
+      .stat strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--text);
+        font-size: 24px;
+      }
+
+      .canvas {
+        position: relative;
+        padding: 20px;
+      }
+
+      .toolbar {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        right: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        z-index: 2;
+      }
+
+      .toolbar-group {
+        display: flex;
+        gap: 8px;
+      }
+
+      .toolbar button,
+      .detail-button {
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(125, 211, 252, 0.16);
+        background: rgba(125, 211, 252, 0.08);
+        font: inherit;
+      }
+
+      .toolbar .primary,
+      .detail-button.primary {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(14, 165, 233, 0.14));
+        color: var(--text);
+      }
+
+      .edge-layer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .edge {
+        fill: none;
+        stroke: rgba(125, 211, 252, 0.38);
+        stroke-width: 2.2;
+      }
+
+      .edge.highlight {
+        stroke: rgba(251, 191, 36, 0.6);
+      }
+
+      .node {
+        position: absolute;
+        width: 290px;
+        padding: 14px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+      }
+
+      .node.current {
+        border-color: rgba(251, 191, 36, 0.5);
+        box-shadow: 0 18px 48px rgba(251, 191, 36, 0.12);
+      }
+
+      .node.muted {
+        opacity: 0.76;
+      }
+
+      .node-header,
+      .node-footer,
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .step,
+      .mini-pill {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(125, 211, 252, 0.08);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .meta {
+        font-size: 12px;
+      }
+
+      .node-copy {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      pre {
+        margin: 0;
+        padding: 12px;
+        overflow: hidden;
+        border-radius: 14px;
+        background: var(--code);
+        color: #c7d7ee;
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .detail-button {
+        width: max-content;
+      }
+
+      .minimap {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        width: 164px;
+        height: 112px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: rgba(8, 17, 29, 0.84);
+      }
+
+      .minimap::before,
+      .minimap::after {
+        content: "";
+        position: absolute;
+        border-radius: 10px;
+        background: rgba(125, 211, 252, 0.15);
+      }
+
+      .minimap::before {
+        left: 18px;
+        top: 16px;
+        width: 116px;
+        height: 56px;
+      }
+
+      .minimap::after {
+        right: 20px;
+        bottom: 14px;
+        width: 54px;
+        height: 32px;
+        border: 1px solid rgba(251, 191, 36, 0.42);
+        background: rgba(251, 191, 36, 0.08);
+      }
+
+      .focus-canvas {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .focus-node {
+        position: absolute;
+        left: 50%;
+        top: 52%;
+        width: 360px;
+        transform: translate(-50%, -50%);
+      }
+
+      .orbit {
+        position: absolute;
+        width: 220px;
+      }
+
+      .orbit.one { left: 110px; top: 210px; }
+      .orbit.two { left: 200px; top: 520px; }
+      .orbit.three { right: 130px; top: 180px; }
+      .orbit.four { right: 170px; top: 500px; }
+
+      .workbench-main {
+        display: grid;
+        grid-template-rows: 1fr 280px;
+        min-height: 780px;
+      }
+
+      .workbench-side {
+        background: rgba(13, 23, 38, 0.9);
+      }
+
+      .cluster-card {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(125, 211, 252, 0.06);
+        display: grid;
+        gap: 10px;
+      }
+
+      .small-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .list-item {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(8, 17, 29, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <div class="eyebrow">Faro Proposal Mockups</div>
+        <h1>Beacon Graph Canvas Directions</h1>
+        <p>
+          Three candidate directions for a graph-based Faro experience. Each keeps beacon cards code-first,
+          preserves the jump-to-file loop, and treats the graph as a comprehension aid rather than a general diagram editor.
+        </p>
+      </section>
+
+      <section class="variant">
+        <div class="variant-header">
+          <div class="variant-header-left">
+            <div class="eyebrow">Option A</div>
+            <h2>Spatial Map</h2>
+            <p class="variant-copy">
+              Strongest whole-flow overview. Best if the graph surface should feel like a true navigable canvas with clear topology and branch shape.
+            </p>
+          </div>
+          <div class="variant-tag">Best For Overview</div>
+        </div>
+        <div class="frame">
+          <div class="shell shell-grid-a">
+            <aside class="rail">
+              <div class="card">
+                <div class="eyebrow">Path</div>
+                <h3>Faro graph canvas</h3>
+                <p class="small-copy">A temporary comprehension map for the active reading spine.</p>
+              </div>
+              <div class="route-group">
+                <div class="chip">Home</div>
+                <div class="chip">Path</div>
+                <div class="chip active">Graph</div>
+                <div class="chip">Setup</div>
+              </div>
+              <div class="stat">
+                <div class="eyebrow">Beacons</div>
+                <strong>8</strong>
+              </div>
+              <div class="stat">
+                <div class="eyebrow">Branches</div>
+                <strong>3</strong>
+              </div>
+              <div class="card list">
+                <div class="eyebrow">Current spine</div>
+                <div class="list-item">1. Entry boundary</div>
+                <div class="list-item">2. Normalize request</div>
+                <div class="list-item">3. Branch by target</div>
+                <div class="list-item">4. Persist path state</div>
+              </div>
+            </aside>
+            <main class="canvas">
+              <div class="toolbar">
+                <div class="toolbar-group">
+                  <button>Path Only</button>
+                  <button class="primary">Auto Layout</button>
+                </div>
+                <div class="toolbar-group">
+                  <button>Fit</button>
+                  <button>Center Current</button>
+                </div>
+              </div>
+              <svg class="edge-layer" viewBox="0 0 980 780" preserveAspectRatio="none">
+                <path class="edge" d="M 210 180 C 310 180, 350 180, 450 180" />
+                <path class="edge highlight" d="M 500 230 C 560 310, 620 340, 690 340" />
+                <path class="edge" d="M 500 210 C 540 170, 620 145, 700 160" />
+                <path class="edge" d="M 740 200 C 760 270, 760 420, 700 510" />
+                <path class="edge" d="M 690 390 C 610 480, 480 530, 350 560" />
+              </svg>
+              <article class="node" style="left: 54px; top: 98px;">
+                <div class="node-header">
+                  <span class="step">Step 1</span>
+                  <span class="badge">Entry</span>
+                </div>
+                <h3>Activate the extension boundary</h3>
+                <div class="meta">src/infra/vscode/extension.ts</div>
+                <p class="node-copy">Activation creates the Faro adapter shell and hands control to the host runtime.</p>
+                <pre>export async function activate(context) {
+  const runtime = createFaroRuntime(...)
+  registerBindings(runtime)
+}</pre>
+                <div class="node-footer">
+                  <span class="mini-pill">Stable anchor</span>
+                  <button class="detail-button primary">Jump to file</button>
+                </div>
+              </article>
+              <article class="node current" style="left: 392px; top: 120px;">
+                <div class="node-header">
+                  <span class="step">Step 3</span>
+                  <span class="badge">Current</span>
+                </div>
+                <h3>Branch by active target</h3>
+                <div class="meta">src/app/path/path-traversal-service.ts</div>
+                <p class="node-copy">This node decides which next beacon becomes active and which side effect the reader should expect.</p>
+                <pre>if (direction === "next") {
+  return pathMachine.next(document, current)
+}</pre>
+                <div class="node-footer">
+                  <span class="mini-pill">Decision point</span>
+                  <button class="detail-button primary">Jump to file</button>
+                </div>
+              </article>
+              <article class="node muted" style="left: 654px; top: 86px;">
+                <div class="node-header">
+                  <span class="step">Alt</span>
+                  <span class="badge">Setup</span>
+                </div>
+                <h3>Open setup path</h3>
+                <div class="meta">src/infra/vscode/ui/main-view/main-view-provider.ts</div>
+                <p class="node-copy">A side branch for onboarding targets and installation feedback.</p>
+              </article>
+              <article class="node" style="left: 646px; top: 296px;">
+                <div class="node-header">
+                  <span class="step">Step 4</span>
+                  <span class="badge">State</span>
+                </div>
+                <h3>Persist the selected beacon</h3>
+                <div class="meta">src/core/services/in-memory-store.ts</div>
+                <p class="node-copy">The active reading position becomes the source of truth for both linear and graph mode.</p>
+              </article>
+              <article class="node" style="left: 286px; top: 520px;">
+                <div class="node-header">
+                  <span class="step">Step 5</span>
+                  <span class="badge">Effect</span>
+                </div>
+                <h3>Reveal beacon in the editor</h3>
+                <div class="meta">src/infra/vscode/adapters/outbound/editor</div>
+                <p class="node-copy">Jump-to-file reuses the current reveal/navigation adapter rather than inventing a second flow.</p>
+              </article>
+              <div class="minimap"></div>
+            </main>
+            <aside class="panel">
+              <div class="inspector-card">
+                <div class="eyebrow">Selected beacon</div>
+                <h3>Branch by active target</h3>
+                <p class="small-copy">Why it matters: this is the first step where the next beacon is no longer obvious from file order.</p>
+              </div>
+              <div class="code-card">
+                <div class="eyebrow">Carry forward</div>
+                <p class="small-copy">The next beacon is derived from state, not from the current file tree layout.</p>
+              </div>
+              <div class="detail-card">
+                <div class="eyebrow">Actions</div>
+                <button class="detail-button primary">Jump to file</button>
+                <button class="detail-button">Center on node</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="variant">
+        <div class="variant-header">
+          <div class="variant-header-left">
+            <div class="eyebrow">Option B</div>
+            <h2>Current Beacon Focus</h2>
+            <p class="variant-copy">
+              Lower cognitive load. The graph still exists, but the current beacon dominates and neighboring steps feel like an orbit around the reader's current position.
+            </p>
+          </div>
+          <div class="variant-tag">Best For Guided Reading</div>
+        </div>
+        <div class="frame">
+          <div class="shell shell-grid-b">
+            <aside class="rail">
+              <div class="card">
+                <div class="eyebrow">Mode</div>
+                <h3>Focused graph</h3>
+                <p class="small-copy">Graph as a spatial reading assistant, not a freeform diagram.</p>
+              </div>
+              <div class="route-group">
+                <div class="chip">Home</div>
+                <div class="chip">Path</div>
+                <div class="chip active">Graph</div>
+              </div>
+              <div class="card">
+                <div class="eyebrow">Quick jump</div>
+                <div class="small-list">
+                  <div class="list-item">Previous branch</div>
+                  <div class="list-item">Current decision</div>
+                  <div class="list-item">Visible effect</div>
+                </div>
+              </div>
+            </aside>
+            <main class="focus-canvas">
+              <div class="toolbar">
+                <div class="toolbar-group">
+                  <button class="primary">Follow Current</button>
+                </div>
+                <div class="toolbar-group">
+                  <button>Fit</button>
+                  <button>Expand Neighbors</button>
+                </div>
+              </div>
+              <svg class="edge-layer" viewBox="0 0 980 780" preserveAspectRatio="none">
+                <path class="edge highlight" d="M 290 270 C 390 310, 430 330, 490 355" />
+                <path class="edge highlight" d="M 650 245 C 620 290, 590 315, 535 350" />
+                <path class="edge" d="M 300 575 C 410 520, 450 500, 500 430" />
+                <path class="edge" d="M 640 575 C 595 520, 565 490, 530 430" />
+              </svg>
+              <article class="node orbit one muted">
+                <div class="node-header">
+                  <span class="step">Prev</span>
+                  <span class="badge">Setup</span>
+                </div>
+                <h3>Normalize target input</h3>
+                <div class="meta">src/app/runtime/create-faro-runtime.ts</div>
+                <p class="node-copy">Shapes the input before Faro decides what the next mental step should be.</p>
+              </article>
+              <article class="node orbit two muted">
+                <div class="node-header">
+                  <span class="step">Next</span>
+                  <span class="badge">State</span>
+                </div>
+                <h3>Persist the active path</h3>
+                <div class="meta">src/core/model/document.ts</div>
+                <p class="node-copy">Updates the active reading state shared with linear mode.</p>
+              </article>
+              <article class="node orbit three muted">
+                <div class="node-header">
+                  <span class="step">Alt</span>
+                  <span class="badge">Branch</span>
+                </div>
+                <h3>Open setup route</h3>
+                <div class="meta">src/infra/vscode/ui/main-view/main-view-provider.ts</div>
+                <p class="node-copy">A host-specific route branch that stays visually secondary.</p>
+              </article>
+              <article class="node orbit four muted">
+                <div class="node-header">
+                  <span class="step">Effect</span>
+                  <span class="badge">Editor</span>
+                </div>
+                <h3>Reveal the code range</h3>
+                <div class="meta">src/infra/vscode/adapters/outbound/editor</div>
+                <p class="node-copy">Turns graph selection into a concrete editor jump.</p>
+              </article>
+              <article class="node current focus-node">
+                <div class="node-header">
+                  <span class="step">Current beacon</span>
+                  <span class="badge">Decision point</span>
+                </div>
+                <h3>Choose the next beacon from path state</h3>
+                <div class="meta">src/app/path/path-traversal-service.ts</div>
+                <p class="node-copy">This is the mental hinge of the flow. The user should understand that progression comes from Faro state, not from incidental file order.</p>
+                <pre>const next = direction === "next"
+  ? pathMachine.next(document, current)
+  : pathMachine.previous(document, current)</pre>
+                <div class="node-footer">
+                  <span class="mini-pill">Comprehension hinge</span>
+                  <button class="detail-button primary">Jump to file</button>
+                </div>
+              </article>
+            </main>
+            <aside class="focus-side">
+              <div class="inspector-card">
+                <div class="eyebrow">Why it matters</div>
+                <p class="small-copy">This mode is optimized for first-pass comprehension. The graph answers "where can I go next?" without forcing the user to parse the whole map at once.</p>
+              </div>
+              <div class="cluster-card">
+                <div class="eyebrow">Neighbor set</div>
+                <div class="small-list">
+                  <div class="list-item">Predecessor: Normalize target input</div>
+                  <div class="list-item">Alternate: Open setup route</div>
+                  <div class="list-item">Outcome: Reveal the code range</div>
+                </div>
+              </div>
+              <div class="detail-card">
+                <div class="eyebrow">Actions</div>
+                <button class="detail-button primary">Jump to file</button>
+                <button class="detail-button">Switch to map mode</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="variant">
+        <div class="variant-header">
+          <div class="variant-header-left">
+            <div class="eyebrow">Option C</div>
+            <h2>Comprehension Workbench</h2>
+            <p class="variant-copy">
+              Strongest code-first ergonomics. The graph remains visible, but the selected beacon's title, explanation, and code preview become the dominant reading surface.
+            </p>
+          </div>
+          <div class="variant-tag">Best For Code Reading</div>
+        </div>
+        <div class="frame">
+          <div class="shell shell-grid-c">
+            <main class="workbench-main">
+              <section class="canvas">
+                <div class="toolbar">
+                  <div class="toolbar-group">
+                    <button class="primary">Graph</button>
+                    <button>Path</button>
+                  </div>
+                  <div class="toolbar-group">
+                    <button>Fit</button>
+                    <button>Auto Layout</button>
+                  </div>
+                </div>
+                <svg class="edge-layer" viewBox="0 0 980 500" preserveAspectRatio="none">
+                  <path class="edge" d="M 190 190 C 270 190, 340 190, 420 190" />
+                  <path class="edge highlight" d="M 470 240 C 540 300, 620 315, 700 305" />
+                  <path class="edge" d="M 460 220 C 520 180, 610 150, 700 160" />
+                </svg>
+                <article class="node muted" style="left: 58px; top: 108px;">
+                  <div class="node-header">
+                    <span class="step">Entry</span>
+                    <span class="badge">Boundary</span>
+                  </div>
+                  <h3>Host activates Faro</h3>
+                  <div class="meta">src/infra/vscode/extension.ts</div>
+                </article>
+                <article class="node current" style="left: 362px; top: 120px; width: 320px;">
+                  <div class="node-header">
+                    <span class="step">Current</span>
+                    <span class="badge">Selected</span>
+                  </div>
+                  <h3>Resolve the next path step</h3>
+                  <div class="meta">src/app/path/path-traversal-service.ts</div>
+                  <p class="node-copy">The selected card is mirrored in the reading pane for deeper inspection.</p>
+                </article>
+                <article class="node muted" style="left: 706px; top: 100px;">
+                  <div class="node-header">
+                    <span class="step">Branch</span>
+                    <span class="badge">Setup</span>
+                  </div>
+                  <h3>Open setup route</h3>
+                  <div class="meta">src/infra/vscode/ui/main-view/main-view-provider.ts</div>
+                </article>
+              </section>
+              <section class="code-card" style="margin: 0 20px 20px; display: grid; gap: 16px;">
+                <div class="row">
+                  <div>
+                    <div class="eyebrow">Selected beacon</div>
+                    <h3>Resolve the next path step</h3>
+                  </div>
+                  <button class="detail-button primary">Jump to file</button>
+                </div>
+                <p class="small-copy">
+                  This pane turns graph selection into a reading target. It makes graph mode useful even when the user wants to stay anchored in code and prose rather than spatial navigation.
+                </p>
+                <pre>export function traversePath(document, current, direction) {
+  if (direction === "next") {
+    return pathMachine.next(document, current)
+  }
+
+  return pathMachine.previous(document, current)
+}</pre>
+              </section>
+            </main>
+            <aside class="workbench-side">
+              <div class="inspector-card">
+                <div class="eyebrow">Why it matters</div>
+                <p class="small-copy">The workbench is the safest migration path from today's Faro UI because it preserves the reading-centric surface area while adding graph awareness.</p>
+              </div>
+              <div class="cluster-card">
+                <div class="eyebrow">File</div>
+                <h3>src/app/path/path-traversal-service.ts</h3>
+                <p class="small-copy">A stable app-level anchor that should not depend on the VS Code adapter.</p>
+              </div>
+              <div class="cluster-card">
+                <div class="eyebrow">Actions</div>
+                <div class="small-list">
+                  <div class="list-item">Jump to file</div>
+                  <div class="list-item">Set current beacon</div>
+                  <div class="list-item">Center selected node</div>
+                </div>
+              </div>
+              <div class="cluster-card">
+                <div class="eyebrow">Recommendation</div>
+                <p class="small-copy">Best if Faro wants graph mode without making the spatial canvas the only star of the screen.</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

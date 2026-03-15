@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Faro Graph Canvas Variants</title>
+    <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+    <style>
+      :root {
+        --bg: #07111b;
+        --panel: rgba(8, 18, 30, 0.94);
+        --panel-soft: rgba(13, 25, 39, 0.88);
+        --border: rgba(160, 187, 214, 0.14);
+        --text: #e6eef7;
+        --muted: #90a6bf;
+        --cyan: #6dd3ff;
+        --blue: #4ea3ff;
+        --gold: #ffcb63;
+        --green: #57d39b;
+        --rose: #ff7b8a;
+        --shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+        --code: #07101a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(78, 163, 255, 0.16), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(255, 203, 99, 0.08), transparent 22%),
+          linear-gradient(180deg, #050c14 0%, #07111b 100%);
+      }
+
+      .page {
+        display: grid;
+        gap: 28px;
+        padding: 28px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 10px;
+        max-width: 920px;
+      }
+
+      .eyebrow {
+        color: var(--cyan);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .hero h1 {
+        font-size: 42px;
+        line-height: 1.02;
+      }
+
+      .hero p {
+        color: var(--muted);
+        max-width: 760px;
+        line-height: 1.6;
+      }
+
+      .variants {
+        display: grid;
+        gap: 32px;
+      }
+
+      .variant {
+        display: grid;
+        gap: 16px;
+      }
+
+      .variant-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .variant-copy {
+        display: grid;
+        gap: 8px;
+        max-width: 760px;
+      }
+
+      .variant-copy p {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(109, 211, 255, 0.08);
+        border: 1px solid rgba(109, 211, 255, 0.14);
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .artboard {
+        position: relative;
+        min-height: 760px;
+        border: 1px solid var(--border);
+        border-radius: 28px;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(7, 17, 27, 0.96), rgba(7, 17, 27, 0.98));
+        background-size: 28px 28px, 28px 28px, auto;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .surface {
+        position: absolute;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .muted-surface {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: var(--panel-soft);
+      }
+
+      .section-title {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .button,
+      .ghost,
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        font: inherit;
+      }
+
+      .button {
+        padding: 10px 14px;
+        background: linear-gradient(135deg, rgba(78, 163, 255, 0.28), rgba(109, 211, 255, 0.18));
+        border-color: rgba(109, 211, 255, 0.2);
+        color: var(--text);
+      }
+
+      .ghost {
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border-color: var(--border);
+        color: var(--muted);
+      }
+
+      .tag {
+        padding: 6px 10px;
+        background: rgba(255, 203, 99, 0.1);
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .code {
+        padding: 14px;
+        border-radius: 14px;
+        background: var(--code);
+        border: 1px solid rgba(160, 187, 214, 0.1);
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #d1e2ff;
+        white-space: pre-wrap;
+      }
+
+      .edge-layer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .edge {
+        fill: none;
+        stroke: rgba(109, 211, 255, 0.38);
+        stroke-width: 2.2;
+      }
+
+      .edge.gold {
+        stroke: rgba(255, 203, 99, 0.56);
+      }
+
+      .edge.soft {
+        stroke: rgba(109, 211, 255, 0.18);
+      }
+
+      .node {
+        position: absolute;
+        width: 280px;
+        padding: 14px;
+        border: 1px solid rgba(160, 187, 214, 0.14);
+        border-radius: 20px;
+        background: rgba(9, 17, 28, 0.94);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
+        display: grid;
+        gap: 12px;
+      }
+
+      .node.current {
+        border-color: rgba(255, 203, 99, 0.32);
+        box-shadow: 0 18px 52px rgba(255, 203, 99, 0.12);
+      }
+
+      .node.compact {
+        width: 220px;
+        gap: 10px;
+      }
+
+      .node.faded {
+        opacity: 0.54;
+      }
+
+      .node-header,
+      .node-footer,
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .node h3 {
+        font-size: 15px;
+      }
+
+      .node p {
+        color: var(--muted);
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      .file-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(109, 211, 255, 0.08);
+        color: var(--cyan);
+        border: 1px solid rgba(109, 211, 255, 0.12);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .mini-rail {
+        position: absolute;
+        inset: 26px auto 26px 26px;
+        width: 248px;
+        padding: 16px;
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .rail-list,
+      .inspector-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .rail-row {
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        display: grid;
+        gap: 6px;
+      }
+
+      .rail-row.current {
+        background: linear-gradient(135deg, rgba(255, 203, 99, 0.14), rgba(109, 211, 255, 0.08));
+      }
+
+      .step {
+        color: var(--cyan);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+      }
+
+      .canvas-toolbar {
+        position: absolute;
+        inset: 26px 26px auto auto;
+        padding: 10px;
+        display: flex;
+        gap: 8px;
+      }
+
+      .inspector {
+        position: absolute;
+        inset: 26px 26px 26px auto;
+        width: 312px;
+        padding: 16px;
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .canvas-label {
+        position: absolute;
+        inset: 30px auto auto 300px;
+        color: rgba(230, 238, 247, 0.28);
+        font-size: 64px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .minimap {
+        position: absolute;
+        inset: auto 26px 26px auto;
+        width: 164px;
+        height: 118px;
+        padding: 12px;
+      }
+
+      .minimap-grid {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .minimap-box {
+        position: absolute;
+        border: 1px solid rgba(109, 211, 255, 0.44);
+        background: rgba(109, 211, 255, 0.08);
+        border-radius: 8px;
+      }
+
+      .legend {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .legend b {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <div class="eyebrow">Faro Proposal Mockups</div>
+        <h1>Beacon Graph Canvas Variants</h1>
+        <p>
+          Three directions for a graph-first Faro experience. All keep the beacon as a code-aware card,
+          preserve the existing reveal-to-file behavior, and treat the graph as a complement to the linear path.
+        </p>
+      </section>
+
+      <section class="variants">
+        <article class="variant">
+          <div class="variant-header">
+            <div class="variant-copy">
+              <div class="eyebrow">Option A</div>
+              <h2>Guided Spine Canvas</h2>
+              <p>
+                The graph is visible, but the reading spine remains dominant. The current beacon is the visual center,
+                immediate neighbors stay readable, and side branches are present without hijacking attention.
+              </p>
+            </div>
+            <div class="chips">
+              <div class="chip">Lowest cognitive load</div>
+              <div class="chip">Progressive branches</div>
+              <div class="chip">Spine-first</div>
+            </div>
+          </div>
+
+          <div class="artboard">
+            <div class="surface mini-rail">
+              <div class="section-title">Main Path</div>
+              <div class="rail-list">
+                <div class="rail-row">
+                  <div class="step">1 of 6</div>
+                  <strong>Start from the extension boundary</strong>
+                  <span class="file-chip">extension.ts</span>
+                </div>
+                <div class="rail-row">
+                  <div class="step">2 of 6</div>
+                  <strong>Create the Faro runtime</strong>
+                  <span class="file-chip">create-faro-runtime.ts</span>
+                </div>
+                <div class="rail-row current">
+                  <div class="step">3 of 6</div>
+                  <strong>Normalize the path graph</strong>
+                  <span class="file-chip">document.ts</span>
+                </div>
+                <div class="rail-row">
+                  <div class="step">4 of 6</div>
+                  <strong>Project beacon cards</strong>
+                  <span class="file-chip">graph-view-model.ts</span>
+                </div>
+                <div class="rail-row">
+                  <div class="step">5 of 6</div>
+                  <strong>Reveal code in the adapter</strong>
+                  <span class="file-chip">reveal-beacon.ts</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="surface canvas-toolbar">
+              <div class="ghost">Fit</div>
+              <div class="ghost">Center current</div>
+              <div class="button">Follow spine</div>
+            </div>
+
+            <div class="canvas-label">guided</div>
+
+            <svg class="edge-layer" viewBox="0 0 1440 760" preserveAspectRatio="none">
+              <path class="edge" d="M560 330 C640 250, 700 240, 780 260" />
+              <path class="edge gold" d="M780 260 C860 280, 900 330, 960 390" />
+              <path class="edge soft" d="M780 260 C900 220, 990 180, 1080 150" />
+              <path class="edge soft" d="M780 260 C930 310, 1040 330, 1140 320" />
+            </svg>
+
+            <div class="node compact faded" style="left: 470px; top: 280px;">
+              <div class="node-header">
+                <span class="step">Previous</span>
+                <span class="tag">entry</span>
+              </div>
+              <h3>Build runtime ports</h3>
+              <span class="file-chip">create-faro-runtime.ts</span>
+            </div>
+
+            <div class="node current" style="left: 730px; top: 190px;">
+              <div class="node-header">
+                <span class="step">Current beacon</span>
+                <span class="tag">state change</span>
+              </div>
+              <h3>Normalize the graph from the canonical document</h3>
+              <span class="file-chip">src/core/model/document.ts</span>
+              <p>The graph view should project from the existing Faro document instead of creating a second canvas state model.</p>
+              <div class="code">const current = path.mainPath[currentIndex]
+const beacon = path.beacons[current.beaconId]
+return projectGraphNode(beacon)</div>
+              <div class="node-footer">
+                <div class="ghost">Peek branch</div>
+                <div class="button">Open file</div>
+              </div>
+            </div>
+
+            <div class="node compact" style="left: 960px; top: 360px;">
+              <div class="node-header">
+                <span class="step">Next</span>
+                <span class="tag">effect</span>
+              </div>
+              <h3>Render node cards</h3>
+              <span class="file-chip">graph-view-model.ts</span>
+            </div>
+
+            <div class="node compact faded" style="left: 1060px; top: 105px;">
+              <div class="node-header">
+                <span class="step">Side branch</span>
+                <span class="tag">decision</span>
+              </div>
+              <h3>Choose layout mode</h3>
+              <span class="file-chip">layout.ts</span>
+            </div>
+
+            <div class="node compact faded" style="left: 1120px; top: 285px;">
+              <div class="node-header">
+                <span class="step">Side branch</span>
+                <span class="tag">adapter</span>
+              </div>
+              <h3>Reveal code in VS Code</h3>
+              <span class="file-chip">reveal-beacon.ts</span>
+            </div>
+
+            <div class="surface minimap">
+              <div class="section-title">Map</div>
+              <div class="minimap-grid">
+                <div class="minimap-box" style="left: 18px; top: 38px; width: 32px; height: 18px;"></div>
+                <div class="minimap-box" style="left: 68px; top: 18px; width: 40px; height: 22px;"></div>
+                <div class="minimap-box" style="left: 92px; top: 62px; width: 34px; height: 20px;"></div>
+                <div class="minimap-box" style="left: 114px; top: 8px; width: 24px; height: 14px;"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="variant">
+          <div class="variant-header">
+            <div class="variant-copy">
+              <div class="eyebrow">Option B</div>
+              <h2>Jump Map</h2>
+              <p>
+                The graph acts like a spatial index over the code-reading path. File identity stays visible on every node,
+                hover reveals the local neighborhood, and file-jump actions are always close to the beacon card.
+              </p>
+            </div>
+            <div class="chips">
+              <div class="chip">Fast discoverability</div>
+              <div class="chip">File-first nodes</div>
+              <div class="chip">Inspector-driven</div>
+            </div>
+          </div>
+
+          <div class="artboard">
+            <div class="surface mini-rail" style="width: 224px;">
+              <div class="section-title">Paths & Filters</div>
+              <div class="rail-list">
+                <div class="rail-row current">
+                  <strong>Extension activation flow</strong>
+                  <span class="file-chip">6 beacons</span>
+                </div>
+                <div class="rail-row">
+                  <strong>Graph authoring loop</strong>
+                  <span class="file-chip">5 beacons</span>
+                </div>
+                <div class="rail-row">
+                  <strong>Reveal behavior</strong>
+                  <span class="file-chip">4 beacons</span>
+                </div>
+              </div>
+              <div class="section-title">Search</div>
+              <div class="muted-surface" style="padding: 12px; color: var(--muted);">title, file, tag</div>
+              <div class="legend">
+                <span><b>Hover</b> neighbor spotlight</span>
+                <span><b>Double click</b> open file</span>
+              </div>
+            </div>
+
+            <div class="surface canvas-toolbar">
+              <div class="ghost">Search</div>
+              <div class="ghost">Auto layout</div>
+              <div class="button">Focus current</div>
+            </div>
+
+            <svg class="edge-layer" viewBox="0 0 1440 760" preserveAspectRatio="none">
+              <path class="edge" d="M360 180 C460 150, 540 170, 620 220" />
+              <path class="edge" d="M620 220 C710 260, 790 300, 860 360" />
+              <path class="edge gold" d="M620 220 C700 190, 810 170, 930 180" />
+              <path class="edge" d="M930 180 C1020 220, 1080 290, 1140 370" />
+              <path class="edge soft" d="M620 220 C690 120, 760 90, 850 80" />
+            </svg>
+
+            <div class="node" style="left: 300px; top: 120px;">
+              <div class="node-header">
+                <span class="step">Entry</span>
+                <span class="tag">boundary</span>
+              </div>
+              <h3>Activate the extension host</h3>
+              <span class="file-chip">src/infra/vscode/extension.ts</span>
+              <p>Defines the adapter boundary and hands off into Faro composition.</p>
+              <div class="node-footer">
+                <div class="ghost">Reveal range</div>
+                <div class="button">Open file</div>
+              </div>
+            </div>
+
+            <div class="node current" style="left: 560px; top: 190px;">
+              <div class="node-header">
+                <span class="step">Selected</span>
+                <span class="tag">composition</span>
+              </div>
+              <h3>Register VS Code bindings</h3>
+              <span class="file-chip">src/infra/vscode/composition/register-vscode-bindings.ts</span>
+              <p>Wires the graph UI, commands, and reveal behavior without redefining Faro semantics.</p>
+              <div class="code">registerMainView(...)
+registerNavigationCommands(...)
+registerMcpProvider(...)</div>
+              <div class="node-footer">
+                <div class="ghost">Copy path</div>
+                <div class="button">Open file</div>
+              </div>
+            </div>
+
+            <div class="node" style="left: 900px; top: 150px;">
+              <div class="node-header">
+                <span class="step">Inspect</span>
+                <span class="tag">ui</span>
+              </div>
+              <h3>Render the main graph route</h3>
+              <span class="file-chip">src/infra/vscode/ui/main-view/main-view-adapter.ts</span>
+              <p>Turns the current beacon into a card-first UI surface with direct file affordances.</p>
+              <div class="node-footer">
+                <div class="ghost">Reveal range</div>
+                <div class="button">Open file</div>
+              </div>
+            </div>
+
+            <div class="node" style="left: 1080px; top: 340px;">
+              <div class="node-header">
+                <span class="step">Effect</span>
+                <span class="tag">editor</span>
+              </div>
+              <h3>Reveal the selected beacon in code</h3>
+              <span class="file-chip">src/app/path/path-traversal-service.ts</span>
+              <p>The graph remains a reader's map, but the jump ends in the real source file.</p>
+              <div class="node-footer">
+                <div class="ghost">Peek file</div>
+                <div class="button">Open file</div>
+              </div>
+            </div>
+
+            <div class="node compact faded" style="left: 770px; top: 50px;">
+              <div class="node-header">
+                <span class="step">Branch</span>
+                <span class="tag">layout</span>
+              </div>
+              <h3>Auto-layout nodes</h3>
+              <span class="file-chip">layout.ts</span>
+            </div>
+
+            <div class="surface inspector">
+              <div class="section-title">Beacon Inspector</div>
+              <h3>Register VS Code bindings</h3>
+              <p style="color: var(--muted); line-height: 1.55;">
+                One selected beacon, one expanded explanation. The graph remains visible while the inspector holds
+                the larger code excerpt and the local actions.
+              </p>
+              <div class="chips">
+                <div class="chip">path position 2 of 6</div>
+                <div class="chip">neighbors 3</div>
+              </div>
+              <div class="code">type Bindings = {
+  registerMainView(): Disposable
+  registerNavigationCommands(): Disposable
+  registerMcpProvider(): Disposable
+}</div>
+              <div class="toolbar">
+                <div class="ghost">Peek context</div>
+                <div class="button">Jump to file</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="variant">
+          <div class="variant-header">
+            <div class="variant-copy">
+              <div class="eyebrow">Option C</div>
+              <h2>Port-Lens Graph Canvas</h2>
+              <p>
+                A graph view that makes the adapter/core boundary legible. The canvas owns spatial interaction,
+                the inspector owns explanation, and the graph is explicitly presented as a projection over canonical Faro data.
+              </p>
+            </div>
+            <div class="chips">
+              <div class="chip">Architectural clarity</div>
+              <div class="chip">Adapter-aware</div>
+              <div class="chip">Future-proof</div>
+            </div>
+          </div>
+
+          <div class="artboard">
+            <div class="surface mini-rail" style="width: 260px;">
+              <div class="section-title">Core Semantics</div>
+              <div class="rail-list">
+                <div class="rail-row current">
+                  <strong>Active path</strong>
+                  <span class="file-chip">canonical document</span>
+                </div>
+                <div class="rail-row">
+                  <strong>Current beacon</strong>
+                  <span class="file-chip">stable identity</span>
+                </div>
+                <div class="rail-row">
+                  <strong>Graph relations</strong>
+                  <span class="file-chip">derived edges</span>
+                </div>
+              </div>
+              <div class="section-title">Adapter Lens</div>
+              <div class="rail-list">
+                <div class="rail-row">
+                  <strong>Pan / zoom</strong>
+                </div>
+                <div class="rail-row">
+                  <strong>Theme tokens</strong>
+                </div>
+                <div class="rail-row">
+                  <strong>Editor reveal</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="surface canvas-toolbar">
+              <div class="ghost">Projection</div>
+              <div class="ghost">Derived edges</div>
+              <div class="button">Center on current</div>
+            </div>
+
+            <svg class="edge-layer" viewBox="0 0 1440 760" preserveAspectRatio="none">
+              <path class="edge gold" d="M420 270 C560 250, 640 230, 740 190" />
+              <path class="edge" d="M740 190 C860 210, 940 260, 1020 330" />
+              <path class="edge" d="M740 190 C810 120, 900 100, 1030 100" />
+              <path class="edge soft" d="M1020 330 C1090 360, 1160 390, 1230 440" />
+            </svg>
+
+            <div class="node" style="left: 360px; top: 210px;">
+              <div class="node-header">
+                <span class="step">Core</span>
+                <span class="tag">document</span>
+              </div>
+              <h3>Canonical Faro path</h3>
+              <span class="file-chip">src/core/model/document.ts</span>
+              <p>Owns beacon identity, order, and validation. The graph should never redefine these semantics.</p>
+            </div>
+
+            <div class="node current" style="left: 690px; top: 140px;">
+              <div class="node-header">
+                <span class="step">Projection</span>
+                <span class="tag">graph</span>
+              </div>
+              <h3>Graph view model over canonical data</h3>
+              <span class="file-chip">graph-view-model.ts</span>
+              <p>Derived nodes and edges belong to the adapter layer, but selection meaning still maps back to one beacon.</p>
+              <div class="code">node.id = beacon.id
+node.fileUri = beacon.fileUri
+edge.kind = "mainPath" | "related"</div>
+            </div>
+
+            <div class="node" style="left: 990px; top: 70px;">
+              <div class="node-header">
+                <span class="step">Adapter</span>
+                <span class="tag">ui</span>
+              </div>
+              <h3>Canvas interaction layer</h3>
+              <span class="file-chip">x6-adapter.ts</span>
+              <p>Owns viewport state, drag behavior, zoom, theme tokens, and local rendering choices.</p>
+            </div>
+
+            <div class="node" style="left: 1010px; top: 310px;">
+              <div class="node-header">
+                <span class="step">Adapter</span>
+                <span class="tag">editor</span>
+              </div>
+              <h3>Reveal selected beacon in the editor</h3>
+              <span class="file-chip">reveal-beacon.ts</span>
+              <p>`Jump to file` remains a host adapter concern even when the graph is richer.</p>
+            </div>
+
+            <div class="surface inspector">
+              <div class="section-title">Boundary Notes</div>
+              <div class="inspector-list">
+                <div class="muted-surface" style="padding: 14px;">
+                  <strong>Core owns meaning</strong>
+                  <p style="margin-top: 8px; color: var(--muted); line-height: 1.5;">
+                    path ids, beacon ids, current selection, derived relations
+                  </p>
+                </div>
+                <div class="muted-surface" style="padding: 14px;">
+                  <strong>Adapter owns presentation</strong>
+                  <p style="margin-top: 8px; color: var(--muted); line-height: 1.5;">
+                    pan, zoom, minimap, keyboard shortcuts, VS Code reveal behavior
+                  </p>
+                </div>
+                <div class="muted-surface" style="padding: 14px;">
+                  <strong>Result</strong>
+                  <p style="margin-top: 8px; color: var(--muted); line-height: 1.5;">
+                    one stable Faro model that can later power non-VS Code adapters too
+                  </p>
+                </div>
+              </div>
+              <div class="toolbar">
+                <div class="ghost">View contract</div>
+                <div class="button">Jump to file</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </body>
+</html>
