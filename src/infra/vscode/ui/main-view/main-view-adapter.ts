@@ -672,13 +672,15 @@ function renderPathRoute(viewModel: NavigatorViewModel): string {
           <span class="eyebrow">Current Path</span>
           <h2 class="section-title">${escapeHtml(viewModel.pathTitle)}</h2>
         </div>
-        <span class="pill">${escapeHtml(viewModel.positionLabel)}</span>
       </div>
       <p class="body-copy">${escapeHtml(viewModel.goal)}</p>
     </section>
 
     <section class="panel">
-      <span class="eyebrow">Current Beacon</span>
+      <div class="path-meta">
+        <span class="eyebrow">Current Beacon</span>
+        <span class="pill">${escapeHtml(viewModel.positionLabel)}</span>
+      </div>
       <h2 class="section-title">${escapeHtml(viewModel.beaconTitle)}</h2>
       <p class="body-copy">${escapeHtml(viewModel.summary)}</p>
       <p class="body-copy">${escapeHtml(viewModel.explanation)}</p>

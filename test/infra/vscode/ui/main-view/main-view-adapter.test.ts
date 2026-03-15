@@ -151,6 +151,21 @@ test("renderMainHtml renders the path route controls", () => {
   assert.match(html, /Auth Flow/);
 });
 
+test("renderMainHtml shows the position pill in Current Beacon, not Current Path", () => {
+  const html = renderMainHtml(createMainViewModel("path"));
+  const currentPathSection = html.match(
+    /<section class="panel">\s*<div class="path-meta">[\s\S]*?<span class="eyebrow">Current Path<\/span>[\s\S]*?<\/section>/,
+  );
+  const currentBeaconSection = html.match(
+    /<section class="panel">\s*<div class="path-meta">[\s\S]*?<span class="eyebrow">Current Beacon<\/span>[\s\S]*?<\/section>/,
+  );
+
+  assert.ok(currentPathSection, "expected Current Path section");
+  assert.ok(currentBeaconSection, "expected Current Beacon section");
+  assert.doesNotMatch(currentPathSection[0], /<span class="pill">1 of 2<\/span>/);
+  assert.match(currentBeaconSection[0], /<span class="pill">1 of 2<\/span>/);
+});
+
 test("renderMainHtml delegates nested clicks to route actions", () => {
   const html = renderMainHtml(createMainViewModel("home"));
   const button = new FakeElement({ action: "open-setup" });
