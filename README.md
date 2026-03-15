@@ -7,8 +7,8 @@ This repository currently contains a working local MVP of the extension:
 - a canonical Faro document model
 - validation and path navigation logic
 - an in-memory store
-- pure app-layer projections for outline and navigator views
-- real VS Code host bindings for outline, navigator, commands, and editor reveal
+- pure app-layer projections for the Faro main view
+- real VS Code host bindings for the main view, commands, setup integration, and editor reveal
 - an agent-facing Faro service plus MCP tools/resources
 - local stdio MCP server registration through the VS Code MCP provider API
 - a verified protocol-level authoring loop from the registered Faro MCP server into the sidebar state
@@ -27,6 +27,61 @@ This project currently relies on Node's native TypeScript type stripping for loc
 ```sh
 npm install
 ```
+
+## First Run
+
+The right way to understand Faro is to follow the agentic loop inside VS Code.
+
+Use this first-run path:
+
+1. Install and validate the repository:
+
+```sh
+npm install
+npm run check
+npm test
+```
+
+2. Install the extension locally:
+
+```sh
+make install-local
+```
+
+3. Install the local Faro agent artifacts for this workspace:
+
+```sh
+make upsert-agent-local SCOPE=local
+```
+
+4. Open the repository in VS Code:
+
+```sh
+code .
+```
+
+5. Reload the window once if needed so VS Code picks up the local extension and the generated custom agent artifacts.
+
+6. Open the Chat view and select the `Faro Path Author` custom agent.
+
+7. Ensure the local `Faro` MCP server is enabled for the workspace.
+
+8. Ask the agent to create or revise a path for a concrete code-reading goal.
+
+Example:
+
+```text
+Create a Faro path that explains how the main VS Code view is built and wired.
+```
+
+9. Open the `Faro` activity bar container and inspect the result in the main view:
+   - `Home` gives you the product entrypoint
+   - `Path` shows the active path and current beacon
+   - `Setup` shows local/global integration targets
+
+10. Use `Prev`, `Next`, and `Reveal` to verify that the generated path is actually navigable in code.
+
+That is the intended product loop: author in chat, inspect in Faro, reveal in code.
 
 ## Validate
 
@@ -164,10 +219,11 @@ That target will:
 Current expectation:
 
 - the `Faro` activity bar container is visible
-- `Outline` shows the seeded sample path
-- `Navigator` shows the current beacon
-- `Prev` / `Next` updates the current beacon in the sidebar
+- the main Faro view opens with `Home`, `Path`, and `Setup` routes
+- `Path` shows the seeded sample path and current beacon
+- `Prev` / `Next` updates the current beacon in the view
 - `Reveal` opens seeded sample beacons in the local repository
+- `Setup` shows local/global integration targets for Claude, Copilot, and Codex
 
 If you want to launch the host manually instead of using the workspace shortcut:
 
@@ -186,6 +242,50 @@ If you want the extension host run to stay aligned with repo quality gates, run 
 make check
 make test
 ```
+
+## What To Expect On First Run
+
+If the setup is working, the first useful experience should look like this:
+
+1. You ask the Faro agent in VS Code Chat for a path.
+2. The agent uses the local Faro MCP surface made available by the extension.
+3. Faro state updates inside the extension runtime.
+4. The `Path` route in the Faro view reflects the new or revised path.
+5. `Prev`, `Next`, and `Reveal` let you walk that path against real code.
+
+The key mental model is:
+
+- chat is the authoring surface
+- Faro is the reading and navigation surface
+- the editor is where the code is revealed
+
+## Current MCP Boundary
+
+For now, Faro's MCP surface is effectively local to VS Code.
+
+That means:
+
+- the extension registers one local `faro.local` MCP server definition for the workspace
+- VS Code Chat can use that MCP surface when the workspace enables it
+- Faro is not yet exposed as a standalone external MCP service meant to be consumed directly by tools outside VS Code
+
+There is protocol-level coverage for the MCP authoring loop in tests, but the developer-facing story is still centered on VS Code Chat rather than an external Codex-to-Faro connection.
+
+## What Is Happening Under The Hood
+
+When Faro is running in VS Code:
+
+1. the extension activates one runtime over one canonical store
+2. the extension registers the local Faro MCP surface for the workspace
+3. VS Code Chat can call Faro MCP operations against that runtime-backed store
+4. the main Faro view renders derived state from the same store
+5. command actions such as `Prev`, `Next`, and `Reveal` go through the same runtime loop
+
+That is the main invariant in this repository:
+
+- one canonical Faro document
+- one runtime/store loop
+- one VS Code-hosted local MCP surface
 
 ## Repository Structure
 
@@ -212,10 +312,10 @@ Implemented:
 - `node:test` suite
 - typed core/app/infra boundaries
 - real extension composition root
-- outline tree provider registration
-- navigator webview registration
+- one main webview with `Home`, `Path`, and `Setup` routes
 - editor reveal/highlight wiring
 - local command surface for navigating and focusing Faro
+- setup integration flow for local/global agent artifacts
 - agent-facing Faro contract (`listPaths`, `getPath`, `upsertPath`, `setActivePath`, `setCurrentBeacon`, `deletePath`)
 - MCP tools/resources bootstrap over the canonical store
 - VS Code MCP server definition registration for a local stdio Faro server
