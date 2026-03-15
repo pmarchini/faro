@@ -1,4 +1,184 @@
-# Faro Path Author Agent
+# Faro Repository Agent Guide
+
+## Purpose
+
+This file defines how agents should work in this repository.
+
+It is the default operating contract for fresh runs.
+Agents should follow these instructions unless the user explicitly overrides them.
+
+## Repository Goals
+
+This repository is built with these priorities:
+
+- modular architecture
+- low coupling
+- strong cohesion
+- strict incremental delivery
+- behavior-first testing
+- clear product/design alignment
+
+## Core Working Model
+
+Agents working in this repository must:
+
+- work in small, incremental slices
+- prefer implementation over long speculative planning
+- verify each slice before considering it complete
+- keep commits scoped by change type
+- avoid mixing unrelated work into one commit
+
+Default sequence for a slice:
+
+1. understand the local code boundary
+2. write or update failing tests first
+3. implement the smallest change that makes the tests pass
+4. run verification
+5. commit the slice
+6. move to the next slice
+
+## TDD Rules
+
+Strict TDD is the default.
+
+Agents must:
+
+- start from failing tests when changing behavior
+- prefer behavior-driven tests over implementation-detail tests
+- avoid low-value or duplicate tests
+- keep test scope proportional to the change
+- use snapshot tests only when they help catch visible UI regressions clearly
+
+Snapshot guidance:
+
+- snapshots are allowed for stable UI render output
+- snapshots must not replace behavioral tests
+- do not snapshot large unstable surfaces without normalization
+- prefer focused snapshots over broad noisy ones
+
+## Testing Stack
+
+Default testing choices:
+
+- prefer `node:test` over Vitest where possible
+- keep code in TypeScript
+- keep module format ESM
+- run `npm run check` after each implementation slice
+- run relevant tests after each implementation slice
+- when practical, run `npm test`
+
+## Parallelization Rules
+
+Agents should parallelize aggressively when the work can be cleanly split.
+
+Parallelize:
+
+- adapter work
+- view-model work
+- tests
+- isolated UI slices
+- documentation/spec updates that do not conflict with code ownership
+
+Do not parallelize in ways that create avoidable conflicts in:
+
+- canonical schema
+- shared store semantics
+- the same file or tightly coupled write surface
+
+## Multi-Agent Roles
+
+When the task is large enough, use multiple agents with explicit roles.
+
+### Architect Agents
+
+Use at least one architect agent for substantial work.
+Prefer two architects when the slice changes architecture, UI composition, or cross-layer boundaries.
+
+Architect agents are responsible for:
+
+- dependency direction
+- module boundaries
+- reducing coupling
+- preserving cohesion
+- validating that the implementation matches the intended design
+
+They should not be the primary feature implementers unless necessary.
+
+### Tech Lead Agent
+
+Use a tech lead agent for cross-slice code quality review.
+
+The tech lead is responsible for:
+
+- naming clarity
+- abstraction quality
+- consistency across modules
+- architectural drift detection
+- identifying duplicated logic
+- reviewing whether the code fits the repo design standards
+
+### Extreme Programming Test Lead
+
+Use an XP-oriented test lead agent for test review.
+
+This agent is responsible for:
+
+- verifying that tests check behavior, not trivia
+- identifying brittle tests
+- identifying under-tested behavior
+- suggesting stronger behavioral coverage
+- preventing snapshot abuse
+
+### Worker Agents
+
+Worker agents should have clear ownership boundaries.
+
+Each worker should own:
+
+- a narrow set of files or modules
+- one coherent slice of responsibility
+- the tests for that slice
+
+Workers must not revert unrelated changes or interfere with parallel work outside their ownership.
+
+## Commit Discipline
+
+Commit after each completed slice.
+
+Commit rules:
+
+- keep commits focused
+- separate code, docs, and proposal work when they are materially different
+- use conventional commit titles:
+  - `feat: ...`
+  - `fix: ...`
+  - `test: ...`
+  - `docs: ...`
+  - `refactor: ...`
+
+If multiple pending changes exist, split them into separate commits by content.
+
+## UI / UX Delivery Rules
+
+For UI work:
+
+- use the selected Figma frame as the implementation reference when one exists
+- implement UI in micro-increments
+- preserve existing working behavior while refining visuals
+- add targeted render/snapshot coverage when it helps expose regressions
+- avoid redesigning multiple surfaces in one slice unless explicitly requested
+
+## Faro Product Boundary
+
+Faro is centered on:
+
+- agent-authored code-comprehension paths
+- extension-side rendering and navigation
+- MCP-driven interaction between agent and extension
+
+Agents must not invent extension capabilities that do not exist.
+
+## Specialized Agent Profile: Faro Path Author
 
 ## Purpose
 
