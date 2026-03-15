@@ -98,8 +98,8 @@
     "upsert:copilot-agent": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=local --copilot-agent-only",
     "package:vsix": "vsce package",
     "install:local": "npm run package:vsix -- --out dist/faro.vsix && code --install-extension dist/faro.vsix --force",
-    "test": "node --test",
-    "test:watch": "node --test --watch"
+    "test": "node --test --test-isolation=none",
+    "test:watch": "node --test --test-isolation=none --watch"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
