@@ -11,7 +11,6 @@ test("buildHomeViewModel reflects the active path when one exists", () => {
   assert.equal(viewModel.resumeLabel, "Resume Current Path");
   assert.equal(viewModel.currentPathTitle, "Auth Flow");
   assert.match(viewModel.currentPathSummary, /Trace authentication/);
-  assert.equal(viewModel.currentStepLabel, "Beacon 1 of 2");
   assert.equal(viewModel.setupLabel, "Open Setup");
 });
 
@@ -24,5 +23,4 @@ test("buildHomeViewModel falls back cleanly when there is no active path", () =>
 
   assert.equal(viewModel.currentPathTitle, "No active path");
   assert.match(viewModel.currentPathSummary, /Create a Faro path/);
-  assert.equal(viewModel.currentStepLabel, "No active beacon");
 });

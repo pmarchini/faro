@@ -196,20 +196,13 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 
           .home-hero {
             gap: 0.8rem;
+            justify-items: start;
           }
 
-          .home-mark {
-            width: 3.2rem;
-            height: 3.2rem;
-            display: inline-grid;
-            place-items: center;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: var(--surface-muted);
-            color: var(--foreground);
-            font-size: 1rem;
-            font-weight: 800;
-            letter-spacing: 0.08em;
+          .home-logo {
+            width: 4.4rem;
+            height: 4.4rem;
+            display: block;
           }
 
           .home-actions {
@@ -228,17 +221,7 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             color: var(--foreground);
             text-align: left;
             cursor: pointer;
-          }
-
-          .home-card[data-variant="primary"] {
-            background: var(--list-active);
-            color: var(--list-active-foreground);
-            border-color: transparent;
-          }
-
-          .home-card[data-variant="primary"] .muted,
-          .home-card[data-variant="primary"] .home-card-action {
-            color: var(--list-active-foreground);
+            font: inherit;
           }
 
           .home-card-top {
@@ -260,12 +243,6 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             letter-spacing: 0.04em;
             text-transform: uppercase;
             color: var(--foreground-muted);
-          }
-
-          .home-card-footer {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
           }
 
           .nav-button,
@@ -357,35 +334,81 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             gap: 0.7rem;
           }
 
-          .beacon.current {
-            background: var(--list-active);
-            color: var(--list-active-foreground);
-          }
-
-          .beacon.current .muted {
-            color: var(--list-active-foreground);
-            opacity: 0.84;
-          }
-
-          .step {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.8rem;
-            height: 1.8rem;
+          .beacon-button {
+            display: grid;
+            gap: 0.45rem;
+            width: 100%;
+            padding: 0.7rem 0.75rem;
+            border: 1px solid var(--border);
             border-radius: 10px;
             background: var(--surface-muted);
-            font-size: 0.82rem;
-            font-weight: 700;
-          }
-
-          .beacon-button {
-            padding: 0;
-            border: 0;
-            background: transparent;
-            color: inherit;
+            color: var(--foreground);
+            font: inherit;
             text-align: left;
             cursor: pointer;
+          }
+
+          .beacon-button[data-current="true"] {
+            background: var(--list-active);
+            color: var(--list-active-foreground);
+            border-color: transparent;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+          }
+
+          .beacon-row-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+          }
+
+          .step-chip,
+          .current-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.3rem;
+            padding: 0 0.45rem;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+          }
+
+          .step-chip {
+            background: var(--surface-muted);
+            color: var(--foreground-muted);
+          }
+
+          .beacon-button[data-current="true"] .step-chip {
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+          }
+
+          .current-chip {
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+          }
+
+          .beacon-button[data-current="false"] .current-chip {
+            display: none;
+          }
+
+          .beacon-row-title {
+            margin: 0;
+            font-size: 0.94rem;
+            line-height: 1.25;
+            font-weight: 600;
+          }
+
+          .beacon-row-caption {
+            color: var(--foreground-muted);
+            font-size: 0.82rem;
+            line-height: 1.35;
+          }
+
+          .beacon-button[data-current="true"] .beacon-row-caption {
+            color: inherit;
+            opacity: 0.88;
           }
 
           .scope-switch {
@@ -494,8 +517,7 @@ function renderSelectedRoute(viewModel: MainWebviewViewModel): string {
     return `
       <section class="panel home-hero">
         <span class="eyebrow">Faro Home</span>
-        <div class="home-mark" aria-hidden="true">F</div>
-        <span class="pill">Main Page</span>
+        ${renderFaroLogo()}
         <h2 class="section-title">${escapeHtml(viewModel.home.title)}</h2>
         <p class="body-copy">${escapeHtml(viewModel.home.message)}</p>
       </section>
@@ -503,19 +525,15 @@ function renderSelectedRoute(viewModel: MainWebviewViewModel): string {
       <section class="panel">
         <span class="eyebrow">Start Here</span>
         <div class="home-actions">
-          <button class="home-card" data-action="open-path" data-variant="primary">
+          <button class="home-card" data-action="open-path">
             <div class="home-card-top">
               <h3 class="home-card-title">${escapeHtml(viewModel.home.resumeLabel)}</h3>
               <span class="badge">1</span>
             </div>
             <p class="body-copy">${escapeHtml(viewModel.home.currentPathSummary)}</p>
-            <div class="home-card-footer">
-              <span class="pill">${escapeHtml(viewModel.home.currentPathTitle)}</span>
-              <span class="pill">${escapeHtml(viewModel.home.currentStepLabel)}</span>
-            </div>
           </button>
 
-          <button class="home-card" data-action="open-setup" data-variant="secondary">
+          <button class="home-card" data-action="open-setup">
             <div class="home-card-top">
               <h3 class="home-card-title">${escapeHtml(viewModel.home.setupLabel)}</h3>
               <span class="badge">S</span>
@@ -586,20 +604,20 @@ function renderPathRoute(viewModel: NavigatorViewModel): string {
         ${viewModel.beacons
           .map(
             (beacon) => `
-              <article class="beacon ${beacon.isCurrent ? "current" : ""}">
-                <div class="row-top">
-                  <span class="step">${beacon.stepNumber}</span>
-                  <button
-                    class="beacon-button"
-                    data-action="select-beacon"
-                    data-path-id="${escapeHtml(viewModel.pathId)}"
-                    data-beacon-id="${escapeHtml(beacon.id)}"
-                  >
-                    <strong>${escapeHtml(beacon.title)}</strong>
-                  </button>
-                </div>
-                <p class="muted">${escapeHtml(beacon.summary)}</p>
-              </article>
+              <button
+                class="beacon-button"
+                data-action="select-beacon"
+                data-path-id="${escapeHtml(viewModel.pathId)}"
+                data-beacon-id="${escapeHtml(beacon.id)}"
+                data-current="${beacon.isCurrent ? "true" : "false"}"
+              >
+                <span class="beacon-row-header">
+                  <span class="step-chip">Step ${String(beacon.stepNumber)}</span>
+                  <span class="current-chip">Current step</span>
+                </span>
+                <span class="beacon-row-title">${escapeHtml(beacon.title)}</span>
+                <span class="beacon-row-caption">${escapeHtml(beacon.summary)}</span>
+              </button>
             `,
           )
           .join("")}
@@ -702,6 +720,53 @@ function isSetupInstallTargetMessage(
     message.type === "main.setupInstallTarget" &&
     typeof candidate.targetId === "string"
   );
+}
+
+function renderFaroLogo(): string {
+  return `
+    <svg
+      class="home-logo"
+      viewBox="0 0 256 256"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="Faro logo"
+      role="img"
+    >
+      <rect
+        x="10"
+        y="10"
+        width="236"
+        height="236"
+        rx="58"
+        stroke="#3C5A74"
+        stroke-width="6"
+      />
+      <g transform="translate(128 128) scale(1.3) translate(-128 -128)">
+        <path
+          d="M86 92L128 70L170 92L170 140L128 162L86 140Z"
+          stroke="#67D2FF"
+          stroke-width="7"
+          stroke-linejoin="round"
+        />
+        <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" />
+        <circle cx="86" cy="92" r="7" fill="#67D2FF" />
+        <circle cx="128" cy="70" r="7" fill="#67D2FF" />
+        <circle cx="170" cy="92" r="7" fill="#67D2FF" />
+        <circle cx="86" cy="140" r="7" fill="#67D2FF" />
+        <circle cx="128" cy="118" r="7" fill="#67D2FF" />
+        <circle cx="170" cy="140" r="7" fill="#67D2FF" />
+        <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
+        <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
+        <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
+        <path
+          d="M102 186H154"
+          stroke="#F4F7FB"
+          stroke-width="9"
+          stroke-linecap="round"
+        />
+      </g>
+    </svg>
+  `;
 }
 
 function escapeHtml(value: string): string {

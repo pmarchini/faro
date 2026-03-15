@@ -129,6 +129,8 @@ test("renderMainHtml renders the home launcher", () => {
 
   assert.match(html, /Resume Current Path/);
   assert.match(html, /Open Setup/);
+  assert.match(html, /<svg[\s\S]*viewBox="0 0 256 256"/);
+  assert.doesNotMatch(html, /Main Page/);
   assert.doesNotMatch(html, /Checking integrations/);
 });
 
@@ -149,6 +151,22 @@ test("renderMainHtml delegates nested clicks to route actions", () => {
   const messages = runScript({ html, clickTarget: nested });
 
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "main.openSetup" }]);
+});
+
+test("renderMainHtml delegates nested clicks inside the full beacon card", () => {
+  const html = renderMainHtml(createMainViewModel("path"));
+  const button = new FakeElement({
+    action: "select-beacon",
+    pathId: "auth-flow",
+    beaconId: "b1",
+  });
+  const nested = new FakeElement({}, button);
+
+  const messages = runScript({ html, clickTarget: nested });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
+    { type: "main.selectBeacon", pathId: "auth-flow", beaconId: "b1" },
+  ]);
 });
 
 test("renderMainHtml matches the home route snapshot", (t) => {
