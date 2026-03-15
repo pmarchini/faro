@@ -95,6 +95,7 @@ test("runtime uses workspace state when available", () => {
   assert.equal(runtime.store.load().activePathId, "stored-flow");
   assert.deepEqual(runtime.uiState.load(), {
     welcomeDismissed: false,
+    selectedMainRoute: "home",
   });
 
   runtime.dispose();
@@ -108,9 +109,11 @@ test("runtime persists welcome dismissal in workspace ui state", async () => {
 
   assert.deepEqual(runtime.uiState.load(), {
     welcomeDismissed: true,
+    selectedMainRoute: "home",
   });
   assert.deepEqual(workspaceState.snapshot().ui, {
     welcomeDismissed: true,
+    selectedMainRoute: "home",
   });
 
   runtime.dispose();

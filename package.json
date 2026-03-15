@@ -20,9 +20,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:faro.outline",
-    "onView:faro.navigator",
-    "onView:faro.setup",
+    "onView:faro.main",
     "onCommand:faro.focusSidebar",
     "onCommand:faro.nextBeacon",
     "onCommand:faro.previousBeacon",
@@ -43,17 +41,8 @@
     "views": {
       "faro": [
         {
-          "id": "faro.outline",
-          "name": "Outline"
-        },
-        {
-          "id": "faro.navigator",
-          "name": "Navigator",
-          "type": "webview"
-        },
-        {
-          "id": "faro.setup",
-          "name": "Setup",
+          "id": "faro.main",
+          "name": "Home",
           "type": "webview"
         }
       ]

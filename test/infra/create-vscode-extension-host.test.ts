@@ -22,8 +22,7 @@ function createFakeWebview() {
 function createFakeVscodeApi() {
   const commandRegistrations: string[] = [];
   const executedCommands: string[] = [];
-  const outlineRegistrations: string[] = [];
-  const navigatorRegistrations: Array<{
+  const mainRegistrations: Array<{
     id: string;
     provider: {
       resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }): void | Promise<void>;
@@ -49,17 +48,13 @@ function createFakeVscodeApi() {
         },
       },
       window: {
-        registerTreeDataProvider(id: string) {
-          outlineRegistrations.push(id);
-          return createDisposable(`outline:${id}`);
-        },
         registerWebviewViewProvider(
           id: string,
           provider: {
             resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }): void | Promise<void>;
           },
         ) {
-          navigatorRegistrations.push({ id, provider });
+          mainRegistrations.push({ id, provider });
           return createDisposable(`navigator:${id}`);
         },
       },
@@ -123,8 +118,7 @@ function createFakeVscodeApi() {
     },
     commandRegistrations,
     executedCommands,
-    outlineRegistrations,
-    navigatorRegistrations,
+    mainRegistrations,
     mcpRegistrations,
     disposals,
   };
@@ -141,45 +135,16 @@ function createFakeVscodeApi() {
 test("createVscodeExtensionHost delegates command and provider registrations", async () => {
   const vscode = createFakeVscodeApi();
   const host = createVscodeExtensionHost({ vscode: vscode.api as never });
-  let navigatorResolved = 0;
-  let setupResolved = 0;
+  let mainResolved = 0;
   const webview = createFakeWebview();
-  const setupWebview = createFakeWebview();
-  const outlineProvider = {
-    refresh() {},
-    dispose() {},
-    getChildren() {
-      return [];
-    },
-    getTreeItem() {
-      return {};
-    },
-    onDidChangeTreeData() {
-      return {
-        dispose() {},
-      };
-    },
-  };
 
   const command = host.registerCommand("faro.nextBeacon", () => {});
-  const outline = host.registerOutlineProvider(
-    "faro.outline",
-    outlineProvider as never,
-  );
-  const navigator = host.registerNavigatorProvider("faro.navigator", {
+  const main = host.registerMainProvider("faro.main", {
     refresh() {},
     dispose() {},
     resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }) {
-      navigatorResolved += 1;
+      mainResolved += 1;
       assert.equal(view.webview, webview);
-    },
-  });
-  const setup = host.registerSetupProvider("faro.setup", {
-    refresh() {},
-    dispose() {},
-    resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }) {
-      setupResolved += 1;
-      assert.equal(view.webview, setupWebview);
     },
   });
   const mcp = host.registerMcpServerDefinitionProvider("faro.local", {
@@ -198,21 +163,13 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
   });
 
   assert.deepEqual(vscode.commandRegistrations, ["faro.nextBeacon"]);
-  assert.deepEqual(vscode.outlineRegistrations, ["faro.outline"]);
-  assert.equal(vscode.navigatorRegistrations.length, 2);
+  assert.equal(vscode.mainRegistrations.length, 1);
   assert.equal(webview.options, undefined);
-  assert.equal(setupWebview.options, undefined);
 
-  await vscode.navigatorRegistrations[0]?.provider.resolveWebviewView({ webview });
-  await vscode.navigatorRegistrations[1]?.provider.resolveWebviewView({ webview: setupWebview });
+  await vscode.mainRegistrations[0]?.provider.resolveWebviewView({ webview });
 
-  assert.equal(navigatorResolved, 1);
-  assert.equal(setupResolved, 1);
+  assert.equal(mainResolved, 1);
   assert.equal((webview.options as Record<string, unknown> | undefined)?.enableScripts, true);
-  assert.equal(
-    (setupWebview.options as Record<string, unknown> | undefined)?.enableScripts,
-    true,
-  );
 
   await host.focusFaroView();
   assert.deepEqual(vscode.executedCommands, ["workbench.view.extension.faro"]);
@@ -225,17 +182,13 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
     "Faro",
   );
 
-  setup.dispose();
   mcp.dispose();
-  navigator.dispose();
-  outline.dispose();
+  main.dispose();
   command.dispose();
 
   assert.deepEqual(vscode.disposals, [
-    "navigator:faro.setup",
     "mcp:faro.local",
-    "navigator:faro.navigator",
-    "outline:faro.outline",
+    "navigator:faro.main",
     "command:faro.nextBeacon",
   ]);
 });

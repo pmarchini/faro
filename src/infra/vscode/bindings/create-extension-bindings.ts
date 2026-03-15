@@ -1,6 +1,4 @@
-import { createNavigatorWebviewViewProvider } from "../navigator-webview-view-provider.ts";
-import { createOutlineTreeProvider } from "../outline-tree-provider.ts";
-import { createSetupWebviewViewProvider } from "../setup-webview-view-provider.ts";
+import { createMainWebviewViewProvider } from "../main-webview-view-provider.ts";
 import type { ExtensionRuntime } from "../create-extension-runtime.ts";
 import { registerRuntimeCommands } from "../register-runtime-commands.ts";
 import type { VscodeWebviewView } from "../vscode-api.ts";
@@ -13,25 +11,14 @@ type Disposable = {
 
 type CommandHandler = (...args: unknown[]) => unknown;
 
-export type OutlineProviderLike = Disposable & {
-  refresh(): void;
-};
-
-export type NavigatorProviderLike = Disposable & {
-  refresh(): void;
-  resolveWebviewView(view: VscodeWebviewView): void;
-};
-
-export type SetupProviderLike = Disposable & {
+export type MainProviderLike = Disposable & {
   refresh(): void;
   resolveWebviewView(view: VscodeWebviewView): void;
 };
 
 export type ExtensionHost = {
   registerCommand(id: string, handler: CommandHandler): Disposable;
-  registerOutlineProvider(id: string, provider: OutlineProviderLike): Disposable;
-  registerNavigatorProvider(id: string, provider: NavigatorProviderLike): Disposable;
-  registerSetupProvider(id: string, provider: SetupProviderLike): Disposable;
+  registerMainProvider(id: string, provider: MainProviderLike): Disposable;
   registerMcpServerDefinitionProvider(
     id: string,
     provider: {
@@ -56,13 +43,11 @@ type Dependencies = {
     host: ExtensionHost;
     extensionPath: string;
   }): Promise<Disposable>;
-  createOutlineProvider?(runtime: ExtensionRuntime): OutlineProviderLike;
-  createNavigatorProvider?(runtime: ExtensionRuntime): NavigatorProviderLike;
-  createSetupProvider?(options: {
+  createMainProvider?(options: {
     runtime: ExtensionRuntime;
     extensionPath: string;
     workspaceRoot: string;
-  }): SetupProviderLike;
+  }): MainProviderLike;
 };
 
 export async function createExtensionBindings({
@@ -71,20 +56,15 @@ export async function createExtensionBindings({
   extensionPath,
   workspaceRoot,
   registerMcpServer = registerRuntimeMcpServer,
-  createOutlineProvider = defaultCreateOutlineProvider,
-  createNavigatorProvider = defaultCreateNavigatorProvider,
-  createSetupProvider = defaultCreateSetupProvider,
+  createMainProvider = defaultCreateMainProvider,
 }: Dependencies): Promise<Disposable> {
-  const outlineProvider = createOutlineProvider(runtime);
-  const navigatorProvider = createNavigatorProvider(runtime);
-  const setupProvider = createSetupProvider({
+  const mainProvider = createMainProvider({
     runtime,
     extensionPath,
     workspaceRoot,
   });
   const refreshUnsubscribe = runtime.subscribeToRefresh(() => {
-    outlineProvider.refresh();
-    navigatorProvider.refresh();
+    mainProvider.refresh();
   });
   const mcpServerRegistration = await registerMcpServer({
     runtime,
@@ -104,17 +84,13 @@ export async function createExtensionBindings({
     mcpServerRegistration,
     commandRegistration,
     host.registerCommand("faro.focusSidebar", () => host.focusFaroView()),
-    host.registerOutlineProvider("faro.outline", outlineProvider),
-    host.registerNavigatorProvider("faro.navigator", navigatorProvider),
-    host.registerSetupProvider("faro.setup", setupProvider),
+    host.registerMainProvider("faro.main", mainProvider),
   ];
 
   return {
     dispose() {
       refreshUnsubscribe();
-      setupProvider.dispose();
-      navigatorProvider.dispose();
-      outlineProvider.dispose();
+      mainProvider.dispose();
 
       for (const registration of registrations.reverse()) {
         registration.dispose();
@@ -123,28 +99,20 @@ export async function createExtensionBindings({
   };
 }
 
-function defaultCreateOutlineProvider(runtime: ExtensionRuntime): OutlineProviderLike {
-  return createOutlineTreeProvider({ store: runtime.store });
-}
-
-function defaultCreateNavigatorProvider(runtime: ExtensionRuntime): NavigatorProviderLike {
-  return createNavigatorWebviewViewProvider({
-    store: runtime.store,
-    uiState: runtime.uiState,
-    commands: runtime.commands,
-  });
-}
-
-function defaultCreateSetupProvider({
+function defaultCreateMainProvider({
+  runtime,
   extensionPath,
   workspaceRoot,
 }: {
   runtime: ExtensionRuntime;
   extensionPath: string;
   workspaceRoot: string;
-}): SetupProviderLike {
-  return createSetupWebviewViewProvider({
-    service: createSetupIntegrationService({
+}): MainProviderLike {
+  return createMainWebviewViewProvider({
+    store: runtime.store,
+    uiState: runtime.uiState,
+    commands: runtime.commands,
+    setupService: createSetupIntegrationService({
       workspaceRoot,
       extensionRoot: extensionPath,
     }),

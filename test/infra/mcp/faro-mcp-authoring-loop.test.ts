@@ -9,9 +9,7 @@ import { createBeacon, createPath } from "../../core/fixtures.ts";
 import {
   createExtensionBindings,
   type ExtensionHost,
-  type NavigatorProviderLike,
-  type OutlineProviderLike,
-  type SetupProviderLike,
+  type MainProviderLike,
 } from "../../../src/infra/vscode/bindings/create-extension-bindings.ts";
 import { createExtensionRuntime } from "../../../src/infra/vscode/create-extension-runtime.ts";
 import { registerRuntimeMcpServer } from "../../../src/infra/vscode/bindings/register-runtime-mcp-server.ts";
@@ -44,7 +42,7 @@ type JsonRpcErrorResponse = {
 
 type JsonRpcResponse = JsonRpcSuccessResponse | JsonRpcErrorResponse;
 
-test("registered stdio MCP authoring updates the runtime-backed outline and navigator views", async () => {
+test("registered stdio MCP authoring updates the runtime-backed main view", async () => {
   const extensionPath = fileURLToPath(new URL("../../../", import.meta.url));
   const runtime = createExtensionRuntime();
   const state: {
@@ -66,21 +64,16 @@ test("registered stdio MCP authoring updates the runtime-backed outline and navi
       };
     },
   });
-  const outlineProvider = hostState.outlineProviders[0]?.provider;
-  const navigatorProvider = hostState.navigatorProviders[0]?.provider;
+  const mainProvider = hostState.mainProviders[0]?.provider;
   const definition = hostState.mcpProviders[0]?.provider.provideMcpServerDefinitions()[0];
 
-  assert.ok(outlineProvider);
-  assert.ok(navigatorProvider);
+  assert.ok(mainProvider);
   assert.ok(definition);
 
-  let outlineRefreshes = 0;
-  const outlineSubscription = outlineProvider.onDidChangeTreeData(() => {
-    outlineRefreshes += 1;
-  });
   const navigatorView = createNavigatorView();
-  navigatorProvider.resolveWebviewView(navigatorView);
+  mainProvider.resolveWebviewView(navigatorView);
   const initialNavigatorHtml = navigatorView.webview.html;
+  await navigatorView.postMessage({ type: "main.openPath" });
   const client = await startStdioMcpClient(definition);
 
   try {
@@ -177,24 +170,15 @@ test("registered stdio MCP authoring updates the runtime-backed outline and navi
       /Authentication Story/,
     );
 
-    assert.ok(outlineRefreshes > 0);
-    const pathItems = outlineProvider.getChildren();
-    const pathTreeItem = outlineProvider.getTreeItem(pathItems[0]);
-    assert.equal(pathTreeItem.label, "Authentication Story");
-    const beaconItems = outlineProvider.getChildren(pathItems[0]);
-    const beaconTreeItem = outlineProvider.getTreeItem(beaconItems[0]);
-    assert.equal(beaconTreeItem.label, "Normalize request context");
-    assert.equal(beaconTreeItem.contextValue, "current-beacon");
-
     assert.notEqual(navigatorView.webview.html, initialNavigatorHtml);
-    assert.match(navigatorView.webview.html, /Authentication Story \/ Normalize request context/);
+    assert.match(navigatorView.webview.html, /Authentication Story/);
+    assert.match(navigatorView.webview.html, /Normalize request context/);
     assert.match(
       navigatorView.webview.html,
       /This is the first stable anchor because every later auth step depends on the normalized context./,
     );
   } finally {
     await client.dispose();
-    outlineSubscription.dispose();
     bindings.dispose();
     if (state.mcpRegistration) {
       await state.mcpRegistration.dispose();
@@ -338,24 +322,9 @@ function coerceEnv(
 }
 
 function createHostState() {
-  const outlineProviders: Array<{
+  const mainProviders: Array<{
     id: string;
-    provider: OutlineProviderLike & {
-      getChildren(element?: unknown): unknown[];
-      getTreeItem(element: unknown): {
-        label: string;
-        contextValue: string;
-      };
-      onDidChangeTreeData(listener: () => void): Disposable;
-    };
-  }> = [];
-  const navigatorProviders: Array<{
-    id: string;
-    provider: NavigatorProviderLike;
-  }> = [];
-  const setupProviders: Array<{
-    id: string;
-    provider: SetupProviderLike;
+    provider: MainProviderLike;
   }> = [];
   const mcpProviders: Array<{
     id: string;
@@ -370,25 +339,8 @@ function createHostState() {
         dispose() {},
       };
     },
-    registerOutlineProvider(id, provider) {
-      outlineProviders.push({
-        id,
-        provider: outlineProviderWithTreeApi(provider),
-      });
-
-      return {
-        dispose() {},
-      };
-    },
-    registerNavigatorProvider(id, provider) {
-      navigatorProviders.push({ id, provider });
-
-      return {
-        dispose() {},
-      };
-    },
-    registerSetupProvider(id, provider) {
-      setupProviders.push({ id, provider });
+    registerMainProvider(id, provider) {
+      mainProviders.push({ id, provider });
 
       return {
         dispose() {},
@@ -406,20 +358,7 @@ function createHostState() {
 
   return {
     host,
-    outlineProviders,
-    navigatorProviders,
-    setupProviders,
+    mainProviders,
     mcpProviders,
-  };
-}
-
-function outlineProviderWithTreeApi(provider: OutlineProviderLike) {
-  return provider as OutlineProviderLike & {
-    getChildren(element?: unknown): unknown[];
-    getTreeItem(element: unknown): {
-      label: string;
-      contextValue: string;
-    };
-    onDidChangeTreeData(listener: () => void): Disposable;
   };
 }

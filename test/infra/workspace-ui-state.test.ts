@@ -26,6 +26,7 @@ test("workspace ui state defaults welcome to visible", () => {
 
   assert.deepEqual(uiState.load(), {
     welcomeDismissed: false,
+    selectedMainRoute: "home",
   });
 });
 
@@ -37,13 +38,48 @@ test("workspace ui state persists welcome dismissal", async () => {
 
   assert.deepEqual(uiState.load(), {
     welcomeDismissed: true,
+    selectedMainRoute: "home",
   });
   assert.deepEqual(memento.snapshot("faro.ui"), {
     welcomeDismissed: true,
+    selectedMainRoute: "home",
   });
 
   const reloaded = createWorkspaceUiState({ memento });
   assert.deepEqual(reloaded.load(), {
     welcomeDismissed: true,
+    selectedMainRoute: "home",
+  });
+});
+
+test("workspace ui state persists the selected main route", async () => {
+  const memento = createMemento();
+  const uiState = createWorkspaceUiState({ memento });
+
+  await uiState.setSelectedMainRoute("setup");
+
+  assert.deepEqual(uiState.load(), {
+    welcomeDismissed: false,
+    selectedMainRoute: "setup",
+  });
+
+  const reloaded = createWorkspaceUiState({ memento });
+  assert.deepEqual(reloaded.load(), {
+    welcomeDismissed: false,
+    selectedMainRoute: "setup",
+  });
+});
+
+test("workspace ui state migrates older snapshots without a selected route", () => {
+  const memento = createMemento({
+    "faro.ui": {
+      welcomeDismissed: true,
+    },
+  });
+  const uiState = createWorkspaceUiState({ memento });
+
+  assert.deepEqual(uiState.load(), {
+    welcomeDismissed: true,
+    selectedMainRoute: "home",
   });
 });

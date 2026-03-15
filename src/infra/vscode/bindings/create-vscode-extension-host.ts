@@ -1,9 +1,7 @@
 import type { VscodeLike, VscodeWebviewView } from "../vscode-api.ts";
 import type {
   ExtensionHost,
-  NavigatorProviderLike,
-  OutlineProviderLike,
-  SetupProviderLike,
+  MainProviderLike,
 } from "./create-extension-bindings.ts";
 
 export function createVscodeExtensionHost({
@@ -15,22 +13,7 @@ export function createVscodeExtensionHost({
     registerCommand(id, handler) {
       return vscode.commands.registerCommand(id, handler);
     },
-    registerOutlineProvider(id, provider) {
-      return vscode.window.registerTreeDataProvider(id, provider as OutlineProviderLike);
-    },
-    registerNavigatorProvider(id, provider) {
-      return vscode.window.registerWebviewViewProvider(id, {
-        resolveWebviewView(view: VscodeWebviewView) {
-          view.webview.options = {
-            ...(view.webview.options ?? {}),
-            enableScripts: true,
-          };
-
-          return provider.resolveWebviewView(view);
-        },
-      });
-    },
-    registerSetupProvider(id, provider) {
+    registerMainProvider(id, provider) {
       return vscode.window.registerWebviewViewProvider(id, {
         resolveWebviewView(view: VscodeWebviewView) {
           view.webview.options = {
@@ -64,4 +47,4 @@ export function createVscodeExtensionHost({
   };
 }
 
-export type { NavigatorProviderLike, OutlineProviderLike, SetupProviderLike };
+export type { MainProviderLike };

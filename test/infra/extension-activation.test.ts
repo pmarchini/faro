@@ -28,9 +28,11 @@ function createRuntimeStub(): ExtensionRuntime {
       load() {
         return {
           welcomeDismissed: false,
+          selectedMainRoute: "home" as const,
         };
       },
       async dismissWelcome() {},
+      async setSelectedMainRoute() {},
     },
     agent,
     mcp: {
@@ -280,7 +282,7 @@ test("activate registers the full faro UI surface through the injected host", as
     "faro.setActivePath",
     "faro.setCurrentBeacon",
   ]);
-  assert.deepEqual([...views.keys()], ["faro.outline", "faro.navigator", "faro.setup"]);
+  assert.deepEqual([...views.keys()], ["faro.main"]);
   assert.deepEqual([...mcpProviders.keys()], ["faro.local"]);
   assert.match(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
 

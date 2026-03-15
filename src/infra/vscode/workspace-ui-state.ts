@@ -1,3 +1,5 @@
+import type { MainRoute } from "../../ui/main-route.ts";
+
 type MementoLike = {
   get(key: string): unknown;
   update(key: string, value: unknown): Promise<void>;
@@ -5,11 +7,13 @@ type MementoLike = {
 
 export type WorkspaceUiStateSnapshot = {
   welcomeDismissed: boolean;
+  selectedMainRoute: MainRoute;
 };
 
 export type WorkspaceUiState = {
   load(): WorkspaceUiStateSnapshot;
   dismissWelcome(): Promise<void>;
+  setSelectedMainRoute(route: MainRoute): Promise<void>;
 };
 
 type Options = {
@@ -19,6 +23,7 @@ type Options = {
 
 const DEFAULT_STATE: WorkspaceUiStateSnapshot = {
   welcomeDismissed: false,
+  selectedMainRoute: "home",
 };
 
 export function createWorkspaceUiState({
@@ -43,6 +48,18 @@ export function createWorkspaceUiState({
 
       await memento.update(storageKey, snapshot);
     },
+    async setSelectedMainRoute(route) {
+      if (snapshot.selectedMainRoute === route) {
+        return;
+      }
+
+      snapshot = {
+        ...snapshot,
+        selectedMainRoute: route,
+      };
+
+      await memento.update(storageKey, snapshot);
+    },
   };
 }
 
@@ -60,6 +77,13 @@ function readStoredState(
   ) {
     return {
       welcomeDismissed: storedState.welcomeDismissed,
+      selectedMainRoute:
+        "selectedMainRoute" in storedState &&
+        (storedState.selectedMainRoute === "home" ||
+          storedState.selectedMainRoute === "path" ||
+          storedState.selectedMainRoute === "setup")
+          ? storedState.selectedMainRoute
+          : "home",
     };
   }
 
