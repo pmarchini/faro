@@ -13,10 +13,15 @@ export type SetupTargetSnapshot = {
   status: SetupTargetStatus;
 };
 
+export type SetupPendingInstallConfirmation = {
+  targetId: SetupTargetId;
+};
+
 export type SetupStateSnapshot = {
   scope: SetupScope;
   isLoading: boolean;
   targets: SetupTargetSnapshot[];
+  pendingInstallConfirmation?: SetupPendingInstallConfirmation;
   feedback?: {
     kind: "success" | "error";
     message: string;

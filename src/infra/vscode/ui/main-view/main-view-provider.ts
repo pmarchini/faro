@@ -1,8 +1,11 @@
 import { buildHomeViewModel } from "../../../../app/views/home-view-model.ts";
 import { buildNavigatorViewModel } from "../../../../app/views/navigator-view-model.ts";
-import { buildSetupViewModel } from "../../../../app/views/setup-view-model.ts";
+import {
+  buildSetupViewModel,
+} from "../../../../app/views/setup-view-model.ts";
 import type { InMemoryStore } from "../../../../core/services/in-memory-store.ts";
 import type { SetupStateSnapshot, SetupTargetId } from "../../../../setup/setup-contract.ts";
+import { formatSetupTargetName } from "../../../../setup/setup-target-definitions.ts";
 import type { MainRoute } from "../../../../ui/main-route.ts";
 import type { RuntimeCommands } from "../../commands/create-runtime-commands.ts";
 import { createMainWebviewAdapter, type MainWebviewViewModel } from "./main-view-adapter.ts";
@@ -86,7 +89,13 @@ export function createMainWebviewViewProvider({
         onSetupSelectScope: async (scope) => {
           await loadSetupTargets(scope);
         },
-        onSetupInstallTarget: async (targetId) => {
+        onSetupRequestInstallTarget: async (targetId) => {
+          requestSetupTargetInstall(targetId);
+        },
+        onSetupCancelInstallTarget: async () => {
+          cancelSetupTargetInstall();
+        },
+        onSetupConfirmInstallTarget: async (targetId) => {
           await installSetupTarget(targetId);
         },
       });
@@ -128,6 +137,13 @@ export function createMainWebviewViewProvider({
       return;
     }
 
+    if (route !== "setup" && setupSnapshot.pendingInstallConfirmation) {
+      setupSnapshot = {
+        ...setupSnapshot,
+        pendingInstallConfirmation: undefined,
+      };
+    }
+
     selectedRoute = route;
     await uiState.setSelectedMainRoute(route);
     adapter?.render();
@@ -143,6 +159,7 @@ export function createMainWebviewViewProvider({
       scope,
       isLoading: true,
       targets: [],
+      pendingInstallConfirmation: undefined,
       feedback: setupSnapshot.feedback,
     };
     adapter?.render();
@@ -157,6 +174,7 @@ export function createMainWebviewViewProvider({
         scope,
         isLoading: false,
         targets,
+        pendingInstallConfirmation: undefined,
         feedback: setupSnapshot.feedback,
       };
       adapter?.render();
@@ -169,6 +187,7 @@ export function createMainWebviewViewProvider({
         scope,
         isLoading: false,
         targets: [],
+        pendingInstallConfirmation: undefined,
         feedback: {
           kind: "error",
           message: error instanceof Error && error.message
@@ -180,11 +199,32 @@ export function createMainWebviewViewProvider({
     }
   }
 
+  function requestSetupTargetInstall(targetId: SetupTargetId): void {
+    setupSnapshot = {
+      ...setupSnapshot,
+      pendingInstallConfirmation: { targetId },
+    };
+    adapter?.render();
+  }
+
+  function cancelSetupTargetInstall(): void {
+    setupSnapshot = {
+      ...setupSnapshot,
+      pendingInstallConfirmation: undefined,
+    };
+    adapter?.render();
+  }
+
   async function installSetupTarget(targetId: SetupTargetId): Promise<void> {
+    if (setupSnapshot.pendingInstallConfirmation?.targetId !== targetId) {
+      return;
+    }
+
     try {
       await setupService.installTarget(setupSnapshot.scope, targetId);
       setupSnapshot = {
         ...setupSnapshot,
+        pendingInstallConfirmation: undefined,
         feedback: {
           kind: "success",
           message: `Installed ${formatTargetName(targetId)}.`,
@@ -194,6 +234,7 @@ export function createMainWebviewViewProvider({
     } catch (error) {
       setupSnapshot = {
         ...setupSnapshot,
+        pendingInstallConfirmation: undefined,
         feedback: {
           kind: "error",
           message: error instanceof Error && error.message
@@ -207,17 +248,5 @@ export function createMainWebviewViewProvider({
 }
 
 function formatTargetName(targetId: SetupTargetId): string {
-  if (targetId === "claude") {
-    return "Claude";
-  }
-
-  if (targetId === "copilotInstructions") {
-    return "Copilot Instructions";
-  }
-
-  if (targetId === "copilotAgent") {
-    return "Copilot Agent";
-  }
-
-  return "Codex Skill";
+  return formatSetupTargetName(targetId);
 }

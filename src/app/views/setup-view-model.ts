@@ -1,8 +1,13 @@
 import type {
   SetupScope,
+  SetupPendingInstallConfirmation,
   SetupStateSnapshot,
   SetupTargetId,
 } from "../../setup/setup-contract.ts";
+import {
+  formatSetupTargetName,
+  getSetupTargetDefinition,
+} from "../../setup/setup-target-definitions.ts";
 
 export type SetupItemViewModel = {
   id: SetupTargetId;
@@ -25,32 +30,20 @@ export type SetupViewModel = {
   isLoading: boolean;
   loadingLabel: string;
   items: SetupItemViewModel[];
+  pendingInstallConfirmation?: {
+    targetId: SetupTargetId;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    targetLabel: string;
+    scopeLabel: string;
+    warningTitle: string;
+    warningMessage: string;
+  };
   feedback?: {
     kind: "success" | "error";
     message: string;
   };
-};
-
-const SETUP_TARGET_DEFINITIONS: Record<
-  SetupTargetId,
-  Pick<SetupItemViewModel, "title" | "description">
-> = {
-  claude: {
-    title: "Claude",
-    description: "Create Faro-aware instructions for Claude in the selected scope.",
-  },
-  copilotInstructions: {
-    title: "Copilot Instructions",
-    description: "Keep VS Code Copilot aligned with Faro usage in the selected scope.",
-  },
-  copilotAgent: {
-    title: "Copilot Agent",
-    description: "Install the dedicated Faro Path Author agent profile for Copilot.",
-  },
-  codexSkill: {
-    title: "Codex Skill",
-    description: "Install the Faro authoring skill so Codex can generate and revise paths.",
-  },
 };
 
 export function buildSetupViewModel(snapshot: SetupStateSnapshot): SetupViewModel {
@@ -77,7 +70,7 @@ export function buildSetupViewModel(snapshot: SetupStateSnapshot): SetupViewMode
     isLoading: snapshot.isLoading,
     loadingLabel: "Checking integrations...",
     items: snapshot.targets.map((target) => {
-      const definition = SETUP_TARGET_DEFINITIONS[target.id];
+      const definition = getSetupTargetDefinition(target.id);
       return {
         id: target.id,
         title: definition.title,
@@ -86,6 +79,48 @@ export function buildSetupViewModel(snapshot: SetupStateSnapshot): SetupViewMode
         actionLabel: target.status === "installed" ? "Reinstall" : "Install",
       };
     }),
+    pendingInstallConfirmation: buildPendingInstallConfirmation(
+      snapshot.pendingInstallConfirmation,
+      snapshot.scope,
+      snapshot.targets,
+    ),
     feedback: snapshot.feedback,
+  };
+}
+
+function buildPendingInstallConfirmation(
+  pendingInstallConfirmation: SetupPendingInstallConfirmation | undefined,
+  scope: SetupScope,
+  targets: SetupStateSnapshot["targets"],
+): SetupViewModel["pendingInstallConfirmation"] {
+  if (!pendingInstallConfirmation) {
+    return undefined;
+  }
+
+  const target = targets.find((candidate) => candidate.id === pendingInstallConfirmation.targetId);
+  if (!target) {
+    return undefined;
+  }
+
+  const actionLabel = target.status === "installed" ? "Reinstall" : "Install";
+  const targetLabel = formatSetupTargetName(target.id);
+  const scopeLabel = scope === "local" ? "Local" : "Global";
+  const scopeTarget = scope === "local" ? "workspace" : "user scope";
+  const writeLocation = scope === "local"
+    ? "repo-scoped integration files in this workspace"
+    : "user-scoped integration files on this machine";
+  const overwriteWarning = actionLabel === "Reinstall"
+    ? "Reinstall may overwrite the Faro-managed block for this target."
+    : "Install creates Faro-managed files for this target when they are missing.";
+
+  return {
+    targetId: target.id,
+    title: `${actionLabel} ${targetLabel} for the ${scopeTarget}?`,
+    description: "This action writes Faro-managed files before setup status refreshes.",
+    confirmLabel: `Confirm ${actionLabel}`,
+    targetLabel,
+    scopeLabel,
+    warningTitle: "Writes files",
+    warningMessage: `Faro will update ${writeLocation}. ${overwriteWarning}`,
   };
 }

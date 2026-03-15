@@ -2,7 +2,7 @@
 
 ## Status
 
-`todo`
+`done`
 
 ## Problem
 
@@ -74,4 +74,4 @@ If the action later grows into a force-overwrite flow, that flow should extend t
 
 ## Next Step
 
-Design the smallest confirmation interaction that fits the current setup view MVP and keeps the install service unchanged.
+Implemented in the setup UI flow for both legacy and main sidebar setup surfaces while keeping the install service unchanged.

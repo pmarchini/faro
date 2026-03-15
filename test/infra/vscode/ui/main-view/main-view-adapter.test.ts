@@ -35,7 +35,12 @@ class FakeElement {
 
 function createMainViewModel(
   route: "home" | "path" | "setup" = "home",
-  options: { setupLoading?: boolean } = {},
+  options: {
+    setupLoading?: boolean;
+    pendingInstallConfirmation?: {
+      targetId: "claude" | "copilotInstructions" | "copilotAgent" | "codexSkill";
+    };
+  } = {},
 ) {
   const document = fixtures.createDocument();
 
@@ -57,6 +62,7 @@ function createMainViewModel(
         { id: "copilotAgent", status: "missing" },
         { id: "codexSkill", status: "missing" },
       ],
+      pendingInstallConfirmation: options.pendingInstallConfirmation,
     }),
   };
 }
@@ -66,7 +72,7 @@ function runScript({
   clickTarget,
 }: {
   html: string;
-  clickTarget: FakeElement;
+  clickTarget?: FakeElement;
 }): unknown[] {
   const messages: unknown[] = [];
   const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
@@ -93,12 +99,14 @@ function runScript({
     HTMLElement: FakeElement,
   });
 
-  const invokeClick: (event: { target: FakeElement }) => void =
-    clickListener ??
-    (() => {
-      throw new Error("expected a click listener");
-    });
-  invokeClick({ target: clickTarget });
+  if (clickTarget) {
+    const invokeClick: (event: { target: FakeElement }) => void =
+      clickListener ??
+      (() => {
+        throw new Error("expected a click listener");
+      });
+    invokeClick({ target: clickTarget });
+  }
 
   return messages;
 }
@@ -167,6 +175,73 @@ test("renderMainHtml delegates nested clicks inside the full beacon card", () =>
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
     { type: "main.selectBeacon", pathId: "auth-flow", beaconId: "b1" },
   ]);
+});
+
+test("renderMainHtml requests install confirmation from the setup route", () => {
+  const html = renderMainHtml(createMainViewModel("setup"));
+  const button = new FakeElement({
+    action: "setup-install-target",
+    targetId: "claude",
+  });
+  const nested = new FakeElement({}, button);
+
+  const messages = runScript({ html, clickTarget: nested });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
+    { type: "main.setupRequestInstallTarget", targetId: "claude" },
+  ]);
+});
+
+test("renderMainHtml renders and delegates the setup confirmation modal", () => {
+  const html = renderMainHtml(
+    createMainViewModel("setup", {
+      pendingInstallConfirmation: {
+        targetId: "copilotInstructions",
+      },
+    }),
+  );
+  const confirmTarget = new FakeElement({
+    action: "setup-confirm-install-target",
+    targetId: "copilotInstructions",
+  });
+  const cancelTarget = new FakeElement({
+    action: "setup-cancel-install-target",
+  });
+
+  assert.match(html, /Confirm install/);
+  assert.match(html, /Confirm Reinstall/);
+
+  const confirmMessages = runScript({
+    html,
+    clickTarget: new FakeElement({}, confirmTarget),
+  });
+  const cancelMessages = runScript({
+    html,
+    clickTarget: new FakeElement({}, cancelTarget),
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(confirmMessages)), [
+    { type: "main.setupConfirmInstallTarget", targetId: "copilotInstructions" },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(cancelMessages)), [
+    { type: "main.setupCancelInstallTarget" },
+  ]);
+});
+
+test("renderMainHtml renders the setup modal outside the blurred main shell", () => {
+  const html = renderMainHtml(
+    createMainViewModel("setup", {
+      pendingInstallConfirmation: {
+        targetId: "claude",
+      },
+    }),
+  );
+
+  assert.match(html, /<body[^>]*data-modal-open="true"/);
+  assert.match(html, /<main>/);
+  assert.match(html, /<\/main>\s*<section class="modal-layer" aria-label="Confirm install">/);
+  assert.match(html, /role="dialog"/);
+  assert.match(html, /aria-modal="true"/);
 });
 
 test("renderMainHtml matches the home route snapshot", (t) => {

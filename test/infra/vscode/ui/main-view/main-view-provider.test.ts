@@ -121,6 +121,112 @@ test("opening setup persists the route and loads setup status", async () => {
   assert.match(view.webview.html, /Installed/);
 });
 
+test("setup install requires explicit confirmation before delegating to the service", async () => {
+  const calls: string[] = [];
+  let installed = false;
+  const provider = createMainWebviewViewProvider({
+    store: createInMemoryStore(fixtures.createDocument()),
+    uiState: createUiState("setup"),
+    commands: {
+      async previousBeacon() {
+        return { status: "idle" as const };
+      },
+      async nextBeacon() {
+        return { status: "idle" as const };
+      },
+      async revealCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+      async setCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+    },
+    setupService: {
+      async loadTargets(scope) {
+        calls.push(`load:${scope}`);
+        return [
+          {
+            id: "claude",
+            status: installed ? ("installed" as const) : ("missing" as const),
+          },
+        ];
+      },
+      async installTarget(scope, targetId) {
+        calls.push(`install:${scope}:${targetId}`);
+        installed = true;
+      },
+    },
+  });
+  const view = createWebviewView();
+
+  provider.resolveWebviewView(view);
+  await Promise.resolve();
+  await view.emit({ type: "main.setupRequestInstallTarget", targetId: "claude" });
+
+  assert.match(view.webview.html, /Confirm install/);
+  assert.deepEqual(calls, ["load:local"]);
+
+  await view.emit({ type: "main.setupCancelInstallTarget" });
+
+  assert.doesNotMatch(view.webview.html, /Confirm install/);
+  assert.deepEqual(calls, ["load:local"]);
+
+  await view.emit({ type: "main.setupRequestInstallTarget", targetId: "claude" });
+  await view.emit({ type: "main.setupConfirmInstallTarget", targetId: "claude" });
+
+  assert.deepEqual(calls, ["load:local", "install:local:claude", "load:local"]);
+  assert.match(view.webview.html, /Installed/);
+});
+
+test("leaving setup clears pending install confirmation in the main shell", async () => {
+  const calls: string[] = [];
+  const provider = createMainWebviewViewProvider({
+    store: createInMemoryStore(fixtures.createDocument()),
+    uiState: createUiState("setup"),
+    commands: {
+      async previousBeacon() {
+        return { status: "idle" as const };
+      },
+      async nextBeacon() {
+        return { status: "idle" as const };
+      },
+      async revealCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+      async setCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+    },
+    setupService: {
+      async loadTargets(scope) {
+        calls.push(`load:${scope}`);
+        return [{ id: "claude", status: "missing" as const }];
+      },
+      async installTarget(scope, targetId) {
+        calls.push(`install:${scope}:${targetId}`);
+      },
+    },
+  });
+  const view = createWebviewView();
+
+  provider.resolveWebviewView(view);
+  await Promise.resolve();
+  await view.emit({ type: "main.setupRequestInstallTarget", targetId: "claude" });
+
+  assert.match(view.webview.html, /Confirm install/);
+
+  await view.emit({ type: "main.openHome" });
+
+  assert.doesNotMatch(view.webview.html, /Confirm install/);
+  assert.match(view.webview.html, /Resume Current Path/);
+  assert.deepEqual(calls, ["load:local"]);
+
+  await view.emit({ type: "main.openSetup" });
+
+  assert.doesNotMatch(view.webview.html, /Confirm install/);
+  assert.deepEqual(calls, ["load:local"]);
+});
+
 test("resuming the path switches to the path route and delegates path actions", async () => {
   const calls: string[] = [];
   const provider = createMainWebviewViewProvider({

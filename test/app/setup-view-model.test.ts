@@ -69,3 +69,31 @@ test("buildSetupViewModel exposes loading and feedback without changing the targ
   });
   assert.equal(viewModel.scopeHint, "Global writes user-scoped integration files for your machine.");
 });
+
+test("buildSetupViewModel exposes confirmation copy for the pending install action", () => {
+  const viewModel = buildSetupViewModel({
+    scope: "local",
+    isLoading: false,
+    targets: [
+      {
+        id: "copilotInstructions",
+        status: "installed",
+      },
+    ],
+    pendingInstallConfirmation: {
+      targetId: "copilotInstructions",
+    },
+  });
+
+  assert.deepEqual(viewModel.pendingInstallConfirmation, {
+    targetId: "copilotInstructions",
+    title: "Reinstall Copilot Instructions for the workspace?",
+    description: "This action writes Faro-managed files before setup status refreshes.",
+    confirmLabel: "Confirm Reinstall",
+    targetLabel: "Copilot Instructions",
+    scopeLabel: "Local",
+    warningTitle: "Writes files",
+    warningMessage:
+      "Faro will update repo-scoped integration files in this workspace. Reinstall may overwrite the Faro-managed block for this target.",
+  });
+});

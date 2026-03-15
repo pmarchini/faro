@@ -13,7 +13,9 @@ type MainMessage =
   | { type: "main.reveal" }
   | { type: "main.selectBeacon"; pathId: string; beaconId: string }
   | { type: "main.setupSetScope"; scope: SetupScope }
-  | { type: "main.setupInstallTarget"; targetId: SetupTargetId }
+  | { type: "main.setupRequestInstallTarget"; targetId: SetupTargetId }
+  | { type: "main.setupCancelInstallTarget" }
+  | { type: "main.setupConfirmInstallTarget"; targetId: SetupTargetId }
   | { type: string };
 
 type Disposable = {
@@ -50,7 +52,9 @@ type Dependencies = {
   onReveal(): Promise<void>;
   onSelectBeacon(pathId: string, beaconId: string): Promise<void>;
   onSetupSelectScope(scope: SetupScope): Promise<void>;
-  onSetupInstallTarget(targetId: SetupTargetId): Promise<void>;
+  onSetupRequestInstallTarget(targetId: SetupTargetId): Promise<void>;
+  onSetupCancelInstallTarget(): Promise<void>;
+  onSetupConfirmInstallTarget(targetId: SetupTargetId): Promise<void>;
 };
 
 export function createMainWebviewAdapter({
@@ -64,7 +68,9 @@ export function createMainWebviewAdapter({
   onReveal,
   onSelectBeacon,
   onSetupSelectScope,
-  onSetupInstallTarget,
+  onSetupRequestInstallTarget,
+  onSetupCancelInstallTarget,
+  onSetupConfirmInstallTarget,
 }: Dependencies): Disposable & { render(): void } {
   const subscription = webview.onDidReceiveMessage(async (message) => {
     if (message.type === "main.openHome") {
@@ -115,8 +121,20 @@ export function createMainWebviewAdapter({
       return;
     }
 
-    if (isSetupInstallTargetMessage(message)) {
-      await onSetupInstallTarget(message.targetId);
+    if (isSetupRequestInstallTargetMessage(message)) {
+      await onSetupRequestInstallTarget(message.targetId);
+      render();
+      return;
+    }
+
+    if (isSetupCancelInstallTargetMessage(message)) {
+      await onSetupCancelInstallTarget();
+      render();
+      return;
+    }
+
+    if (isSetupConfirmInstallTargetMessage(message)) {
+      await onSetupConfirmInstallTarget(message.targetId);
       render();
     }
   });
@@ -134,6 +152,9 @@ export function createMainWebviewAdapter({
 }
 
 export function renderMainHtml(viewModel: MainWebviewViewModel): string {
+  const hasPendingConfirmation = viewModel.selectedRoute === "setup" &&
+    Boolean(viewModel.setup.pendingInstallConfirmation);
+
   return `
     <!doctype html>
     <html lang="en">
@@ -173,10 +194,12 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             align-content: start;
             gap: 0.85rem;
             padding: 0.75rem;
+            transition: filter 140ms ease, transform 140ms ease;
           }
 
           .shell,
           .panel,
+          .confirmation,
           .entry,
           .beacon,
           .row {
@@ -186,6 +209,13 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             border: 1px solid var(--border);
             border-radius: 14px;
             background: var(--surface-raised);
+          }
+
+          body[data-modal-open="true"] main {
+            filter: blur(4px);
+            transform: scale(0.985);
+            pointer-events: none;
+            user-select: none;
           }
 
           .nav {
@@ -416,9 +446,55 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.45rem;
           }
+
+          .action-button[data-variant="secondary"] {
+            background: var(--button-secondary);
+            color: var(--foreground);
+          }
+
+          .confirmation {
+            gap: 0.7rem;
+            width: min(100%, 29rem);
+            box-shadow: 0 22px 54px rgba(0, 0, 0, 0.34);
+            background: color-mix(in srgb, var(--surface) 76%, var(--surface-raised));
+          }
+
+          .confirmation-header,
+          .confirmation-meta,
+          .confirmation-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+          }
+
+          .confirmation-meta {
+            flex-wrap: wrap;
+          }
+
+          .confirmation-warning {
+            display: grid;
+            gap: 0.35rem;
+            padding: 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(198, 145, 71, 0.35);
+            background: rgba(198, 145, 71, 0.12);
+          }
+
+          .modal-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+            background: rgba(15, 18, 24, 0.22);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+          }
         </style>
       </head>
-      <body>
+      <body data-modal-open="${hasPendingConfirmation ? "true" : "false"}">
         <main>
           <section class="shell">
             <span class="eyebrow">Faro</span>
@@ -439,6 +515,7 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 
           ${renderSelectedRoute(viewModel)}
         </main>
+        ${hasPendingConfirmation ? renderSetupInstallConfirmation(viewModel.setup) : ""}
         <script>
           const vscode = acquireVsCodeApi();
           document.addEventListener("click", (event) => {
@@ -501,11 +578,25 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 
             if (action === "setup-install-target") {
               vscode.postMessage({
-                type: "main.setupInstallTarget",
+                type: "main.setupRequestInstallTarget",
+                targetId: actionTarget.dataset.targetId,
+              });
+              return;
+            }
+
+            if (action === "setup-cancel-install-target") {
+              vscode.postMessage({ type: "main.setupCancelInstallTarget" });
+              return;
+            }
+
+            if (action === "setup-confirm-install-target") {
+              vscode.postMessage({
+                type: "main.setupConfirmInstallTarget",
                 targetId: actionTarget.dataset.targetId,
               });
             }
           });
+
         </script>
       </body>
     </html>
@@ -691,6 +782,49 @@ function renderSetupRoute(viewModel: SetupViewModel): string {
   `;
 }
 
+function renderSetupInstallConfirmation(viewModel: SetupViewModel): string {
+  const confirmation = viewModel.pendingInstallConfirmation;
+  if (!confirmation) {
+    return "";
+  }
+
+  return `
+    <section class="modal-layer" aria-label="Confirm install">
+      <section class="panel confirmation" role="dialog" aria-modal="true" aria-labelledby="setup-confirmation-title">
+        <div class="confirmation-header">
+          <span class="eyebrow">Confirm install</span>
+        </div>
+        <h3 class="row-title" id="setup-confirmation-title">${escapeHtml(confirmation.title)}</h3>
+        <p class="body-copy">${escapeHtml(confirmation.description)}</p>
+        <div class="confirmation-meta">
+          <span class="pill">Target: ${escapeHtml(confirmation.targetLabel)}</span>
+          <span class="pill">Scope: ${escapeHtml(confirmation.scopeLabel)}</span>
+        </div>
+        <section class="confirmation-warning">
+          <span class="eyebrow">${escapeHtml(confirmation.warningTitle)}</span>
+          <p class="body-copy">${escapeHtml(confirmation.warningMessage)}</p>
+        </section>
+        <div class="confirmation-actions">
+          <button
+            class="action-button"
+            data-action="setup-cancel-install-target"
+            data-variant="secondary"
+          >
+            Cancel
+          </button>
+          <button
+            class="action-button"
+            data-action="setup-confirm-install-target"
+            data-target-id="${escapeHtml(confirmation.targetId)}"
+          >
+            ${escapeHtml(confirmation.confirmLabel)}
+          </button>
+        </div>
+      </section>
+    </section>
+  `;
+}
+
 function isSelectBeaconMessage(
   message: MainMessage,
 ): message is { type: "main.selectBeacon"; pathId: string; beaconId: string } {
@@ -712,12 +846,28 @@ function isSetupSetScopeMessage(
   );
 }
 
-function isSetupInstallTargetMessage(
+function isSetupRequestInstallTargetMessage(
   message: MainMessage,
-): message is { type: "main.setupInstallTarget"; targetId: SetupTargetId } {
+): message is { type: "main.setupRequestInstallTarget"; targetId: SetupTargetId } {
   const candidate = message as Partial<{ targetId: unknown }>;
   return (
-    message.type === "main.setupInstallTarget" &&
+    message.type === "main.setupRequestInstallTarget" &&
+    typeof candidate.targetId === "string"
+  );
+}
+
+function isSetupCancelInstallTargetMessage(
+  message: MainMessage,
+): message is { type: "main.setupCancelInstallTarget" } {
+  return message.type === "main.setupCancelInstallTarget";
+}
+
+function isSetupConfirmInstallTargetMessage(
+  message: MainMessage,
+): message is { type: "main.setupConfirmInstallTarget"; targetId: SetupTargetId } {
+  const candidate = message as Partial<{ targetId: unknown }>;
+  return (
+    message.type === "main.setupConfirmInstallTarget" &&
     typeof candidate.targetId === "string"
   );
 }
