@@ -256,6 +256,25 @@ Notes:
 - do not hide scope selection behind opaque commands
 - keep the extension UI aligned with the existing install semantics already implemented in the CLI/Make layer
 
+### Active path deletion UX
+
+Status: `planned`
+
+Need a first-class extension UX for deleting the current Faro path without dropping to indirect tooling.
+
+Acceptance criteria:
+
+- Faro exposes a visible delete action for the active path
+- deletion requires explicit confirmation
+- the action delegates to the canonical `deletePath` service behavior
+- deleting the active path selects the next path when one exists
+- deleting the last path falls back to Faro's normal empty state
+
+Notes:
+
+- keep the first slice focused on deleting the active path, not bulk path management
+- reuse existing empty-state and refresh behavior instead of introducing a parallel delete workflow
+
 ## Open Risks
 
 - type drift between layers if local types are reintroduced outside `src/core/model/document.ts`
