@@ -352,21 +352,20 @@ test("activate passes workspace state and editor-backed reveal to the runtime fa
   const runtimeOptions = receivedOptions as {
     workspaceState: unknown;
     initialDocument?: {
-      paths: Array<{
-        beacons: {
-          b1: { fileUri: string };
-        };
-      }>;
+      schemaVersion: number;
+      activePathId: string | null;
+      paths: unknown[];
     };
     revealBeacon?(beacon: ReturnType<typeof fixtures.createBeacon>): Promise<unknown>;
   };
 
   assert.equal(runtimeOptions.workspaceState, workspaceState);
   assert.equal(typeof runtimeOptions.revealBeacon, "function");
-  assert.equal(
-    runtimeOptions.initialDocument?.paths[0]?.beacons.b1.fileUri,
-    "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/extension.ts",
-  );
+  assert.deepEqual(runtimeOptions.initialDocument, {
+    schemaVersion: 1,
+    activePathId: null,
+    paths: [],
+  });
 
   await commands.get("faro.revealCurrentBeacon")?.();
   deactivate();

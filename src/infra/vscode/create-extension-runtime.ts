@@ -1,5 +1,5 @@
 import { createFaroRuntime, type FaroRuntime } from "../../app/runtime/create-faro-runtime.ts";
-import type { Beacon } from "../../core/model/document.ts";
+import { createEmptyDocument, type Beacon } from "../../core/model/document.ts";
 import { createInMemoryStore, type InMemoryStore } from "../../core/services/in-memory-store.ts";
 import { createCommandController } from "./command-controller.ts";
 import {
@@ -7,7 +7,6 @@ import {
   type RuntimeCommands,
 } from "./commands/create-runtime-commands.ts";
 import type { RevealResult } from "./reveal-result.ts";
-import { createSeedDocument } from "./runtime/create-seed-document.ts";
 import { createWorkspaceStateStore } from "./workspace-state-store.ts";
 import type { FaroDocument } from "../../core/model/document.ts";
 import { createWorkspaceUiState, type WorkspaceUiState } from "./workspace-ui-state.ts";
@@ -44,7 +43,7 @@ export type CreateExtensionRuntimeOptions = {
 export function createExtensionRuntime({
   workspaceState,
   revealBeacon = async () => ({ status: "revealed" }),
-  initialDocument = createSeedDocument(),
+  initialDocument = createEmptyDocument(),
 }: CreateExtensionRuntimeOptions = {}): ExtensionRuntime {
   const uiState = workspaceState
     ? createWorkspaceUiState({

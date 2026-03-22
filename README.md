@@ -103,7 +103,7 @@ Expected local MVP behavior:
 
 - the `Faro` activity bar item is visible
 - the main Faro view opens correctly
-- `Path` shows a seeded sample path when no agent-authored path exists yet
+- `Path` shows an empty state until an agent-authored path exists
 - `Prev`, `Next`, and `Reveal` work from the path route
 - `Setup` shows local/global integration targets
 

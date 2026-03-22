@@ -74,7 +74,7 @@ test("invalid saved document falls back to the initial document", () => {
   assert.equal(store.load().activePathId, "auth-flow");
 });
 
-test("stored placeholder workspace uris are migrated to the current initial document", () => {
+test("legacy seeded sample paths are removed from restored workspace state", () => {
   const memento = createMemento({
     schemaVersion: 1,
     activePathId: "sample-flow",
@@ -130,63 +130,19 @@ test("stored placeholder workspace uris are migrated to the current initial docu
     memento,
     initialDocument: {
       schemaVersion: 1,
-      activePathId: "sample-flow",
-      paths: [
-        {
-          id: "sample-flow",
-          title: "Sample Flow",
-          goal: "Bootstrap the first Faro runtime",
-          mainPath: ["b1", "b2"],
-          branches: [],
-          current: {
-            mode: "main",
-            index: 0,
-            beaconId: "b1",
-          },
-          beacons: {
-            b1: {
-              id: "b1",
-              title: "Runtime entrypoint",
-              fileUri: "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/extension.ts",
-              range: {
-                startLine: 1,
-                startColumn: 1,
-                endLine: 24,
-                endColumn: 1,
-              },
-              summary: "Extension activation starts here.",
-              explanation: "This is the root of the current Faro runtime wiring.",
-              tags: ["entrypoint"],
-              children: [],
-            },
-            b2: {
-              id: "b2",
-              title: "Command controller",
-              fileUri:
-                "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/command-controller.ts",
-              range: {
-                startLine: 1,
-                startColumn: 1,
-                endLine: 56,
-                endColumn: 1,
-              },
-              summary: "Command orchestration lives here.",
-              explanation: "The runtime delegates navigation commands to this controller.",
-              tags: ["controller"],
-              children: [],
-            },
-          },
-        },
-      ],
+      activePathId: null,
+      paths: [],
     },
   });
 
-  assert.equal(
-    store.load().paths[0]?.beacons.b1.fileUri,
-    "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/extension.ts",
-  );
-  assert.equal(
-    memento.snapshot()?.paths[0]?.beacons.b1.fileUri,
-    "file:///Users/pietro.marchini/Projects/OSS/faro/src/infra/vscode/extension.ts",
-  );
+  assert.deepEqual(store.load(), {
+    schemaVersion: 1,
+    activePathId: null,
+    paths: [],
+  });
+  assert.deepEqual(memento.snapshot(), {
+    schemaVersion: 1,
+    activePathId: null,
+    paths: [],
+  });
 });

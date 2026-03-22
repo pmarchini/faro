@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 
+import { createEmptyDocument } from "../../core/model/document.ts";
 import {
   registerVscodeBindings,
   type ExtensionHost,
@@ -11,7 +12,6 @@ import {
   type ExtensionRuntime,
 } from "./create-extension-runtime.ts";
 import type { VscodeLike } from "./vscode-api.ts";
-import { createSeedDocument } from "./runtime/create-seed-document.ts";
 import { createVscodeEditorNavigator } from "./vscode-editor-navigator.ts";
 
 type Disposable = {
@@ -59,9 +59,7 @@ async function activate(
 
   runtime = runtimeFactory({
     workspaceState: context?.workspaceState,
-    initialDocument: createSeedDocument({
-      workspaceRootUri: vscodeApi.workspace.workspaceFolders?.[0]?.uri.toString(),
-    }),
+    initialDocument: createEmptyDocument(),
     revealBeacon: editorNavigator.revealBeacon,
   });
 
