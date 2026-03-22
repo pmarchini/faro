@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Faro Path Selection UI Mockup</title>
+    <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --panel: rgba(10, 18, 28, 0.92);
+        --panel-border: rgba(115, 149, 181, 0.22);
+        --panel-soft: rgba(27, 39, 53, 0.84);
+        --surface: rgba(16, 27, 39, 0.9);
+        --surface-2: rgba(24, 38, 54, 0.96);
+        --surface-3: rgba(232, 242, 255, 0.08);
+        --text: #f3f7fb;
+        --muted: #94a9c0;
+        --accent: #6ed3ff;
+        --accent-2: #7bf0c8;
+        --danger: #ff7b7b;
+        --danger-bg: rgba(255, 123, 123, 0.18);
+        --active-bg: linear-gradient(135deg, rgba(74, 162, 255, 0.96), rgba(58, 214, 213, 0.86));
+        --shadow: 0 30px 80px rgba(8, 13, 20, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+          #0d1620;
+        font-family:
+          "IBM Plex Sans",
+          "Avenir Next",
+          "Segoe UI",
+          sans-serif;
+        color: var(--text);
+      }
+
+      .frame {
+        width: 430px;
+        min-height: 920px;
+        padding: 18px;
+        border-radius: 34px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04)),
+          var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.03),
+          var(--shadow);
+      }
+
+      .app {
+        display: grid;
+        gap: 14px;
+      }
+
+      .shell,
+      .card {
+        border-radius: 24px;
+        border: 1px solid var(--panel-border);
+        background: var(--surface);
+      }
+
+      .shell {
+        padding: 18px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%),
+          var(--surface);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 0 16px rgba(110, 211, 255, 0.5);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .title {
+        margin-top: 12px;
+        font-size: 28px;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+      }
+
+      .intro {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+        max-width: 320px;
+      }
+
+      .nav {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .nav button,
+      .button,
+      .step-actions button {
+        border: 0;
+        border-radius: 16px;
+        font: inherit;
+      }
+
+      .nav button {
+        padding: 12px 0;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .nav .selected {
+        background: rgba(111, 211, 255, 0.16);
+        color: var(--text);
+        box-shadow: inset 0 0 0 1px rgba(110, 211, 255, 0.28);
+      }
+
+      .card {
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%),
+          var(--surface-2);
+      }
+
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .section-title {
+        margin-top: 8px;
+        font-size: 24px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .section-copy {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .button {
+        min-height: 42px;
+        padding: 0 14px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: default;
+      }
+
+      .button-danger {
+        background: var(--danger-bg);
+        color: #ffd2d2;
+        box-shadow: inset 0 0 0 1px rgba(255, 123, 123, 0.28);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .paths {
+        display: grid;
+        gap: 10px;
+      }
+
+      .path-row {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-radius: 20px;
+        background: var(--surface-3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .path-row-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .path-row h3 {
+        font-size: 17px;
+        line-height: 1.1;
+      }
+
+      .path-row p {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .path-row .meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .path-row .tag {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .path-row.active {
+        background: var(--active-bg);
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow: 0 18px 32px rgba(53, 121, 185, 0.22);
+      }
+
+      .path-row.active p,
+      .path-row.active .tag {
+        color: rgba(245, 251, 255, 0.88);
+      }
+
+      .path-row.active .tag {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .step-actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .step-actions button {
+        min-height: 42px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .beacons {
+        display: grid;
+        gap: 10px;
+      }
+
+      .beacon {
+        padding: 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .beacon.current {
+        background: rgba(110, 211, 255, 0.12);
+        border-color: rgba(110, 211, 255, 0.24);
+      }
+
+      .beacon-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .step {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .current-badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .beacon h3 {
+        margin-top: 10px;
+        font-size: 16px;
+      }
+
+      .beacon p {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .footer-note {
+        margin-top: 2px;
+        color: rgba(148, 169, 192, 0.76);
+        font-size: 12px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <main class="app">
+        <section class="shell">
+          <span class="eyebrow">Faro</span>
+          <h1 class="title">One sidebar, now with a real path switcher.</h1>
+          <p class="intro">
+            Move between active path reading and the rest of your workspace paths without
+            dropping into indirect commands or outline-only navigation.
+          </p>
+          <div class="nav">
+            <button>Home</button>
+            <button class="selected">Path</button>
+            <button>Setup</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-top">
+            <div>
+              <span class="eyebrow">Current Path</span>
+              <h2 class="section-title">Auth Flow</h2>
+            </div>
+            <button class="button button-danger">Delete Path</button>
+          </div>
+          <p class="section-copy">
+            Trace how authentication starts, branches through validation, and lands on a
+            persisted session.
+          </p>
+        </section>
+
+        <section class="card">
+          <div class="card-top">
+            <div>
+              <span class="eyebrow">Available Paths</span>
+              <h2 class="section-title">Choose a path to read</h2>
+            </div>
+            <span class="pill">3 paths</span>
+          </div>
+          <div class="paths">
+            <article class="path-row active">
+              <div class="path-row-top">
+                <h3>Auth Flow</h3>
+                <span class="pill">Active</span>
+              </div>
+              <p>Trace authentication from the first route match to the stored session.</p>
+              <div class="meta">
+                <span class="tag">2 beacons</span>
+                <span class="tag">Current step 1</span>
+              </div>
+            </article>
+
+            <article class="path-row">
+              <div class="path-row-top">
+                <h3>Billing Flow</h3>
+                <span class="pill">Select</span>
+              </div>
+              <p>Follow invoice creation, payment state changes, and downstream sync.</p>
+              <div class="meta">
+                <span class="tag">5 beacons</span>
+                <span class="tag">Paused on step 3</span>
+              </div>
+            </article>
+
+            <article class="path-row">
+              <div class="path-row-top">
+                <h3>Setup Sync</h3>
+                <span class="pill">Select</span>
+              </div>
+              <p>Inspect how Faro installs and refreshes agent integration guidance.</p>
+              <div class="meta">
+                <span class="tag">4 beacons</span>
+                <span class="tag">Ready to resume</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-top">
+            <div>
+              <span class="eyebrow">Current Beacon</span>
+              <h2 class="section-title">Validate the request payload</h2>
+            </div>
+            <span class="pill">1 of 2</span>
+          </div>
+          <p class="section-copy">
+            Normalize request headers and reject malformed credentials before session work
+            begins.
+          </p>
+          <div class="step-actions">
+            <button>Prev</button>
+            <button>Reveal</button>
+            <button>Next</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <span class="eyebrow">Beacon Sequence</span>
+          <div class="beacons">
+            <article class="beacon current">
+              <div class="beacon-head">
+                <span class="step">Step 1</span>
+                <span class="current-badge">Current</span>
+              </div>
+              <h3>Validate the request payload</h3>
+              <p>Guard malformed inputs before the session branch starts.</p>
+            </article>
+            <article class="beacon">
+              <div class="beacon-head">
+                <span class="step">Step 2</span>
+              </div>
+              <h3>Persist the authenticated session</h3>
+              <p>Write the session and expose the visible success state.</p>
+            </article>
+          </div>
+        </section>
+
+        <p class="footer-note">Mockup proposal for path list selection in the existing Faro sidebar.</p>
+      </main>
+    </div>
+  </body>
+</html>
