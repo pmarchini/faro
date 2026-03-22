@@ -10,6 +10,7 @@ type Message = {
   scope?: "local" | "global";
   targetId?: string;
   pathId?: string;
+  pathTitle?: string;
   beaconId?: string;
 };
 
@@ -265,4 +266,44 @@ test("resuming the path switches to the path route and delegates path actions", 
 
   assert.match(view.webview.html, /Auth Flow/);
   assert.deepEqual(calls, ["next"]);
+});
+
+test("confirming path delete removes the active path from the view", async () => {
+  const store = createInMemoryStore(fixtures.createDocument());
+  const provider = createMainWebviewViewProvider({
+    store,
+    uiState: createUiState("path"),
+    commands: {
+      async previousBeacon() {
+        return { status: "idle" as const };
+      },
+      async nextBeacon() {
+        return { status: "idle" as const };
+      },
+      async revealCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+      async setCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+    },
+    setupService: {
+      async loadTargets() {
+        return [{ id: "claude", status: "missing" as const }];
+      },
+      async installTarget() {},
+    },
+  });
+  const view = createWebviewView();
+
+  provider.resolveWebviewView(view);
+  await view.emit({ type: "main.requestDeletePath", pathId: "auth-flow", pathTitle: "Auth Flow" });
+
+  assert.match(view.webview.html, /Delete current path\?/);
+
+  await view.emit({ type: "main.confirmDeletePath", pathId: "auth-flow" });
+
+  assert.equal(store.load().activePathId, null);
+  assert.equal(store.load().paths.length, 0);
+  assert.match(view.webview.html, /No active path/);
 });

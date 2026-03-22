@@ -42,7 +42,7 @@ export function createMainWebviewViewProvider({
   commands,
   setupService,
 }: {
-  store: Pick<InMemoryStore, "load">;
+  store: Pick<InMemoryStore, "load" | "deletePath">;
   uiState: UiStateSurface;
   commands: CommandSurface;
   setupService: SetupIntegrationService;
@@ -53,6 +53,12 @@ export function createMainWebviewViewProvider({
   let adapter: ReturnType<typeof createMainWebviewAdapter> | null = null;
   let selectedRoute: MainRoute = uiState.load().selectedMainRoute;
   let loadVersion = 0;
+  let pendingPathDeleteConfirmation:
+    | {
+      pathId: string;
+      pathTitle: string;
+    }
+    | undefined;
   let setupSnapshot: SetupStateSnapshot = {
     scope: "local",
     isLoading: false,
@@ -82,6 +88,15 @@ export function createMainWebviewViewProvider({
         },
         onReveal: async () => {
           await commands.revealCurrentBeacon();
+        },
+        onRequestDeletePath: async (pathId, pathTitle) => {
+          requestPathDelete(pathId, pathTitle);
+        },
+        onCancelDeletePath: async () => {
+          cancelPathDelete();
+        },
+        onConfirmDeletePath: async (pathId) => {
+          confirmPathDelete(pathId);
         },
         onSelectBeacon: async (pathId, beaconId) => {
           await commands.setCurrentBeacon(pathId, beaconId);
@@ -125,6 +140,7 @@ export function createMainWebviewViewProvider({
       ],
       home: buildHomeViewModel(document),
       path: buildNavigatorViewModel(document, { showWelcome: false }),
+      pendingPathDeleteConfirmation,
       setup: buildSetupViewModel(setupSnapshot),
     };
   }
@@ -142,6 +158,10 @@ export function createMainWebviewViewProvider({
         ...setupSnapshot,
         pendingInstallConfirmation: undefined,
       };
+    }
+
+    if (route !== "path") {
+      pendingPathDeleteConfirmation = undefined;
     }
 
     selectedRoute = route;
@@ -244,6 +264,26 @@ export function createMainWebviewViewProvider({
       };
       adapter?.render();
     }
+  }
+
+  function requestPathDelete(pathId: string, pathTitle: string): void {
+    pendingPathDeleteConfirmation = { pathId, pathTitle };
+    adapter?.render();
+  }
+
+  function cancelPathDelete(): void {
+    pendingPathDeleteConfirmation = undefined;
+    adapter?.render();
+  }
+
+  function confirmPathDelete(pathId: string): void {
+    if (pendingPathDeleteConfirmation?.pathId !== pathId) {
+      return;
+    }
+
+    pendingPathDeleteConfirmation = undefined;
+    store.deletePath(pathId);
+    adapter?.render();
   }
 }
 

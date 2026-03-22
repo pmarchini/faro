@@ -36,6 +36,10 @@ class FakeElement {
 function createMainViewModel(
   route: "home" | "path" | "setup" = "home",
   options: {
+    pendingPathDeleteConfirmation?: {
+      pathId: string;
+      pathTitle: string;
+    };
     setupLoading?: boolean;
     pendingInstallConfirmation?: {
       targetId: "claude" | "copilotInstructions" | "copilotAgent" | "codexSkill";
@@ -53,6 +57,7 @@ function createMainViewModel(
     ],
     home: buildHomeViewModel(document),
     path: buildNavigatorViewModel(document, { showWelcome: false }),
+    pendingPathDeleteConfirmation: options.pendingPathDeleteConfirmation,
     setup: buildSetupViewModel({
       scope: "local",
       isLoading: options.setupLoading ?? false,
@@ -149,6 +154,11 @@ test("renderMainHtml renders the path route controls", () => {
   assert.match(html, /Reveal/);
   assert.match(html, /Next/);
   assert.match(html, /Auth Flow/);
+  assert.match(html, /Delete Path/);
+  assert.match(
+    html,
+    /<button[\s\S]*data-action="request-delete-path"[\s\S]*data-variant="danger"[\s\S]*Delete Path[\s\S]*<\/button>/,
+  );
 });
 
 test("renderMainHtml shows the position pill in Current Beacon, not Current Path", () => {
@@ -189,6 +199,56 @@ test("renderMainHtml delegates nested clicks inside the full beacon card", () =>
 
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
     { type: "main.selectBeacon", pathId: "auth-flow", beaconId: "b1" },
+  ]);
+});
+
+test("renderMainHtml renders and delegates path delete confirmation", () => {
+  const html = renderMainHtml(
+    createMainViewModel("path", {
+      pendingPathDeleteConfirmation: {
+        pathId: "auth-flow",
+        pathTitle: "Auth Flow",
+      },
+    }),
+  );
+  const requestTarget = new FakeElement({
+    action: "request-delete-path",
+    pathId: "auth-flow",
+    pathTitle: "Auth Flow",
+  });
+  const confirmTarget = new FakeElement({
+    action: "confirm-delete-path",
+    pathId: "auth-flow",
+  });
+  const cancelTarget = new FakeElement({
+    action: "cancel-delete-path",
+  });
+
+  assert.match(html, /Delete Path/);
+  assert.match(html, /Delete current path\?/);
+  assert.match(html, /Auth Flow/);
+
+  const requestMessages = runScript({
+    html,
+    clickTarget: new FakeElement({}, requestTarget),
+  });
+  const confirmMessages = runScript({
+    html,
+    clickTarget: new FakeElement({}, confirmTarget),
+  });
+  const cancelMessages = runScript({
+    html,
+    clickTarget: new FakeElement({}, cancelTarget),
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(requestMessages)), [
+    { type: "main.requestDeletePath", pathId: "auth-flow", pathTitle: "Auth Flow" },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(confirmMessages)), [
+    { type: "main.confirmDeletePath", pathId: "auth-flow" },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(cancelMessages)), [
+    { type: "main.cancelDeletePath" },
   ]);
 });
 

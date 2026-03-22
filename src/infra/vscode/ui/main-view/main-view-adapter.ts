@@ -11,6 +11,9 @@ type MainMessage =
   | { type: "main.previous" }
   | { type: "main.next" }
   | { type: "main.reveal" }
+  | { type: "main.requestDeletePath"; pathId: string; pathTitle: string }
+  | { type: "main.cancelDeletePath" }
+  | { type: "main.confirmDeletePath"; pathId: string }
   | { type: "main.selectBeacon"; pathId: string; beaconId: string }
   | { type: "main.setupSetScope"; scope: SetupScope }
   | { type: "main.setupRequestInstallTarget"; targetId: SetupTargetId }
@@ -38,6 +41,10 @@ export type MainWebviewViewModel = {
   }>;
   home: HomeViewModel;
   path: NavigatorViewModel;
+  pendingPathDeleteConfirmation?: {
+    pathId: string;
+    pathTitle: string;
+  };
   setup: SetupViewModel;
 };
 
@@ -50,6 +57,9 @@ type Dependencies = {
   onPrevious(): Promise<void>;
   onNext(): Promise<void>;
   onReveal(): Promise<void>;
+  onRequestDeletePath(pathId: string, pathTitle: string): Promise<void>;
+  onCancelDeletePath(): Promise<void>;
+  onConfirmDeletePath(pathId: string): Promise<void>;
   onSelectBeacon(pathId: string, beaconId: string): Promise<void>;
   onSetupSelectScope(scope: SetupScope): Promise<void>;
   onSetupRequestInstallTarget(targetId: SetupTargetId): Promise<void>;
@@ -66,6 +76,9 @@ export function createMainWebviewAdapter({
   onPrevious,
   onNext,
   onReveal,
+  onRequestDeletePath,
+  onCancelDeletePath,
+  onConfirmDeletePath,
   onSelectBeacon,
   onSetupSelectScope,
   onSetupRequestInstallTarget,
@@ -105,6 +118,24 @@ export function createMainWebviewAdapter({
 
     if (message.type === "main.reveal") {
       await onReveal();
+      render();
+      return;
+    }
+
+    if (isRequestDeletePathMessage(message)) {
+      await onRequestDeletePath(message.pathId, message.pathTitle);
+      render();
+      return;
+    }
+
+    if (isCancelDeletePathMessage(message)) {
+      await onCancelDeletePath();
+      render();
+      return;
+    }
+
+    if (isConfirmDeletePathMessage(message)) {
+      await onConfirmDeletePath(message.pathId);
       render();
       return;
     }
@@ -152,8 +183,11 @@ export function createMainWebviewAdapter({
 }
 
 export function renderMainHtml(viewModel: MainWebviewViewModel): string {
-  const hasPendingConfirmation = viewModel.selectedRoute === "setup" &&
+  const hasPendingDeleteConfirmation = viewModel.selectedRoute === "path" &&
+    Boolean(viewModel.pendingPathDeleteConfirmation);
+  const hasPendingSetupConfirmation = viewModel.selectedRoute === "setup" &&
     Boolean(viewModel.setup.pendingInstallConfirmation);
+  const hasPendingConfirmation = hasPendingDeleteConfirmation || hasPendingSetupConfirmation;
 
   return `
     <!doctype html>
@@ -171,6 +205,17 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             --button: var(--vscode-button-background);
             --button-foreground: var(--vscode-button-foreground);
             --button-secondary: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.16));
+            --button-danger: color-mix(
+              in srgb,
+              var(--vscode-errorForeground, #c74f5f) 22%,
+              var(--surface-raised)
+            );
+            --button-danger-border: color-mix(
+              in srgb,
+              var(--vscode-errorForeground, #c74f5f) 52%,
+              transparent
+            );
+            --button-danger-foreground: var(--vscode-errorForeground, #c74f5f);
             --list-active: var(--vscode-list-activeSelectionBackground, var(--vscode-button-background));
             --list-active-foreground: var(--vscode-list-activeSelectionForeground, #ffffff);
           }
@@ -452,6 +497,13 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
             color: var(--foreground);
           }
 
+          .action-button[data-variant="danger"] {
+            background: var(--button-danger);
+            color: var(--button-danger-foreground);
+            border: 1px solid var(--button-danger-border);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+          }
+
           .confirmation {
             gap: 0.7rem;
             width: min(100%, 29rem);
@@ -515,7 +567,8 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 
           ${renderSelectedRoute(viewModel)}
         </main>
-        ${hasPendingConfirmation ? renderSetupInstallConfirmation(viewModel.setup) : ""}
+        ${hasPendingDeleteConfirmation ? renderPathDeleteConfirmation(viewModel) : ""}
+        ${hasPendingSetupConfirmation ? renderSetupInstallConfirmation(viewModel.setup) : ""}
         <script>
           const vscode = acquireVsCodeApi();
           document.addEventListener("click", (event) => {
@@ -556,6 +609,28 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
 
             if (action === "reveal") {
               vscode.postMessage({ type: "main.reveal" });
+              return;
+            }
+
+            if (action === "request-delete-path") {
+              vscode.postMessage({
+                type: "main.requestDeletePath",
+                pathId: actionTarget.dataset.pathId,
+                pathTitle: actionTarget.dataset.pathTitle,
+              });
+              return;
+            }
+
+            if (action === "cancel-delete-path") {
+              vscode.postMessage({ type: "main.cancelDeletePath" });
+              return;
+            }
+
+            if (action === "confirm-delete-path") {
+              vscode.postMessage({
+                type: "main.confirmDeletePath",
+                pathId: actionTarget.dataset.pathId,
+              });
               return;
             }
 
@@ -672,6 +747,15 @@ function renderPathRoute(viewModel: NavigatorViewModel): string {
           <span class="eyebrow">Current Path</span>
           <h2 class="section-title">${escapeHtml(viewModel.pathTitle)}</h2>
         </div>
+        <button
+          class="action-button"
+          data-action="request-delete-path"
+          data-path-id="${escapeHtml(viewModel.pathId)}"
+          data-path-title="${escapeHtml(viewModel.pathTitle)}"
+          data-variant="danger"
+        >
+          Delete Path
+        </button>
       </div>
       <p class="body-copy">${escapeHtml(viewModel.goal)}</p>
     </section>
@@ -784,6 +868,51 @@ function renderSetupRoute(viewModel: SetupViewModel): string {
   `;
 }
 
+function renderPathDeleteConfirmation(viewModel: MainWebviewViewModel): string {
+  const confirmation = viewModel.pendingPathDeleteConfirmation;
+  if (!confirmation) {
+    return "";
+  }
+
+  return `
+    <section class="modal-layer" aria-label="Delete path confirmation">
+      <section class="panel confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-path-title">
+        <div class="confirmation-header">
+          <span class="eyebrow">Delete path</span>
+        </div>
+        <h3 class="row-title" id="delete-path-title">Delete current path?</h3>
+        <p class="body-copy">
+          Remove ${escapeHtml(confirmation.pathTitle)} from the workspace state. Faro will select the next available path automatically.
+        </p>
+        <div class="confirmation-meta">
+          <span class="pill">Path: ${escapeHtml(confirmation.pathTitle)}</span>
+        </div>
+        <section class="confirmation-warning">
+          <span class="eyebrow">Destructive action</span>
+          <p class="body-copy">This path disappears from the current UI state immediately.</p>
+        </section>
+        <div class="confirmation-actions">
+          <button
+            class="action-button"
+            data-action="cancel-delete-path"
+            data-variant="secondary"
+          >
+            Cancel
+          </button>
+          <button
+            class="action-button"
+            data-action="confirm-delete-path"
+            data-path-id="${escapeHtml(confirmation.pathId)}"
+            data-variant="danger"
+          >
+            Delete Path
+          </button>
+        </div>
+      </section>
+    </section>
+  `;
+}
+
 function renderSetupInstallConfirmation(viewModel: SetupViewModel): string {
   const confirmation = viewModel.pendingInstallConfirmation;
   if (!confirmation) {
@@ -836,6 +965,30 @@ function isSelectBeaconMessage(
     typeof candidate.pathId === "string" &&
     typeof candidate.beaconId === "string"
   );
+}
+
+function isRequestDeletePathMessage(
+  message: MainMessage,
+): message is { type: "main.requestDeletePath"; pathId: string; pathTitle: string } {
+  const candidate = message as Partial<{ pathId: unknown; pathTitle: unknown }>;
+  return (
+    message.type === "main.requestDeletePath" &&
+    typeof candidate.pathId === "string" &&
+    typeof candidate.pathTitle === "string"
+  );
+}
+
+function isCancelDeletePathMessage(
+  message: MainMessage,
+): message is { type: "main.cancelDeletePath" } {
+  return message.type === "main.cancelDeletePath";
+}
+
+function isConfirmDeletePathMessage(
+  message: MainMessage,
+): message is { type: "main.confirmDeletePath"; pathId: string } {
+  const candidate = message as Partial<{ pathId: unknown }>;
+  return message.type === "main.confirmDeletePath" && typeof candidate.pathId === "string";
 }
 
 function isSetupSetScopeMessage(
