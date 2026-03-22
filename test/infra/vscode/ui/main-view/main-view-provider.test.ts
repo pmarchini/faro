@@ -56,6 +56,7 @@ test("resolved main view renders the home route by default", () => {
   const provider = createMainWebviewViewProvider({
     store: createInMemoryStore(fixtures.createDocument()),
     uiState: createUiState("home"),
+    route: "home",
     commands: {
       async previousBeacon() {
         return { status: "idle" as const };
@@ -83,6 +84,83 @@ test("resolved main view renders the home route by default", () => {
 
   assert.match(view.webview.html, /Resume Current Path/);
   assert.match(view.webview.html, /Open Setup/);
+  assert.doesNotMatch(view.webview.html, /One sidebar, three focused destinations/);
+  assert.doesNotMatch(view.webview.html, /data-action="open-home"/);
+});
+
+test("fixed path view renders the path destination instead of the home launcher", () => {
+  const provider = createMainWebviewViewProvider({
+    store: createInMemoryStore(fixtures.createDocument()),
+    uiState: createUiState("home"),
+    route: "path",
+    commands: {
+      async previousBeacon() {
+        return { status: "idle" as const };
+      },
+      async nextBeacon() {
+        return { status: "idle" as const };
+      },
+      async revealCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+      async setCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+    },
+    setupService: {
+      async loadTargets() {
+        return [{ id: "claude", status: "missing" as const }];
+      },
+      async installTarget() {},
+    },
+  });
+  const view = createWebviewView();
+
+  provider.resolveWebviewView(view);
+
+  assert.match(view.webview.html, /Auth Flow/);
+  assert.match(view.webview.html, /Delete Path/);
+  assert.doesNotMatch(view.webview.html, /Resume Current Path/);
+  assert.doesNotMatch(view.webview.html, /One sidebar, three focused destinations/);
+});
+
+test("fixed setup view renders setup content without the composite route shell", async () => {
+  const calls: string[] = [];
+  const provider = createMainWebviewViewProvider({
+    store: createInMemoryStore(fixtures.createDocument()),
+    uiState: createUiState("home"),
+    route: "setup",
+    commands: {
+      async previousBeacon() {
+        return { status: "idle" as const };
+      },
+      async nextBeacon() {
+        return { status: "idle" as const };
+      },
+      async revealCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+      async setCurrentBeacon() {
+        return { status: "idle" as const };
+      },
+    },
+    setupService: {
+      async loadTargets(scope) {
+        calls.push(`load:${scope}`);
+        return [{ id: "claude", status: "installed" as const }];
+      },
+      async installTarget() {},
+    },
+  });
+  const view = createWebviewView();
+
+  provider.resolveWebviewView(view);
+  await Promise.resolve();
+
+  assert.deepEqual(calls, ["load:local"]);
+  assert.match(view.webview.html, /Agent setup/);
+  assert.match(view.webview.html, /Installed/);
+  assert.doesNotMatch(view.webview.html, /One sidebar, three focused destinations/);
 });
 
 test("opening setup persists the route and loads setup status", async () => {
@@ -228,11 +306,12 @@ test("leaving setup clears pending install confirmation in the main shell", asyn
   assert.deepEqual(calls, ["load:local"]);
 });
 
-test("resuming the path switches to the path route and delegates path actions", async () => {
+test("resuming the path from the home view focuses the native path view", async () => {
   const calls: string[] = [];
   const provider = createMainWebviewViewProvider({
     store: createInMemoryStore(fixtures.createDocument()),
     uiState: createUiState("home"),
+    route: "home",
     commands: {
       async previousBeacon() {
         calls.push("previous");
@@ -257,15 +336,17 @@ test("resuming the path switches to the path route and delegates path actions", 
       },
       async installTarget() {},
     },
+    async focusView(viewId) {
+      calls.push(`focus:${viewId}`);
+    },
   });
   const view = createWebviewView();
 
   provider.resolveWebviewView(view);
   await view.emit({ type: "main.openPath" });
-  await view.emit({ type: "main.next" });
 
-  assert.match(view.webview.html, /Auth Flow/);
-  assert.deepEqual(calls, ["next"]);
+  assert.match(view.webview.html, /Resume Current Path/);
+  assert.deepEqual(calls, ["focus:faro.path"]);
 });
 
 test("confirming path delete removes the active path from the view", async () => {

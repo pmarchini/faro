@@ -172,7 +172,13 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
   assert.equal((webview.options as Record<string, unknown> | undefined)?.enableScripts, true);
 
   await host.focusFaroView();
-  assert.deepEqual(vscode.executedCommands, ["workbench.view.extension.faro"]);
+  await host.focusView("faro.path");
+  await host.setContext("faro.activeView", "path");
+  assert.deepEqual(vscode.executedCommands, [
+    "workbench.view.extension.faro",
+    "faro.path.focus",
+    "setContext",
+  ]);
   assert.equal(vscode.mcpRegistrations.length, 1);
   assert.equal(vscode.mcpRegistrations[0]?.id, "faro.local");
   assert.equal(

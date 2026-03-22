@@ -281,8 +281,11 @@ test("activate registers the full faro UI surface through the injected host", as
     "faro.revealCurrentBeacon",
     "faro.setActivePath",
     "faro.setCurrentBeacon",
+    "faro.showHome",
+    "faro.showPath",
+    "faro.showSetup",
   ]);
-  assert.deepEqual([...views.keys()], ["faro.main"]);
+  assert.deepEqual([...views.keys()], ["faro.home", "faro.path", "faro.setup"]);
   assert.deepEqual([...mcpProviders.keys()], ["faro.local"]);
   assert.match(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
 

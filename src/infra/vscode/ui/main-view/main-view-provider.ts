@@ -41,17 +41,21 @@ export function createMainWebviewViewProvider({
   uiState,
   commands,
   setupService,
+  route,
+  focusView,
 }: {
   store: Pick<InMemoryStore, "load" | "deletePath">;
   uiState: UiStateSurface;
   commands: CommandSurface;
   setupService: SetupIntegrationService;
+  route?: MainRoute;
+  focusView?(viewId: "faro.home" | "faro.path" | "faro.setup"): Promise<void>;
 }): Disposable & {
   resolveWebviewView(view: WebviewViewLike): void;
   refresh(): void;
 } {
   let adapter: ReturnType<typeof createMainWebviewAdapter> | null = null;
-  let selectedRoute: MainRoute = uiState.load().selectedMainRoute;
+  let selectedRoute: MainRoute = route ?? uiState.load().selectedMainRoute;
   let loadVersion = 0;
   let pendingPathDeleteConfirmation:
     | {
@@ -133,6 +137,7 @@ export function createMainWebviewViewProvider({
 
     return {
       selectedRoute,
+      isFixedRoute: Boolean(route),
       routes: [
         { id: "home", label: "Home", isSelected: selectedRoute === "home" },
         { id: "path", label: "Path", isSelected: selectedRoute === "path" },
@@ -146,6 +151,11 @@ export function createMainWebviewViewProvider({
   }
 
   async function setRoute(route: MainRoute): Promise<void> {
+    if (route !== selectedRoute && focusView && route !== currentRoute()) {
+      await focusView(viewIdForRoute(route));
+      return;
+    }
+
     if (selectedRoute === route) {
       if (route === "setup" && setupSnapshot.targets.length === 0 && !setupSnapshot.isLoading) {
         await loadSetupTargets(setupSnapshot.scope);
@@ -165,7 +175,9 @@ export function createMainWebviewViewProvider({
     }
 
     selectedRoute = route;
-    await uiState.setSelectedMainRoute(route);
+    if (!focusView) {
+      await uiState.setSelectedMainRoute(route);
+    }
     adapter?.render();
 
     if (route === "setup" && setupSnapshot.targets.length === 0 && !setupSnapshot.isLoading) {
@@ -285,8 +297,23 @@ export function createMainWebviewViewProvider({
     store.deletePath(pathId);
     adapter?.render();
   }
+
+  function currentRoute(): MainRoute {
+    return route ?? selectedRoute;
+  }
 }
 
 function formatTargetName(targetId: SetupTargetId): string {
   return formatSetupTargetName(targetId);
+}
+
+function viewIdForRoute(route: MainRoute): "faro.home" | "faro.path" | "faro.setup" {
+  switch (route) {
+    case "home":
+      return "faro.home";
+    case "path":
+      return "faro.path";
+    case "setup":
+      return "faro.setup";
+  }
 }

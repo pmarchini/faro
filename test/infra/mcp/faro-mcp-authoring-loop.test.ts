@@ -354,6 +354,8 @@ function createHostState() {
       };
     },
     focusFaroView() {},
+    focusView() {},
+    setContext() {},
   };
 
   return {

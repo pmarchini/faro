@@ -8,7 +8,7 @@ import { createFaroMcpTools } from "../../../../src/infra/mcp/create-faro-mcp-to
 import {
   registerVscodeBindings as createExtensionBindings,
   type ExtensionHost,
-  type MainProviderLike,
+  type WebviewProviderLike,
 } from "../../../../src/infra/vscode/composition/register-vscode-bindings.ts";
 import { createExtensionRuntime } from "../../../../src/infra/vscode/create-extension-runtime.ts";
 import type { ExtensionRuntime } from "../../../../src/infra/vscode/create-extension-runtime.ts";
@@ -102,7 +102,7 @@ function createRuntimeStub() {
 
 function createHostStub() {
   const commands = new Map<string, (...args: unknown[]) => unknown>();
-  const mainProviders: Array<{ id: string; provider: MainProviderLike }> = [];
+  const mainProviders: Array<{ id: string; provider: WebviewProviderLike }> = [];
   const mcpProviders: Array<{
     id: string;
     provider: {
@@ -116,6 +116,8 @@ function createHostStub() {
   }> = [];
   const disposals: string[] = [];
   let focusCalls = 0;
+  const focusedViews: string[] = [];
+  const contextValues = new Map<string, unknown>();
 
   const host: ExtensionHost = {
     registerCommand(id, handler) {
@@ -133,6 +135,12 @@ function createHostStub() {
     async focusFaroView() {
       focusCalls += 1;
     },
+    async focusView(viewId) {
+      focusedViews.push(viewId);
+    },
+    async setContext(key, value) {
+      contextValues.set(key, value);
+    },
   };
 
   return {
@@ -144,6 +152,8 @@ function createHostStub() {
     get focusCalls() {
       return focusCalls;
     },
+    focusedViews,
+    contextValues,
   };
 
   function createDisposable(label: string): Disposable {
@@ -176,12 +186,23 @@ test("bindings register runtime commands and delegate handlers", async () => {
           ];
         },
       }),
-    createMainProvider: () =>
-      ({
+    createProviders: () => ({
+      home: {
         refresh() {},
         resolveWebviewView() {},
         dispose() {},
-      }) as MainProviderLike,
+      },
+      path: {
+        refresh() {},
+        resolveWebviewView() {},
+        dispose() {},
+      },
+      setup: {
+        refresh() {},
+        resolveWebviewView() {},
+        dispose() {},
+      },
+    }),
   });
 
   await hostState.commands.get("faro.nextBeacon")?.();
@@ -189,6 +210,7 @@ test("bindings register runtime commands and delegate handlers", async () => {
   await hostState.commands.get("faro.revealCurrentBeacon")?.();
   await hostState.commands.get("faro.setActivePath")?.("billing-flow");
   await hostState.commands.get("faro.setCurrentBeacon")?.("billing-flow", "b10");
+  await hostState.commands.get("faro.showPath")?.();
   await hostState.commands.get("faro.focusSidebar")?.();
 
   assert.deepEqual(runtimeState.calls, [
@@ -198,16 +220,22 @@ test("bindings register runtime commands and delegate handlers", async () => {
     "setActivePath:billing-flow",
     "setCurrentBeacon:billing-flow:b10",
   ]);
+  assert.deepEqual(hostState.focusedViews, ["faro.path"]);
+  assert.equal(hostState.contextValues.get("faro.activeView"), "path");
   assert.equal(hostState.focusCalls, 1);
 
   binding.dispose();
 });
 
-test("bindings register the main Faro view and MCP provider and fan out refresh", async () => {
+test("bindings register the Faro views and MCP provider and fan out refresh", async () => {
   const runtimeState = createRuntimeStub();
   const hostState = createHostStub();
-  let mainRefreshes = 0;
-  let mainDisposed = 0;
+  let homeRefreshes = 0;
+  let pathRefreshes = 0;
+  let setupRefreshes = 0;
+  let homeDisposed = 0;
+  let pathDisposed = 0;
+  let setupDisposed = 0;
 
   const binding = await createExtensionBindings({
     runtime: runtimeState.runtime,
@@ -227,42 +255,69 @@ test("bindings register the main Faro view and MCP provider and fan out refresh"
           ];
         },
       }),
-    createMainProvider: () =>
-      ({
+    createProviders: () => ({
+      home: {
         refresh() {
-          mainRefreshes += 1;
+          homeRefreshes += 1;
         },
         resolveWebviewView() {},
         dispose() {
-          mainDisposed += 1;
+          homeDisposed += 1;
         },
-      }) as MainProviderLike,
+      },
+      path: {
+        refresh() {
+          pathRefreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {
+          pathDisposed += 1;
+        },
+      },
+      setup: {
+        refresh() {
+          setupRefreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {
+          setupDisposed += 1;
+        },
+      },
+    }),
   });
 
-  assert.equal(hostState.mainProviders.length, 1);
-  assert.deepEqual(hostState.mainProviders[0], {
-    id: "faro.main",
-    provider: hostState.mainProviders[0]?.provider,
-  });
+  assert.equal(hostState.mainProviders.length, 3);
+  assert.deepEqual(hostState.mainProviders.map(({ id }) => id), [
+    "faro.home",
+    "faro.path",
+    "faro.setup",
+  ]);
   assert.equal(hostState.mcpProviders.length, 1);
   assert.equal(hostState.mcpProviders[0]?.id, "faro.local");
+  assert.equal(hostState.contextValues.get("faro.activeView"), "home");
 
   runtimeState.emitRefresh();
 
-  assert.ok(mainRefreshes >= 1);
+  assert.ok(homeRefreshes >= 1);
+  assert.ok(pathRefreshes >= 1);
+  assert.ok(setupRefreshes >= 1);
 
   binding.dispose();
 
-  assert.equal(mainDisposed, 1);
+  assert.equal(homeDisposed, 1);
+  assert.equal(pathDisposed, 1);
+  assert.equal(setupDisposed, 1);
   assert.equal(runtimeState.unsubscribed, true);
   assert.equal(hostState.disposals.includes("mcp:faro.local"), true);
-  assert.equal(hostState.disposals.includes("main:faro.main"), true);
+  assert.equal(hostState.disposals.includes("main:faro.home"), true);
+  assert.equal(hostState.disposals.includes("main:faro.path"), true);
+  assert.equal(hostState.disposals.includes("main:faro.setup"), true);
 });
 
-test("bindings refresh the main view after MCP-driven store changes", async () => {
+test("bindings refresh the Faro views after MCP-driven store changes", async () => {
   const runtime = createExtensionRuntime();
   const hostState = createHostStub();
-  let mainRefreshes = 0;
+  let refreshes = 0;
 
   const binding = await createExtensionBindings({
     runtime,
@@ -282,14 +337,29 @@ test("bindings refresh the main view after MCP-driven store changes", async () =
           ];
         },
       }),
-    createMainProvider: () =>
-      ({
+    createProviders: () => ({
+      home: {
         refresh() {
-          mainRefreshes += 1;
+          refreshes += 1;
         },
         resolveWebviewView() {},
         dispose() {},
-      }) as MainProviderLike,
+      },
+      path: {
+        refresh() {
+          refreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {},
+      },
+      setup: {
+        refresh() {
+          refreshes += 1;
+        },
+        resolveWebviewView() {},
+        dispose() {},
+      },
+    }),
   });
 
   runtime.mcp.tools["faro.upsertPath"].execute({
@@ -324,7 +394,7 @@ test("bindings refresh the main view after MCP-driven store changes", async () =
     },
   });
 
-  assert.equal(mainRefreshes, 1);
+  assert.equal(refreshes, 3);
 
   binding.dispose();
   runtime.dispose();

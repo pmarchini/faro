@@ -34,6 +34,7 @@ type WebviewLike = {
 
 export type MainWebviewViewModel = {
   selectedRoute: MainRoute;
+  isFixedRoute: boolean;
   routes: Array<{
     id: MainRoute;
     label: string;
@@ -548,22 +549,7 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
       </head>
       <body data-modal-open="${hasPendingConfirmation ? "true" : "false"}">
         <main>
-          <section class="shell">
-            <span class="eyebrow">Faro</span>
-            <h1 class="title">One sidebar, three focused destinations.</h1>
-            <p class="body-copy">Move between home, path reading, and setup without adding more views to the VS Code activity bar.</p>
-            <div class="nav">
-              ${viewModel.routes
-                .map(
-                  (route) => `
-                    <button class="nav-button" data-action="open-${escapeHtml(route.id)}" data-selected="${route.isSelected ? "true" : "false"}">
-                      ${escapeHtml(route.label)}
-                    </button>
-                  `,
-                )
-                .join("")}
-            </div>
-          </section>
+          ${viewModel.isFixedRoute ? "" : renderCompositeShell(viewModel)}
 
           ${renderSelectedRoute(viewModel)}
         </main>
@@ -675,6 +661,27 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
         </script>
       </body>
     </html>
+  `;
+}
+
+function renderCompositeShell(viewModel: MainWebviewViewModel): string {
+  return `
+    <section class="shell">
+      <span class="eyebrow">Faro</span>
+      <h1 class="title">One sidebar, three focused destinations.</h1>
+      <p class="body-copy">Move between home, path reading, and setup without adding more views to the VS Code activity bar.</p>
+      <div class="nav">
+        ${viewModel.routes
+          .map(
+            (route) => `
+              <button class="nav-button" data-action="open-${escapeHtml(route.id)}" data-selected="${route.isSelected ? "true" : "false"}">
+                ${escapeHtml(route.label)}
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
   `;
 }
 

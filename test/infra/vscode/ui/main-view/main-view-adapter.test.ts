@@ -36,6 +36,7 @@ class FakeElement {
 function createMainViewModel(
   route: "home" | "path" | "setup" = "home",
   options: {
+    isFixedRoute?: boolean;
     pendingPathDeleteConfirmation?: {
       pathId: string;
       pathTitle: string;
@@ -50,6 +51,7 @@ function createMainViewModel(
 
   return {
     selectedRoute: route,
+    isFixedRoute: options.isFixedRoute ?? false,
     routes: [
       { id: "home" as const, label: "Home", isSelected: route === "home" },
       { id: "path" as const, label: "Path", isSelected: route === "path" },
@@ -145,6 +147,14 @@ test("renderMainHtml renders the home launcher", () => {
   assert.match(html, /<svg[\s\S]*viewBox="0 0 256 256"/);
   assert.doesNotMatch(html, /Main Page/);
   assert.doesNotMatch(html, /Checking integrations/);
+});
+
+test("renderMainHtml omits the composite shell for fixed native views", () => {
+  const html = renderMainHtml(createMainViewModel("path", { isFixedRoute: true }));
+
+  assert.match(html, /Auth Flow/);
+  assert.doesNotMatch(html, /One sidebar, three focused destinations/);
+  assert.doesNotMatch(html, /class="nav"/);
 });
 
 test("renderMainHtml renders the path route controls", () => {

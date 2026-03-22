@@ -20,8 +20,13 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:faro.main",
+    "onView:faro.home",
+    "onView:faro.path",
+    "onView:faro.setup",
     "onCommand:faro.focusSidebar",
+    "onCommand:faro.showHome",
+    "onCommand:faro.showPath",
+    "onCommand:faro.showSetup",
     "onCommand:faro.nextBeacon",
     "onCommand:faro.previousBeacon",
     "onCommand:faro.revealCurrentBeacon",
@@ -41,8 +46,21 @@
     "views": {
       "faro": [
         {
-          "id": "faro.main",
+          "id": "faro.home",
           "name": "Home",
+          "when": "faro.activeView == home",
+          "type": "webview"
+        },
+        {
+          "id": "faro.path",
+          "name": "Path",
+          "when": "faro.activeView == path",
+          "type": "webview"
+        },
+        {
+          "id": "faro.setup",
+          "name": "Setup",
+          "when": "faro.activeView == setup",
           "type": "webview"
         }
       ]
@@ -69,6 +87,18 @@
         "title": "Faro: Focus Sidebar"
       },
       {
+        "command": "faro.showHome",
+        "title": "Faro: Show Home"
+      },
+      {
+        "command": "faro.showPath",
+        "title": "Faro: Show Path"
+      },
+      {
+        "command": "faro.showSetup",
+        "title": "Faro: Show Setup"
+      },
+      {
         "command": "faro.nextBeacon",
         "title": "Faro: Next Beacon"
       },
@@ -88,7 +118,23 @@
         "command": "faro.setCurrentBeacon",
         "title": "Faro: Set Current Beacon"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "faro.showHome",
+          "when": "view == faro.home || view == faro.path || view == faro.setup"
+        },
+        {
+          "command": "faro.showPath",
+          "when": "view == faro.home || view == faro.path || view == faro.setup"
+        },
+        {
+          "command": "faro.showSetup",
+          "when": "view == faro.home || view == faro.path || view == faro.setup"
+        }
+      ]
+    }
   },
   "scripts": {
     "check": "tsc -p tsconfig.json",

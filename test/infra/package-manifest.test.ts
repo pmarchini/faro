@@ -11,12 +11,18 @@ type PackageManifest = {
       command: string;
       title: string;
     }>;
+    menus?: {
+      "view/title"?: Array<{
+        command: string;
+        when?: string;
+      }>;
+    };
     viewsContainers?: {
       activitybar?: Array<{
         id: string;
       }>;
     };
-    views?: Record<string, Array<{ id: string }>>;
+    views?: Record<string, Array<{ id: string; when?: string }>>;
     mcpServerDefinitionProviders?: Array<{
       id: string;
       label: string;
@@ -39,8 +45,15 @@ test("package manifest contributes the full faro UI and command surface", () => 
     ["faro"],
   );
   assert.deepEqual(
-    manifest.contributes?.views?.faro?.map((view) => view.id),
-    ["faro.main"],
+    manifest.contributes?.views?.faro?.map((view) => ({
+      id: view.id,
+      when: view.when,
+    })),
+    [
+      { id: "faro.home", when: "faro.activeView == home" },
+      { id: "faro.path", when: "faro.activeView == path" },
+      { id: "faro.setup", when: "faro.activeView == setup" },
+    ],
   );
   assert.deepEqual(manifest.contributes?.mcpServerDefinitionProviders, [
     {
@@ -52,6 +65,9 @@ test("package manifest contributes the full faro UI and command surface", () => 
     manifest.contributes?.commands?.map((command) => command.command),
     [
       "faro.focusSidebar",
+      "faro.showHome",
+      "faro.showPath",
+      "faro.showSetup",
       "faro.nextBeacon",
       "faro.previousBeacon",
       "faro.revealCurrentBeacon",
@@ -60,11 +76,24 @@ test("package manifest contributes the full faro UI and command surface", () => 
     ],
   );
   assert.deepEqual(
+    manifest.contributes?.menus?.["view/title"]?.map((item) => item.command),
+    [
+      "faro.showHome",
+      "faro.showPath",
+      "faro.showSetup",
+    ],
+  );
+  assert.deepEqual(
     manifest.activationEvents,
     [
       "onStartupFinished",
-      "onView:faro.main",
+      "onView:faro.home",
+      "onView:faro.path",
+      "onView:faro.setup",
       "onCommand:faro.focusSidebar",
+      "onCommand:faro.showHome",
+      "onCommand:faro.showPath",
+      "onCommand:faro.showSetup",
       "onCommand:faro.nextBeacon",
       "onCommand:faro.previousBeacon",
       "onCommand:faro.revealCurrentBeacon",

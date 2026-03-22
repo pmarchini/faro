@@ -1,7 +1,7 @@
 import type { VscodeLike, VscodeWebviewView } from "../vscode-api.ts";
 import type {
   ExtensionHost,
-  MainProviderLike,
+  WebviewProviderLike,
 } from "../composition/register-vscode-bindings.ts";
 
 export function createVscodeExtensionHost({
@@ -44,7 +44,13 @@ export function createVscodeExtensionHost({
     async focusFaroView() {
       await vscode.commands.executeCommand("workbench.view.extension.faro");
     },
+    async focusView(viewId) {
+      await vscode.commands.executeCommand(`${viewId}.focus`);
+    },
+    async setContext(key, value) {
+      await vscode.commands.executeCommand("setContext", key, value);
+    },
   };
 }
 
-export type { MainProviderLike };
+export type { WebviewProviderLike };
