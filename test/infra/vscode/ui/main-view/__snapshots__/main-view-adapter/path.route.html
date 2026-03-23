@@ -1,1 +1,109 @@
-<section class="shell"><span class="eyebrow">Faro</span><h1 class="title">One sidebar, three focused destinations.</h1><p class="body-copy">Move between home, path reading, and setup without adding more views to the VS Code activity bar.</p><div class="nav"><button class="nav-button" data-selected="false" data-action="open-home">Home</button><button class="nav-button" data-selected="true" data-action="open-path">Path</button><button class="nav-button" data-selected="false" data-action="open-setup">Setup</button></div></section><section class="panel"><div class="path-meta"><div><span class="eyebrow">Current Path</span><h2 class="section-title">Auth Flow</h2></div><button class="action-button" data-action="request-delete-path" data-path-id="auth-flow" data-path-title="Auth Flow" data-variant="danger">Delete Path</button></div><p class="body-copy">Trace authentication</p></section><section class="panel"><div class="path-meta"><span class="eyebrow">Current Beacon</span><span class="pill">1 of 2</span></div><h2 class="section-title">Beacon b1</h2><p class="body-copy">Summary for b1</p><p class="body-copy">Explanation for b1</p><div class="row-footer"><button class="action-button" data-action="previous">Prev</button><button class="action-button" data-action="reveal">Reveal</button><button class="action-button" data-action="next">Next</button></div></section><section class="panel"><span class="eyebrow">Beacon Sequence</span><div class="beacon-list"><button class="beacon-button" data-current="true" data-action="select-beacon" data-path-id="auth-flow" data-beacon-id="b1"><span class="beacon-row-header"><span class="step-chip">Step 1</span><span class="current-chip">Current step</span></span><span class="beacon-row-title">Beacon b1</span><span class="beacon-row-caption">Summary for b1</span></button><button class="beacon-button" data-current="false" data-action="select-beacon" data-path-id="auth-flow" data-beacon-id="b2"><span class="beacon-row-header"><span class="step-chip">Step 2</span><span class="current-chip">Current step</span></span><span class="beacon-row-title">Beacon b2</span><span class="beacon-row-caption">Summary for b2</span></button></div></section>
+<section class="shell">
+  <span class="eyebrow">
+    Faro
+  </span>
+  <h1 class="title">
+    One sidebar, three focused destinations.
+  </h1>
+  <p class="body-copy">
+    Move between home, path reading, and setup without adding more views to the VS Code activity bar.
+  </p>
+  <div class="nav">
+    <button class="nav-button" data-selected="false" data-action="open-home">
+      Home
+    </button>
+    <button class="nav-button" data-selected="true" data-action="open-path">
+      Path
+    </button>
+    <button class="nav-button" data-selected="false" data-action="open-setup">
+      Setup
+    </button>
+  </div>
+</section>
+<section class="panel">
+  <div class="path-meta">
+    <div>
+      <span class="eyebrow">
+        Current Path
+      </span>
+      <h2 class="section-title">
+        Auth Flow
+      </h2>
+    </div>
+    <button class="action-button" data-action="request-delete-path" data-path-id="auth-flow" data-path-title="Auth Flow" data-variant="danger">
+      Delete Path
+    </button>
+  </div>
+  <p class="body-copy">
+    Trace authentication
+  </p>
+</section>
+<section class="panel">
+  <div class="path-meta">
+    <span class="eyebrow">
+      Current Beacon
+    </span>
+    <span class="pill">
+      1 of 2
+    </span>
+  </div>
+  <h2 class="section-title">
+    Beacon b1
+  </h2>
+  <p class="body-copy">
+    Summary for b1
+  </p>
+  <p class="body-copy">
+    Explanation for b1
+  </p>
+  <div class="row-footer">
+    <button class="action-button" data-action="previous">
+      Prev
+    </button>
+    <button class="action-button" data-action="reveal">
+      Reveal
+    </button>
+    <button class="action-button" data-action="next">
+      Next
+    </button>
+  </div>
+</section>
+<section class="panel">
+  <span class="eyebrow">
+    Beacon Sequence
+  </span>
+  <div class="beacon-list">
+    <button class="beacon-button" data-current="true" data-action="select-beacon" data-path-id="auth-flow" data-beacon-id="b1">
+      <span class="beacon-row-header">
+        <span class="step-chip">
+          Step 1
+        </span>
+        <span class="current-chip">
+          Current step
+        </span>
+      </span>
+      <span class="beacon-row-title">
+        Beacon b1
+      </span>
+      <span class="beacon-row-caption">
+        Summary for b1
+      </span>
+    </button>
+    <button class="beacon-button" data-current="false" data-action="select-beacon" data-path-id="auth-flow" data-beacon-id="b2">
+      <span class="beacon-row-header">
+        <span class="step-chip">
+          Step 2
+        </span>
+        <span class="current-chip">
+          Current step
+        </span>
+      </span>
+      <span class="beacon-row-title">
+        Beacon b2
+      </span>
+      <span class="beacon-row-caption">
+        Summary for b2
+      </span>
+    </button>
+  </div>
+</section>

@@ -60,13 +60,29 @@ function extractMainContent(html: string): string {
   return mainMatch[1];
 }
 
-function normalizeSnapshotHtml(html: string): string {
-  return html
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line, index, lines) => line.length > 0 || lines[index - 1] !== "")
-    .join("\n")
-    .trim();
+function formatSnapshotHtml(html: string): string {
+  const tokens = html.replace(/>\s+</g, "><").match(/<[^>]+>|[^<]+/g) ?? [];
+  const lines: string[] = [];
+  let indent = 0;
+
+  for (const token of tokens) {
+    const value = token.trim();
+    if (value.length === 0) {
+      continue;
+    }
+
+    if (value.startsWith("</")) {
+      indent = Math.max(0, indent - 1);
+    }
+
+    lines.push(`${"  ".repeat(indent)}${value}`);
+
+    if (isOpeningTag(value) && !isSelfClosingTag(value)) {
+      indent += 1;
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function snapshotPath(name: string): string {
@@ -75,9 +91,20 @@ function snapshotPath(name: string): string {
 
 function assertMatchesSnapshot(html: string, name: string): void {
   assert.equal(
-    normalizeSnapshotHtml(extractMainContent(html)),
+    formatSnapshotHtml(extractMainContent(html)),
     readFileSync(snapshotPath(name), "utf8").trimEnd(),
   );
+}
+
+function isOpeningTag(token: string): boolean {
+  return token.startsWith("<") && !token.startsWith("</");
+}
+
+function isSelfClosingTag(token: string): boolean {
+  return token.endsWith("/>") ||
+    token.startsWith("<path ") ||
+    token.startsWith("<rect ") ||
+    token.startsWith("<circle ");
 }
 
 function createAdapterWebview() {
