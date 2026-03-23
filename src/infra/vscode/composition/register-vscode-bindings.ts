@@ -116,5 +116,6 @@ function defaultCreateMainProvider({
       workspaceRoot,
       extensionRoot: extensionPath,
     }),
+    extensionPath,
   });
 }

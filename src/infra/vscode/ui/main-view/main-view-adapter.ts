@@ -1,25 +1,19 @@
-import type { HomeViewModel } from "../../../../app/views/home-view-model.ts";
-import type { NavigatorViewModel } from "../../../../app/views/navigator-view-model.ts";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import type {
+  NavigatorBeaconListItem,
+  NavigatorViewModel,
+} from "../../../../app/views/navigator-view-model.ts";
 import type { SetupViewModel } from "../../../../app/views/setup-view-model.ts";
 import type { SetupScope, SetupTargetId } from "../../../../setup/setup-contract.ts";
-import type { MainRoute } from "../../../../ui/main-route.ts";
-
-type MainMessage =
-  | { type: "main.openHome" }
-  | { type: "main.openPath" }
-  | { type: "main.openSetup" }
-  | { type: "main.previous" }
-  | { type: "main.next" }
-  | { type: "main.reveal" }
-  | { type: "main.requestDeletePath"; pathId: string; pathTitle: string }
-  | { type: "main.cancelDeletePath" }
-  | { type: "main.confirmDeletePath"; pathId: string }
-  | { type: "main.selectBeacon"; pathId: string; beaconId: string }
-  | { type: "main.setupSetScope"; scope: SetupScope }
-  | { type: "main.setupRequestInstallTarget"; targetId: SetupTargetId }
-  | { type: "main.setupCancelInstallTarget" }
-  | { type: "main.setupConfirmInstallTarget"; targetId: SetupTargetId }
-  | { type: string };
+import { MainViewApp } from "./main-view-app.ts";
+import {
+  isMainMessage,
+  mainMessageType,
+  type MainMessage,
+  type MainWebviewViewModel,
+} from "./main-view-contract.ts";
 
 type Disposable = {
   dispose(): void;
@@ -27,30 +21,27 @@ type Disposable = {
 
 type WebviewLike = {
   html: string;
+  options?: Record<string, unknown>;
+  resolveWebviewUri?(path: string): string;
+  setLocalResourceRoots?(paths: string[]): void;
   onDidReceiveMessage(
-    listener: (message: MainMessage) => void | Promise<void>,
+    listener: (message: unknown) => void | Promise<void>,
   ): Disposable;
 };
 
-export type MainWebviewViewModel = {
-  selectedRoute: MainRoute;
-  routes: Array<{
-    id: MainRoute;
-    label: string;
-    isSelected: boolean;
-  }>;
-  home: HomeViewModel;
-  path: NavigatorViewModel;
-  pendingPathDeleteConfirmation?: {
-    pathId: string;
-    pathTitle: string;
-  };
-  setup: SetupViewModel;
+type MainWebviewAssets = {
+  cssUri?: string;
+  jsUri?: string;
 };
+
+type MainWebviewAdapterError =
+  | { kind: "render"; cause: unknown }
+  | { kind: "message"; message: unknown; cause: unknown };
 
 type Dependencies = {
   webview: WebviewLike;
   getViewModel(): MainWebviewViewModel;
+  getAssets?(): MainWebviewAssets;
   onOpenHome(): Promise<void>;
   onOpenPath(): Promise<void>;
   onOpenSetup(): Promise<void>;
@@ -67,9 +58,16 @@ type Dependencies = {
   onSetupConfirmInstallTarget(targetId: SetupTargetId): Promise<void>;
 };
 
+type MainWebviewAdapter = Disposable & {
+  render(): boolean;
+  clearError(): void;
+  readonly lastError?: MainWebviewAdapterError;
+};
+
 export function createMainWebviewAdapter({
   webview,
   getViewModel,
+  getAssets = () => ({}),
   onOpenHome,
   onOpenPath,
   onOpenSetup,
@@ -84,115 +82,133 @@ export function createMainWebviewAdapter({
   onSetupRequestInstallTarget,
   onSetupCancelInstallTarget,
   onSetupConfirmInstallTarget,
-}: Dependencies): Disposable & { render(): void } {
-  const subscription = webview.onDidReceiveMessage(async (message) => {
-    if (message.type === "main.openHome") {
+}: Dependencies): MainWebviewAdapter {
+  let lastError: MainWebviewAdapterError | undefined;
+  const handlers: MainMessageHandlerMap = {
+    [mainMessageType.openHome]: async () => {
       await onOpenHome();
-      render();
-      return;
-    }
-
-    if (message.type === "main.openPath") {
+    },
+    [mainMessageType.openPath]: async () => {
       await onOpenPath();
-      render();
-      return;
-    }
-
-    if (message.type === "main.openSetup") {
+    },
+    [mainMessageType.openSetup]: async () => {
       await onOpenSetup();
-      render();
-      return;
-    }
-
-    if (message.type === "main.previous") {
+    },
+    [mainMessageType.previous]: async () => {
       await onPrevious();
-      render();
-      return;
-    }
-
-    if (message.type === "main.next") {
+    },
+    [mainMessageType.next]: async () => {
       await onNext();
-      render();
-      return;
-    }
-
-    if (message.type === "main.reveal") {
+    },
+    [mainMessageType.reveal]: async () => {
       await onReveal();
-      render();
-      return;
-    }
-
-    if (isRequestDeletePathMessage(message)) {
+    },
+    [mainMessageType.requestDeletePath]: async (message) => {
       await onRequestDeletePath(message.pathId, message.pathTitle);
-      render();
-      return;
-    }
-
-    if (isCancelDeletePathMessage(message)) {
+    },
+    [mainMessageType.cancelDeletePath]: async () => {
       await onCancelDeletePath();
-      render();
-      return;
-    }
-
-    if (isConfirmDeletePathMessage(message)) {
+    },
+    [mainMessageType.confirmDeletePath]: async (message) => {
       await onConfirmDeletePath(message.pathId);
-      render();
-      return;
-    }
-
-    if (isSelectBeaconMessage(message)) {
+    },
+    [mainMessageType.selectBeacon]: async (message) => {
       await onSelectBeacon(message.pathId, message.beaconId);
-      render();
-      return;
-    }
-
-    if (isSetupSetScopeMessage(message)) {
+    },
+    [mainMessageType.setupSetScope]: async (message) => {
       await onSetupSelectScope(message.scope);
-      render();
-      return;
-    }
-
-    if (isSetupRequestInstallTargetMessage(message)) {
+    },
+    [mainMessageType.setupRequestInstallTarget]: async (message) => {
       await onSetupRequestInstallTarget(message.targetId);
-      render();
-      return;
-    }
-
-    if (isSetupCancelInstallTargetMessage(message)) {
+    },
+    [mainMessageType.setupCancelInstallTarget]: async () => {
       await onSetupCancelInstallTarget();
-      render();
+    },
+    [mainMessageType.setupConfirmInstallTarget]: async (message) => {
+      await onSetupConfirmInstallTarget(message.targetId);
+    },
+  };
+
+  const subscription = webview.onDidReceiveMessage(async (message) => {
+    if (!isMainMessage(message)) {
       return;
     }
 
-    if (isSetupConfirmInstallTargetMessage(message)) {
-      await onSetupConfirmInstallTarget(message.targetId);
+    try {
+      await dispatchMainMessage(handlers, message);
+      lastError = undefined;
       render();
+    } catch (cause) {
+      lastError = {
+        kind: "message",
+        message,
+        cause,
+      };
     }
   });
 
-  function render(): void {
-    webview.html = renderMainHtml(getViewModel());
+  function render(): boolean {
+    try {
+      webview.html = renderMainHtml(getViewModel(), getAssets());
+      lastError = undefined;
+      return true;
+    } catch (cause) {
+      lastError = {
+        kind: "render",
+        cause,
+      };
+      return false;
+    }
   }
 
   return {
     render,
+    clearError() {
+      lastError = undefined;
+    },
+    get lastError() {
+      return lastError;
+    },
     dispose() {
       subscription.dispose();
     },
   };
 }
 
-export function renderMainHtml(viewModel: MainWebviewViewModel): string {
+type MainMessageHandlerMap = {
+  [Type in MainMessage["type"]]: (
+    message: Extract<MainMessage, { type: Type }>,
+  ) => Promise<void>;
+};
+
+function dispatchMainMessage(
+  handlers: MainMessageHandlerMap,
+  message: MainMessage,
+): Promise<void> {
+  return (handlers[message.type] as (message: MainMessage) => Promise<void>)(message);
+}
+
+export function renderMainHtml(
+  viewModel: MainWebviewViewModel,
+  assets: MainWebviewAssets = {},
+): string {
   const hasPendingDeleteConfirmation = viewModel.selectedRoute === "path" &&
     Boolean(viewModel.pendingPathDeleteConfirmation);
   const hasPendingSetupConfirmation = viewModel.selectedRoute === "setup" &&
     Boolean(viewModel.setup.pendingInstallConfirmation);
   const hasPendingConfirmation = hasPendingDeleteConfirmation || hasPendingSetupConfirmation;
+  const appHtml = renderToStaticMarkup(
+    React.createElement(MainViewApp, {
+      viewModel,
+    }),
+  );
+  const bootstrapPayload = JSON.stringify({ viewModel }).replaceAll("<", "\\u003c");
 
   return `
     <!doctype html>
     <html lang="en">
       <head>
+        ${assets.cssUri ? `<link rel="stylesheet" href="${escapeHtml(assets.cssUri)}">` : ""}
         <style>
           :root {
             color-scheme: light dark;
@@ -547,530 +563,15 @@ export function renderMainHtml(viewModel: MainWebviewViewModel): string {
         </style>
       </head>
       <body data-modal-open="${hasPendingConfirmation ? "true" : "false"}">
-        <main>
-          <section class="shell">
-            <span class="eyebrow">Faro</span>
-            <h1 class="title">One sidebar, three focused destinations.</h1>
-            <p class="body-copy">Move between home, path reading, and setup without adding more views to the VS Code activity bar.</p>
-            <div class="nav">
-              ${viewModel.routes
-                .map(
-                  (route) => `
-                    <button class="nav-button" data-action="open-${escapeHtml(route.id)}" data-selected="${route.isSelected ? "true" : "false"}">
-                      ${escapeHtml(route.label)}
-                    </button>
-                  `,
-                )
-                .join("")}
-            </div>
-          </section>
-
-          ${renderSelectedRoute(viewModel)}
-        </main>
-        ${hasPendingDeleteConfirmation ? renderPathDeleteConfirmation(viewModel) : ""}
-        ${hasPendingSetupConfirmation ? renderSetupInstallConfirmation(viewModel.setup) : ""}
-        <script>
-          const vscode = acquireVsCodeApi();
-          document.addEventListener("click", (event) => {
-            const actionTarget = event.target instanceof HTMLElement
-              ? event.target.closest("[data-action]")
-              : null;
-
-            if (!actionTarget) {
-              return;
-            }
-
-            const action = actionTarget.dataset.action;
-
-            if (action === "open-home") {
-              vscode.postMessage({ type: "main.openHome" });
-              return;
-            }
-
-            if (action === "open-path") {
-              vscode.postMessage({ type: "main.openPath" });
-              return;
-            }
-
-            if (action === "open-setup") {
-              vscode.postMessage({ type: "main.openSetup" });
-              return;
-            }
-
-            if (action === "previous") {
-              vscode.postMessage({ type: "main.previous" });
-              return;
-            }
-
-            if (action === "next") {
-              vscode.postMessage({ type: "main.next" });
-              return;
-            }
-
-            if (action === "reveal") {
-              vscode.postMessage({ type: "main.reveal" });
-              return;
-            }
-
-            if (action === "request-delete-path") {
-              vscode.postMessage({
-                type: "main.requestDeletePath",
-                pathId: actionTarget.dataset.pathId,
-                pathTitle: actionTarget.dataset.pathTitle,
-              });
-              return;
-            }
-
-            if (action === "cancel-delete-path") {
-              vscode.postMessage({ type: "main.cancelDeletePath" });
-              return;
-            }
-
-            if (action === "confirm-delete-path") {
-              vscode.postMessage({
-                type: "main.confirmDeletePath",
-                pathId: actionTarget.dataset.pathId,
-              });
-              return;
-            }
-
-            if (action === "select-beacon") {
-              vscode.postMessage({
-                type: "main.selectBeacon",
-                pathId: actionTarget.dataset.pathId,
-                beaconId: actionTarget.dataset.beaconId,
-              });
-              return;
-            }
-
-            if (action === "setup-set-scope") {
-              vscode.postMessage({
-                type: "main.setupSetScope",
-                scope: actionTarget.dataset.scope,
-              });
-              return;
-            }
-
-            if (action === "setup-install-target") {
-              vscode.postMessage({
-                type: "main.setupRequestInstallTarget",
-                targetId: actionTarget.dataset.targetId,
-              });
-              return;
-            }
-
-            if (action === "setup-cancel-install-target") {
-              vscode.postMessage({ type: "main.setupCancelInstallTarget" });
-              return;
-            }
-
-            if (action === "setup-confirm-install-target") {
-              vscode.postMessage({
-                type: "main.setupConfirmInstallTarget",
-                targetId: actionTarget.dataset.targetId,
-              });
-            }
-          });
-
-        </script>
+        <div id="faro-main-root">${appHtml}</div>
+        ${
+          assets.jsUri
+            ? `<script id="faro-main-bootstrap" type="application/json">${bootstrapPayload}</script>
+               <script type="module" src="${escapeHtml(assets.jsUri)}"></script>`
+            : ""
+        }
       </body>
     </html>
-  `;
-}
-
-function renderSelectedRoute(viewModel: MainWebviewViewModel): string {
-  if (viewModel.selectedRoute === "home") {
-    return `
-      <section class="panel home-hero">
-        <span class="eyebrow">Faro Home</span>
-        ${renderFaroLogo()}
-        <h2 class="section-title">${escapeHtml(viewModel.home.title)}</h2>
-        <p class="body-copy">${escapeHtml(viewModel.home.message)}</p>
-      </section>
-
-      <section class="panel">
-        <span class="eyebrow">Start Here</span>
-        <div class="home-actions">
-          <button class="home-card" data-action="open-path">
-            <div class="home-card-top">
-              <h3 class="home-card-title">${escapeHtml(viewModel.home.resumeLabel)}</h3>
-              <span class="badge">1</span>
-            </div>
-            <p class="body-copy">${escapeHtml(viewModel.home.currentPathSummary)}</p>
-          </button>
-
-          <button class="home-card" data-action="open-setup">
-            <div class="home-card-top">
-              <h3 class="home-card-title">${escapeHtml(viewModel.home.setupLabel)}</h3>
-              <span class="badge">S</span>
-            </div>
-            <p class="body-copy">${escapeHtml(viewModel.home.setupSummary)}</p>
-            <div class="home-card-action">Inspect local and global integrations</div>
-          </button>
-        </div>
-      </section>
-    `;
-  }
-
-  if (viewModel.selectedRoute === "setup") {
-    return renderSetupRoute(viewModel.setup);
-  }
-
-  return renderPathRoute(viewModel.path);
-}
-
-function renderPathRoute(viewModel: NavigatorViewModel): string {
-  if (viewModel.state === "empty") {
-    return `
-      <section class="panel">
-        <span class="eyebrow">Path</span>
-        <h2 class="section-title">${escapeHtml(viewModel.title)}</h2>
-        <p class="body-copy">${escapeHtml(viewModel.message)}</p>
-      </section>
-    `;
-  }
-
-  if (viewModel.state === "welcome") {
-    return `
-      <section class="panel">
-        <span class="eyebrow">Path</span>
-        <h2 class="section-title">${escapeHtml(viewModel.title)}</h2>
-        <p class="body-copy">${escapeHtml(viewModel.message)}</p>
-      </section>
-    `;
-  }
-
-  return `
-    <section class="panel">
-      <div class="path-meta">
-        <div>
-          <span class="eyebrow">Current Path</span>
-          <h2 class="section-title">${escapeHtml(viewModel.pathTitle)}</h2>
-        </div>
-        <button
-          class="action-button"
-          data-action="request-delete-path"
-          data-path-id="${escapeHtml(viewModel.pathId)}"
-          data-path-title="${escapeHtml(viewModel.pathTitle)}"
-          data-variant="danger"
-        >
-          Delete Path
-        </button>
-      </div>
-      <p class="body-copy">${escapeHtml(viewModel.goal)}</p>
-    </section>
-
-    <section class="panel">
-      <div class="path-meta">
-        <span class="eyebrow">Current Beacon</span>
-        <span class="pill">${escapeHtml(viewModel.positionLabel)}</span>
-      </div>
-      <h2 class="section-title">${escapeHtml(viewModel.beaconTitle)}</h2>
-      <p class="body-copy">${escapeHtml(viewModel.summary)}</p>
-      <p class="body-copy">${escapeHtml(viewModel.explanation)}</p>
-      <div class="row-footer">
-        <button class="action-button" data-action="previous">Prev</button>
-        <button class="action-button" data-action="reveal">Reveal</button>
-        <button class="action-button" data-action="next">Next</button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <span class="eyebrow">Beacon Sequence</span>
-      <div class="beacon-list">
-        ${viewModel.beacons
-          .map(
-            (beacon) => `
-              <button
-                class="beacon-button"
-                data-action="select-beacon"
-                data-path-id="${escapeHtml(viewModel.pathId)}"
-                data-beacon-id="${escapeHtml(beacon.id)}"
-                data-current="${beacon.isCurrent ? "true" : "false"}"
-              >
-                <span class="beacon-row-header">
-                  <span class="step-chip">Step ${String(beacon.stepNumber)}</span>
-                  <span class="current-chip">Current step</span>
-                </span>
-                <span class="beacon-row-title">${escapeHtml(beacon.title)}</span>
-                <span class="beacon-row-caption">${escapeHtml(beacon.summary)}</span>
-              </button>
-            `,
-          )
-          .join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderSetupRoute(viewModel: SetupViewModel): string {
-  return `
-    <section class="panel">
-      <span class="eyebrow">Setup</span>
-      <h2 class="section-title">${escapeHtml(viewModel.title)}</h2>
-      <p class="body-copy">${escapeHtml(viewModel.description)}</p>
-      <div class="scope-switch">
-        ${viewModel.scopeOptions
-          .map(
-            (option) => `
-              <button
-                class="scope-button"
-                data-action="setup-set-scope"
-                data-scope="${escapeHtml(option.value)}"
-                data-selected="${option.isSelected ? "true" : "false"}"
-              >
-                ${escapeHtml(option.label)}
-              </button>
-            `,
-          )
-          .join("")}
-      </div>
-      <p class="scope-hint">${escapeHtml(viewModel.scopeHint)}</p>
-    </section>
-
-    ${
-      viewModel.isLoading
-        ? `<section class="panel"><p class="body-copy">${escapeHtml(viewModel.loadingLabel)}</p></section>`
-        : `
-          <section class="list">
-            ${viewModel.items
-              .map(
-                (item) => `
-                  <article class="row">
-                    <div class="row-top">
-                      <h3 class="row-title">${escapeHtml(item.title)}</h3>
-                      <span class="badge">${escapeHtml(item.status)}</span>
-                    </div>
-                    <p class="body-copy">${escapeHtml(item.description)}</p>
-                    <div class="row-footer">
-                      <span class="muted">${escapeHtml(item.status)}</span>
-                      <button
-                        class="action-button"
-                        data-action="setup-install-target"
-                        data-target-id="${escapeHtml(item.id)}"
-                      >
-                        ${escapeHtml(item.actionLabel)}
-                      </button>
-                    </div>
-                  </article>
-                `,
-              )
-              .join("")}
-          </section>
-        `
-    }
-
-    ${
-      viewModel.feedback
-        ? `<section class="panel"><p class="feedback">${escapeHtml(viewModel.feedback.message)}</p></section>`
-        : ""
-    }
-  `;
-}
-
-function renderPathDeleteConfirmation(viewModel: MainWebviewViewModel): string {
-  const confirmation = viewModel.pendingPathDeleteConfirmation;
-  if (!confirmation) {
-    return "";
-  }
-
-  return `
-    <section class="modal-layer" aria-label="Delete path confirmation">
-      <section class="panel confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-path-title">
-        <div class="confirmation-header">
-          <span class="eyebrow">Delete path</span>
-        </div>
-        <h3 class="row-title" id="delete-path-title">Delete current path?</h3>
-        <p class="body-copy">
-          Remove ${escapeHtml(confirmation.pathTitle)} from the workspace state. Faro will select the next available path automatically.
-        </p>
-        <div class="confirmation-meta">
-          <span class="pill">Path: ${escapeHtml(confirmation.pathTitle)}</span>
-        </div>
-        <section class="confirmation-warning">
-          <span class="eyebrow">Destructive action</span>
-          <p class="body-copy">This path disappears from the current UI state immediately.</p>
-        </section>
-        <div class="confirmation-actions">
-          <button
-            class="action-button"
-            data-action="cancel-delete-path"
-            data-variant="secondary"
-          >
-            Cancel
-          </button>
-          <button
-            class="action-button"
-            data-action="confirm-delete-path"
-            data-path-id="${escapeHtml(confirmation.pathId)}"
-            data-variant="danger"
-          >
-            Delete Path
-          </button>
-        </div>
-      </section>
-    </section>
-  `;
-}
-
-function renderSetupInstallConfirmation(viewModel: SetupViewModel): string {
-  const confirmation = viewModel.pendingInstallConfirmation;
-  if (!confirmation) {
-    return "";
-  }
-
-  return `
-    <section class="modal-layer" aria-label="Confirm install">
-      <section class="panel confirmation" role="dialog" aria-modal="true" aria-labelledby="setup-confirmation-title">
-        <div class="confirmation-header">
-          <span class="eyebrow">Confirm install</span>
-        </div>
-        <h3 class="row-title" id="setup-confirmation-title">${escapeHtml(confirmation.title)}</h3>
-        <p class="body-copy">${escapeHtml(confirmation.description)}</p>
-        <div class="confirmation-meta">
-          <span class="pill">Target: ${escapeHtml(confirmation.targetLabel)}</span>
-          <span class="pill">Scope: ${escapeHtml(confirmation.scopeLabel)}</span>
-        </div>
-        <section class="confirmation-warning">
-          <span class="eyebrow">${escapeHtml(confirmation.warningTitle)}</span>
-          <p class="body-copy">${escapeHtml(confirmation.warningMessage)}</p>
-        </section>
-        <div class="confirmation-actions">
-          <button
-            class="action-button"
-            data-action="setup-cancel-install-target"
-            data-variant="secondary"
-          >
-            Cancel
-          </button>
-          <button
-            class="action-button"
-            data-action="setup-confirm-install-target"
-            data-target-id="${escapeHtml(confirmation.targetId)}"
-          >
-            ${escapeHtml(confirmation.confirmLabel)}
-          </button>
-        </div>
-      </section>
-    </section>
-  `;
-}
-
-function isSelectBeaconMessage(
-  message: MainMessage,
-): message is { type: "main.selectBeacon"; pathId: string; beaconId: string } {
-  const candidate = message as Partial<{ pathId: unknown; beaconId: unknown }>;
-  return (
-    message.type === "main.selectBeacon" &&
-    typeof candidate.pathId === "string" &&
-    typeof candidate.beaconId === "string"
-  );
-}
-
-function isRequestDeletePathMessage(
-  message: MainMessage,
-): message is { type: "main.requestDeletePath"; pathId: string; pathTitle: string } {
-  const candidate = message as Partial<{ pathId: unknown; pathTitle: unknown }>;
-  return (
-    message.type === "main.requestDeletePath" &&
-    typeof candidate.pathId === "string" &&
-    typeof candidate.pathTitle === "string"
-  );
-}
-
-function isCancelDeletePathMessage(
-  message: MainMessage,
-): message is { type: "main.cancelDeletePath" } {
-  return message.type === "main.cancelDeletePath";
-}
-
-function isConfirmDeletePathMessage(
-  message: MainMessage,
-): message is { type: "main.confirmDeletePath"; pathId: string } {
-  const candidate = message as Partial<{ pathId: unknown }>;
-  return message.type === "main.confirmDeletePath" && typeof candidate.pathId === "string";
-}
-
-function isSetupSetScopeMessage(
-  message: MainMessage,
-): message is { type: "main.setupSetScope"; scope: SetupScope } {
-  const candidate = message as Partial<{ scope: unknown }>;
-  return (
-    message.type === "main.setupSetScope" &&
-    (candidate.scope === "local" || candidate.scope === "global")
-  );
-}
-
-function isSetupRequestInstallTargetMessage(
-  message: MainMessage,
-): message is { type: "main.setupRequestInstallTarget"; targetId: SetupTargetId } {
-  const candidate = message as Partial<{ targetId: unknown }>;
-  return (
-    message.type === "main.setupRequestInstallTarget" &&
-    typeof candidate.targetId === "string"
-  );
-}
-
-function isSetupCancelInstallTargetMessage(
-  message: MainMessage,
-): message is { type: "main.setupCancelInstallTarget" } {
-  return message.type === "main.setupCancelInstallTarget";
-}
-
-function isSetupConfirmInstallTargetMessage(
-  message: MainMessage,
-): message is { type: "main.setupConfirmInstallTarget"; targetId: SetupTargetId } {
-  const candidate = message as Partial<{ targetId: unknown }>;
-  return (
-    message.type === "main.setupConfirmInstallTarget" &&
-    typeof candidate.targetId === "string"
-  );
-}
-
-function renderFaroLogo(): string {
-  return `
-    <svg
-      class="home-logo"
-      viewBox="0 0 256 256"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="Faro logo"
-      role="img"
-    >
-      <rect
-        x="10"
-        y="10"
-        width="236"
-        height="236"
-        rx="58"
-        stroke="#3C5A74"
-        stroke-width="6"
-      />
-      <g transform="translate(128 128) scale(1.3) translate(-128 -128)">
-        <path
-          d="M86 92L128 70L170 92L170 140L128 162L86 140Z"
-          stroke="#67D2FF"
-          stroke-width="7"
-          stroke-linejoin="round"
-        />
-        <path d="M86 140L128 118L170 140" stroke="#67D2FF" stroke-width="7" />
-        <circle cx="86" cy="92" r="7" fill="#67D2FF" />
-        <circle cx="128" cy="70" r="7" fill="#67D2FF" />
-        <circle cx="170" cy="92" r="7" fill="#67D2FF" />
-        <circle cx="86" cy="140" r="7" fill="#67D2FF" />
-        <circle cx="128" cy="118" r="7" fill="#67D2FF" />
-        <circle cx="170" cy="140" r="7" fill="#67D2FF" />
-        <path d="M128 82L140 102H116Z" fill="#F4F7FB" />
-        <rect x="117" y="102" width="22" height="16" rx="6" fill="#F4F7FB" />
-        <path d="M113 118H143L151 184H105Z" fill="#F4F7FB" />
-        <path
-          d="M102 186H154"
-          stroke="#F4F7FB"
-          stroke-width="9"
-          stroke-linecap="round"
-        />
-      </g>
-    </svg>
   `;
 }
 

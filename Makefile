@@ -1,9 +1,12 @@
-.PHONY: check test dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
+.PHONY: build check test dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
 
 VSCODE ?= code
 DEV_WORKSPACE ?= $(CURDIR)/faro-dev.code-workspace
 VSIX_PATH ?= $(CURDIR)/dist/faro.vsix
 FORCE_FLAG = $(if $(filter 1 true yes,$(FORCE)),-- --force,)
+
+build:
+	npm run build:vscode-assets
 
 check:
 	npm run check
@@ -11,7 +14,7 @@ check:
 test:
 	npm test
 
-dev-host:
+dev-host: build
 	@"$(VSCODE)" --new-window --extensionDevelopmentPath="$(CURDIR)" "$(DEV_WORKSPACE)"
 
 package-vsix:

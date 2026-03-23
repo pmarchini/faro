@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createVscodeExtensionHost } from "../../../../src/infra/vscode/bindings/create-vscode-extension-host.ts";
+import type { VscodeWebview } from "../../../../src/infra/vscode/vscode-api.ts";
 
 type Disposable = {
   dispose(): void;
@@ -11,12 +12,67 @@ function createFakeWebview() {
   return {
     html: "",
     options: undefined as Record<string, unknown> | undefined,
+    webviewUris: [] as string[],
     onDidReceiveMessage() {
       return {
         dispose() {},
       };
     },
+    asWebviewUri(value: { value?: string }) {
+      const raw = value.value ?? "";
+      this.webviewUris.push(raw);
+      return {
+        toString() {
+          return `webview:${raw}`;
+        },
+      };
+    },
   };
+}
+
+function createAccessorBackedWebview(): VscodeWebview & { webviewUris: string[] } {
+  let html = "";
+  let options: Record<string, unknown> | undefined;
+  const webview = {
+    html,
+    options,
+    webviewUris: [] as string[],
+    onDidReceiveMessage() {
+      return {
+        dispose() {},
+      };
+    },
+    asWebviewUri(value: { value?: string }) {
+      const raw = value.value ?? "";
+      this.webviewUris.push(raw);
+      return {
+        toString() {
+          return `webview:${raw}`;
+        },
+      };
+    },
+  } as VscodeWebview & { webviewUris: string[] };
+
+  return Object.defineProperties(webview, {
+    html: {
+      enumerable: true,
+      get() {
+        return html;
+      },
+      set(value: string) {
+        html = value;
+      },
+    },
+    options: {
+      enumerable: true,
+      get() {
+        return options;
+      },
+      set(value: Record<string, unknown> | undefined) {
+        options = value;
+      },
+    },
+  }) as VscodeWebview & { webviewUris: string[] };
 }
 
 function createFakeVscodeApi() {
@@ -25,7 +81,7 @@ function createFakeVscodeApi() {
   const mainRegistrations: Array<{
     id: string;
     provider: {
-      resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }): void | Promise<void>;
+      resolveWebviewView(view: { webview: VscodeWebview }): void | Promise<void>;
     };
   }> = [];
   const mcpRegistrations: Array<{
@@ -51,7 +107,7 @@ function createFakeVscodeApi() {
         registerWebviewViewProvider(
           id: string,
           provider: {
-            resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }): void | Promise<void>;
+            resolveWebviewView(view: { webview: VscodeWebview }): void | Promise<void>;
           },
         ) {
           mainRegistrations.push({ id, provider });
@@ -144,7 +200,8 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
     dispose() {},
     resolveWebviewView(view: { webview: ReturnType<typeof createFakeWebview> }) {
       mainResolved += 1;
-      assert.equal(view.webview, webview);
+      assert.equal(view.webview.html, webview.html);
+      assert.equal(view.webview.options?.enableScripts, true);
     },
   });
   const mcp = host.registerMcpServerDefinitionProvider("faro.local", {
@@ -191,4 +248,56 @@ test("createVscodeExtensionHost delegates command and provider registrations", a
     "navigator:faro.main",
     "command:faro.nextBeacon",
   ]);
+});
+
+test("createVscodeExtensionHost adapts webview asset helpers for providers", async () => {
+  const vscode = createFakeVscodeApi();
+  const host = createVscodeExtensionHost({ vscode: vscode.api as never });
+  const webview = createFakeWebview();
+  let resolvedAssetUri = "";
+  let localResourceRoots: unknown[] | undefined;
+
+  host.registerMainProvider("faro.main", {
+    refresh() {},
+    dispose() {},
+    resolveWebviewView(view: {
+      webview: ReturnType<typeof createFakeWebview> & {
+        resolveWebviewUri(path: string): string;
+        setLocalResourceRoots(paths: string[]): void;
+      };
+    }) {
+      resolvedAssetUri = view.webview.resolveWebviewUri(
+        "/workspace/faro/dist/webviews/main/index.js",
+      );
+      view.webview.setLocalResourceRoots(["/workspace/faro/dist/webviews/main"]);
+      localResourceRoots = view.webview.options?.localResourceRoots as unknown[] | undefined;
+    },
+  });
+
+  await vscode.mainRegistrations[0]?.provider.resolveWebviewView({ webview });
+
+  assert.equal(
+    resolvedAssetUri,
+    "webview:file:///workspace/faro/dist/webviews/main/index.js",
+  );
+  assert.deepEqual(webview.webviewUris, ["file:///workspace/faro/dist/webviews/main/index.js"]);
+  assert.deepEqual(localResourceRoots, [{ value: "file:///workspace/faro/dist/webviews/main" }]);
+});
+
+test("createVscodeExtensionHost forwards html writes to accessor-backed webviews", async () => {
+  const vscode = createFakeVscodeApi();
+  const host = createVscodeExtensionHost({ vscode: vscode.api as never });
+  const webview = createAccessorBackedWebview();
+
+  host.registerMainProvider("faro.main", {
+    refresh() {},
+    dispose() {},
+    resolveWebviewView(view) {
+      view.webview.html = "<main>Rendered</main>";
+    },
+  });
+
+  await vscode.mainRegistrations[0]?.provider.resolveWebviewView({ webview });
+
+  assert.equal(webview.html, "<main>Rendered</main>");
 });

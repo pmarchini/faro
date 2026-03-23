@@ -14,7 +14,7 @@
   "engines": {
     "vscode": "^1.109.0"
   },
-  "main": "./src/infra/vscode/extension.ts",
+  "main": "./dist/extension/extension.cjs",
   "categories": [
     "Other"
   ],
@@ -92,19 +92,28 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json",
+    "build:vscode-assets": "node --experimental-strip-types scripts/build-vscode-assets.ts",
+    "build": "npm run build:vscode-assets",
     "upsert:agent-instructions": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=all",
     "upsert:agent-instructions:local": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=local",
     "upsert:agent-instructions:global": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=global",
     "upsert:copilot-agent": "node --experimental-strip-types scripts/upsert-agent-instructions.ts --scope=local --copilot-agent-only",
-    "package:vsix": "vsce package",
+    "package:vsix": "npm run build:vscode-assets && vsce package",
     "install:local": "npm run package:vsix -- --out dist/faro.vsix && code --install-extension dist/faro.vsix --force",
     "test": "node --test --test-isolation=none",
     "test:watch": "node --test --test-isolation=none --watch"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^25.5.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "@types/vscode": "^1.109.0",
     "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.27.0",
+    "jsdom": "^27.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "typescript": "^5.9.3"
   }
 }

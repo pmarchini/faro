@@ -1,3 +1,5 @@
+import { join } from "node:path";
+
 import { buildHomeViewModel } from "../../../../app/views/home-view-model.ts";
 import { buildNavigatorViewModel } from "../../../../app/views/navigator-view-model.ts";
 import {
@@ -8,20 +10,13 @@ import type { SetupStateSnapshot, SetupTargetId } from "../../../../setup/setup-
 import { formatSetupTargetName } from "../../../../setup/setup-target-definitions.ts";
 import type { MainRoute } from "../../../../ui/main-route.ts";
 import type { RuntimeCommands } from "../../commands/create-runtime-commands.ts";
-import { createMainWebviewAdapter, type MainWebviewViewModel } from "./main-view-adapter.ts";
+import { createMainWebviewAdapter } from "./main-view-adapter.ts";
+import type { MainWebviewViewModel } from "./main-view-contract.ts";
 import type { SetupIntegrationService } from "../../../tooling/setup-integration-service.ts";
+import type { VscodeWebviewView } from "../../vscode-api.ts";
 
 type Disposable = {
   dispose(): void;
-};
-
-type WebviewViewLike = {
-  webview: {
-    html: string;
-    onDidReceiveMessage(
-      listener: (message: { type: string }) => void | Promise<void>,
-    ): Disposable;
-  };
 };
 
 type UiStateSurface = {
@@ -41,13 +36,15 @@ export function createMainWebviewViewProvider({
   uiState,
   commands,
   setupService,
+  extensionPath = process.cwd(),
 }: {
   store: Pick<InMemoryStore, "load" | "deletePath">;
   uiState: UiStateSurface;
   commands: CommandSurface;
   setupService: SetupIntegrationService;
+  extensionPath?: string;
 }): Disposable & {
-  resolveWebviewView(view: WebviewViewLike): void;
+  resolveWebviewView(view: VscodeWebviewView): void;
   refresh(): void;
 } {
   let adapter: ReturnType<typeof createMainWebviewAdapter> | null = null;
@@ -71,6 +68,9 @@ export function createMainWebviewViewProvider({
       adapter = createMainWebviewAdapter({
         webview: view.webview,
         getViewModel: buildViewModel,
+        getAssets() {
+          return resolveWebviewAssets(view);
+        },
         onOpenHome: async () => {
           await setRoute("home");
         },
@@ -142,6 +142,16 @@ export function createMainWebviewViewProvider({
       path: buildNavigatorViewModel(document, { showWelcome: false }),
       pendingPathDeleteConfirmation,
       setup: buildSetupViewModel(setupSnapshot),
+    };
+  }
+
+  function resolveWebviewAssets(view: VscodeWebviewView) {
+    const webviewRoot = join(extensionPath, "dist", "webviews", "main");
+    view.webview.setLocalResourceRoots?.([webviewRoot]);
+
+    return {
+      cssUri: view.webview.resolveWebviewUri?.(join(webviewRoot, "index.css")),
+      jsUri: view.webview.resolveWebviewUri?.(join(webviewRoot, "index.js")),
     };
   }
 

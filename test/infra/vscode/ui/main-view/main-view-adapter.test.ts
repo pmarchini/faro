@@ -1,37 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import vm from "node:vm";
 
 import { buildHomeViewModel } from "../../../../../src/app/views/home-view-model.ts";
 import { buildNavigatorViewModel } from "../../../../../src/app/views/navigator-view-model.ts";
 import { buildSetupViewModel } from "../../../../../src/app/views/setup-view-model.ts";
-import { renderMainHtml } from "../../../../../src/infra/vscode/ui/main-view/main-view-adapter.ts";
+import {
+  createMainWebviewAdapter,
+  renderMainHtml,
+} from "../../../../../src/infra/vscode/ui/main-view/main-view-adapter.ts";
+import { mainMessage } from "../../../../../src/infra/vscode/ui/main-view/main-view-contract.ts";
 import * as fixtures from "../../../../core/fixtures.ts";
-
-class FakeElement {
-  dataset: Record<string, string>;
-  parentElement: FakeElement | null;
-
-  constructor(dataset: Record<string, string> = {}, parentElement: FakeElement | null = null) {
-    this.dataset = dataset;
-    this.parentElement = parentElement;
-  }
-
-  closest(selector: string): FakeElement | null {
-    let current: FakeElement | null = this;
-
-    while (current) {
-      if (selector === "[data-action]" && typeof current.dataset.action === "string") {
-        return current;
-      }
-
-      current = current.parentElement;
-    }
-
-    return null;
-  }
-}
 
 function createMainViewModel(
   route: "home" | "path" | "setup" = "home",
@@ -72,50 +52,6 @@ function createMainViewModel(
   };
 }
 
-function runScript({
-  html,
-  clickTarget,
-}: {
-  html: string;
-  clickTarget?: FakeElement;
-}): unknown[] {
-  const messages: unknown[] = [];
-  const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
-
-  assert.ok(scriptMatch, "expected main html to include a script block");
-
-  let clickListener: ((event: { target: FakeElement }) => void) | null = null;
-
-  vm.runInNewContext(scriptMatch[1], {
-    acquireVsCodeApi() {
-      return {
-        postMessage(message: unknown) {
-          messages.push(message);
-        },
-      };
-    },
-    document: {
-      addEventListener(eventName: string, listener: (event: { target: FakeElement }) => void) {
-        if (eventName === "click") {
-          clickListener = listener;
-        }
-      },
-    },
-    HTMLElement: FakeElement,
-  });
-
-  if (clickTarget) {
-    const invokeClick: (event: { target: FakeElement }) => void =
-      clickListener ??
-      (() => {
-        throw new Error("expected a click listener");
-      });
-    invokeClick({ target: clickTarget });
-  }
-
-  return messages;
-}
-
 function extractMainContent(html: string): string {
   const mainMatch = html.match(/<main>([\s\S]*?)<\/main>/);
 
@@ -137,6 +73,32 @@ function snapshotPath(name: string): string {
   return fileURLToPath(new URL(`./__snapshots__/main-view-adapter/${name}.html`, import.meta.url));
 }
 
+function assertMatchesSnapshot(html: string, name: string): void {
+  assert.equal(
+    normalizeSnapshotHtml(extractMainContent(html)),
+    readFileSync(snapshotPath(name), "utf8").trimEnd(),
+  );
+}
+
+function createAdapterWebview() {
+  let listener: ((message: unknown) => void | Promise<void>) | null = null;
+
+  return {
+    html: "",
+    onDidReceiveMessage(nextListener: (message: unknown) => void | Promise<void>) {
+      listener = nextListener;
+      return {
+        dispose() {
+          listener = null;
+        },
+      };
+    },
+    async emit(message: unknown) {
+      await listener?.(message);
+    },
+  };
+}
+
 test("renderMainHtml renders the home launcher", () => {
   const html = renderMainHtml(createMainViewModel("home"));
 
@@ -145,6 +107,170 @@ test("renderMainHtml renders the home launcher", () => {
   assert.match(html, /<svg[\s\S]*viewBox="0 0 256 256"/);
   assert.doesNotMatch(html, /Main Page/);
   assert.doesNotMatch(html, /Checking integrations/);
+});
+
+test("createMainWebviewAdapter ignores unknown messages", async () => {
+  const webview = createAdapterWebview();
+  const calls: string[] = [];
+  const adapter = createMainWebviewAdapter({
+    webview,
+    getViewModel: () => createMainViewModel("home"),
+    onOpenHome: async () => {
+      calls.push("openHome");
+    },
+    onOpenPath: async () => {
+      calls.push("openPath");
+    },
+    onOpenSetup: async () => {
+      calls.push("openSetup");
+    },
+    onPrevious: async () => {
+      calls.push("previous");
+    },
+    onNext: async () => {
+      calls.push("next");
+    },
+    onReveal: async () => {
+      calls.push("reveal");
+    },
+    onRequestDeletePath: async () => {
+      calls.push("requestDeletePath");
+    },
+    onCancelDeletePath: async () => {
+      calls.push("cancelDeletePath");
+    },
+    onConfirmDeletePath: async () => {
+      calls.push("confirmDeletePath");
+    },
+    onSelectBeacon: async () => {
+      calls.push("selectBeacon");
+    },
+    onSetupSelectScope: async () => {
+      calls.push("setupSetScope");
+    },
+    onSetupRequestInstallTarget: async () => {
+      calls.push("setupRequestInstallTarget");
+    },
+    onSetupCancelInstallTarget: async () => {
+      calls.push("setupCancelInstallTarget");
+    },
+    onSetupConfirmInstallTarget: async () => {
+      calls.push("setupConfirmInstallTarget");
+    },
+  });
+
+  await webview.emit({ type: "main.unknown" });
+
+  assert.deepEqual(calls, []);
+  assert.equal(webview.html, "");
+
+  adapter.dispose();
+});
+
+test("createMainWebviewAdapter ignores non-object messages from the webview boundary", async () => {
+  const webview = createAdapterWebview();
+  const adapter = createMainWebviewAdapter({
+    webview,
+    getViewModel: () => createMainViewModel("home"),
+    onOpenHome: async () => {},
+    onOpenPath: async () => {},
+    onOpenSetup: async () => {},
+    onPrevious: async () => {},
+    onNext: async () => {},
+    onReveal: async () => {},
+    onRequestDeletePath: async () => {},
+    onCancelDeletePath: async () => {},
+    onConfirmDeletePath: async () => {},
+    onSelectBeacon: async () => {},
+    onSetupSelectScope: async () => {},
+    onSetupRequestInstallTarget: async () => {},
+    onSetupCancelInstallTarget: async () => {},
+    onSetupConfirmInstallTarget: async () => {},
+  });
+
+  await assert.doesNotReject(async () => {
+    await webview.emit(null);
+  });
+
+  assert.equal(webview.html, "");
+
+  adapter.dispose();
+});
+
+test("createMainWebviewAdapter exposes render errors on the adapter object", () => {
+  const webview = {
+    onDidReceiveMessage() {
+      return {
+        dispose() {},
+      };
+    },
+    set html(_value: string) {
+      throw new Error("render failed");
+    },
+  };
+  const adapter = createMainWebviewAdapter({
+    webview,
+    getViewModel: () => createMainViewModel("home"),
+    onOpenHome: async () => {},
+    onOpenPath: async () => {},
+    onOpenSetup: async () => {},
+    onPrevious: async () => {},
+    onNext: async () => {},
+    onReveal: async () => {},
+    onRequestDeletePath: async () => {},
+    onCancelDeletePath: async () => {},
+    onConfirmDeletePath: async () => {},
+    onSelectBeacon: async () => {},
+    onSetupSelectScope: async () => {},
+    onSetupRequestInstallTarget: async () => {},
+    onSetupCancelInstallTarget: async () => {},
+    onSetupConfirmInstallTarget: async () => {},
+  });
+
+  assert.equal(adapter.render(), false);
+  assert.deepEqual(adapter.lastError, {
+    kind: "render",
+    cause: new Error("render failed"),
+  });
+
+  adapter.dispose();
+});
+
+test("createMainWebviewAdapter exposes message handling errors on the adapter object", async () => {
+  const webview = createAdapterWebview();
+  const adapter = createMainWebviewAdapter({
+    webview,
+    getViewModel: () => createMainViewModel("home"),
+    onOpenHome: async () => {
+      throw new Error("open home failed");
+    },
+    onOpenPath: async () => {},
+    onOpenSetup: async () => {},
+    onPrevious: async () => {},
+    onNext: async () => {},
+    onReveal: async () => {},
+    onRequestDeletePath: async () => {},
+    onCancelDeletePath: async () => {},
+    onConfirmDeletePath: async () => {},
+    onSelectBeacon: async () => {},
+    onSetupSelectScope: async () => {},
+    onSetupRequestInstallTarget: async () => {},
+    onSetupCancelInstallTarget: async () => {},
+    onSetupConfirmInstallTarget: async () => {},
+  });
+
+  await assert.doesNotReject(async () => {
+    await webview.emit(mainMessage.openHome());
+  });
+
+  assert.deepEqual(adapter.lastError, {
+    kind: "message",
+    message: mainMessage.openHome(),
+    cause: new Error("open home failed"),
+  });
+  assert.equal(webview.html, "");
+
+  adapter.dispose();
 });
 
 test("renderMainHtml renders the path route controls", () => {
@@ -176,33 +302,7 @@ test("renderMainHtml shows the position pill in Current Beacon, not Current Path
   assert.match(currentBeaconSection[0], /<span class="pill">1 of 2<\/span>/);
 });
 
-test("renderMainHtml delegates nested clicks to route actions", () => {
-  const html = renderMainHtml(createMainViewModel("home"));
-  const button = new FakeElement({ action: "open-setup" });
-  const nested = new FakeElement({}, button);
-
-  const messages = runScript({ html, clickTarget: nested });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "main.openSetup" }]);
-});
-
-test("renderMainHtml delegates nested clicks inside the full beacon card", () => {
-  const html = renderMainHtml(createMainViewModel("path"));
-  const button = new FakeElement({
-    action: "select-beacon",
-    pathId: "auth-flow",
-    beaconId: "b1",
-  });
-  const nested = new FakeElement({}, button);
-
-  const messages = runScript({ html, clickTarget: nested });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
-    { type: "main.selectBeacon", pathId: "auth-flow", beaconId: "b1" },
-  ]);
-});
-
-test("renderMainHtml renders and delegates path delete confirmation", () => {
+test("renderMainHtml renders the path delete confirmation controls", () => {
   const html = renderMainHtml(
     createMainViewModel("path", {
       pendingPathDeleteConfirmation: {
@@ -211,63 +311,23 @@ test("renderMainHtml renders and delegates path delete confirmation", () => {
       },
     }),
   );
-  const requestTarget = new FakeElement({
-    action: "request-delete-path",
-    pathId: "auth-flow",
-    pathTitle: "Auth Flow",
-  });
-  const confirmTarget = new FakeElement({
-    action: "confirm-delete-path",
-    pathId: "auth-flow",
-  });
-  const cancelTarget = new FakeElement({
-    action: "cancel-delete-path",
-  });
 
   assert.match(html, /Delete Path/);
   assert.match(html, /Delete current path\?/);
   assert.match(html, /Auth Flow/);
-
-  const requestMessages = runScript({
-    html,
-    clickTarget: new FakeElement({}, requestTarget),
-  });
-  const confirmMessages = runScript({
-    html,
-    clickTarget: new FakeElement({}, confirmTarget),
-  });
-  const cancelMessages = runScript({
-    html,
-    clickTarget: new FakeElement({}, cancelTarget),
-  });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(requestMessages)), [
-    { type: "main.requestDeletePath", pathId: "auth-flow", pathTitle: "Auth Flow" },
-  ]);
-  assert.deepEqual(JSON.parse(JSON.stringify(confirmMessages)), [
-    { type: "main.confirmDeletePath", pathId: "auth-flow" },
-  ]);
-  assert.deepEqual(JSON.parse(JSON.stringify(cancelMessages)), [
-    { type: "main.cancelDeletePath" },
-  ]);
+  assert.match(html, /data-action="request-delete-path"/);
+  assert.match(html, /data-action="confirm-delete-path"/);
+  assert.match(html, /data-action="cancel-delete-path"/);
 });
 
-test("renderMainHtml requests install confirmation from the setup route", () => {
+test("renderMainHtml renders the setup install trigger", () => {
   const html = renderMainHtml(createMainViewModel("setup"));
-  const button = new FakeElement({
-    action: "setup-install-target",
-    targetId: "claude",
-  });
-  const nested = new FakeElement({}, button);
 
-  const messages = runScript({ html, clickTarget: nested });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [
-    { type: "main.setupRequestInstallTarget", targetId: "claude" },
-  ]);
+  assert.match(html, /data-action="setup-install-target"/);
+  assert.match(html, /data-target-id="claude"/);
 });
 
-test("renderMainHtml renders and delegates the setup confirmation modal", () => {
+test("renderMainHtml renders the setup confirmation modal controls", () => {
   const html = renderMainHtml(
     createMainViewModel("setup", {
       pendingInstallConfirmation: {
@@ -275,32 +335,11 @@ test("renderMainHtml renders and delegates the setup confirmation modal", () => 
       },
     }),
   );
-  const confirmTarget = new FakeElement({
-    action: "setup-confirm-install-target",
-    targetId: "copilotInstructions",
-  });
-  const cancelTarget = new FakeElement({
-    action: "setup-cancel-install-target",
-  });
 
   assert.match(html, /Confirm install/);
   assert.match(html, /Confirm Reinstall/);
-
-  const confirmMessages = runScript({
-    html,
-    clickTarget: new FakeElement({}, confirmTarget),
-  });
-  const cancelMessages = runScript({
-    html,
-    clickTarget: new FakeElement({}, cancelTarget),
-  });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(confirmMessages)), [
-    { type: "main.setupConfirmInstallTarget", targetId: "copilotInstructions" },
-  ]);
-  assert.deepEqual(JSON.parse(JSON.stringify(cancelMessages)), [
-    { type: "main.setupCancelInstallTarget" },
-  ]);
+  assert.match(html, /data-action="setup-confirm-install-target"/);
+  assert.match(html, /data-action="setup-cancel-install-target"/);
 });
 
 test("renderMainHtml renders the setup modal outside the blurred main shell", () => {
@@ -322,35 +361,43 @@ test("renderMainHtml renders the setup modal outside the blurred main shell", ()
 test("renderMainHtml matches the home route snapshot", (t) => {
   const html = renderMainHtml(createMainViewModel("home"));
 
-  t.assert.fileSnapshot(
-    normalizeSnapshotHtml(extractMainContent(html)),
-    snapshotPath("home.route"),
-  );
+  assertMatchesSnapshot(html, "home.route");
 });
 
 test("renderMainHtml matches the path route snapshot", (t) => {
   const html = renderMainHtml(createMainViewModel("path"));
 
-  t.assert.fileSnapshot(
-    normalizeSnapshotHtml(extractMainContent(html)),
-    snapshotPath("path.route"),
-  );
+  assertMatchesSnapshot(html, "path.route");
 });
 
 test("renderMainHtml matches the setup route snapshot", (t) => {
   const html = renderMainHtml(createMainViewModel("setup"));
 
-  t.assert.fileSnapshot(
-    normalizeSnapshotHtml(extractMainContent(html)),
-    snapshotPath("setup.route"),
-  );
+  assertMatchesSnapshot(html, "setup.route");
 });
 
 test("renderMainHtml matches the loading setup route snapshot", (t) => {
   const html = renderMainHtml(createMainViewModel("setup", { setupLoading: true }));
 
-  t.assert.fileSnapshot(
-    normalizeSnapshotHtml(extractMainContent(html)),
-    snapshotPath("setup-loading.route"),
-  );
+  assertMatchesSnapshot(html, "setup-loading.route");
+});
+
+test("renderMainHtml does not emit the legacy inline bridge when bundles are unavailable", () => {
+  const html = renderMainHtml(createMainViewModel("home"));
+
+  assert.doesNotMatch(html, /acquireVsCodeApi\(\)/);
+  assert.doesNotMatch(html, /document\.addEventListener\("click"/);
+});
+
+test("renderMainHtml emits a bootstrap payload for the bundled runtime when asset URIs are provided", () => {
+  const html = renderMainHtml(createMainViewModel("home"), {
+    cssUri: "webview:/main/index.css",
+    jsUri: "webview:/main/index.js",
+  });
+
+  assert.match(html, /<div id="faro-main-root">/);
+  assert.match(html, /<script id="faro-main-bootstrap" type="application\/json">/);
+  assert.match(html, /"selectedRoute":"home"/);
+  assert.match(html, /<script type="module" src="webview:\/main\/index\.js"><\/script>/);
+  assert.doesNotMatch(html, /acquireVsCodeApi\(\)/);
 });

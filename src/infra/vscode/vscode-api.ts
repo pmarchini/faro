@@ -20,6 +20,9 @@ export type VscodeTextEditorDecorationType = Pick<
 export type VscodeWebview = {
   html: string;
   options?: Record<string, unknown>;
+  asWebviewUri?(resource: unknown): { toString(): string };
+  resolveWebviewUri?(path: string): string;
+  setLocalResourceRoots?(paths: string[]): void;
   onDidReceiveMessage(
     listener: (message: unknown) => void | Promise<void>,
   ): Disposable;
