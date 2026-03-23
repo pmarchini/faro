@@ -1,11 +1,14 @@
 docs/**
 proposals/**
+skills/**
 test/**
-dist/**
+src/**
+scripts/**
 node_modules/**
 .git/**
 .github/**
 .gitignore
+AGENTS.md
 faro-dev.code-workspace
 Makefile
 package-lock.json

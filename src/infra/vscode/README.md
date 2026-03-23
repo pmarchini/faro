@@ -17,7 +17,6 @@ Adapter-owned concerns live here:
 UI code lives under:
 
 - `ui/main-view/*` for the active sidebar
-- `ui/legacy/*` for dormant navigator/setup surfaces
 - `ui/outline/*` for tree-based UI helpers
 
 Source and tests should import these canonical locations directly.

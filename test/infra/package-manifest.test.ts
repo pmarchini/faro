@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 type PackageManifest = {
   activationEvents?: string[];
+  main?: string;
+  scripts?: Record<string, string>;
   contributes?: {
     commands?: Array<{
       command: string;
@@ -72,4 +74,15 @@ test("package manifest contributes the full faro UI and command surface", () => 
       "onCommand:faro.setCurrentBeacon",
     ],
   );
+});
+
+test("package manifest points at bundled extension output and packages runtime dist assets", () => {
+  const directory = path.dirname(fileURLToPath(import.meta.url));
+  const manifest = loadPackageManifest();
+  const vscodeIgnore = readFileSync(path.resolve(directory, "../../.vscodeignore"), "utf8");
+
+  assert.equal(manifest.main, "./dist/extension/extension.cjs");
+  assert.match(manifest.scripts?.build ?? "", /build:vscode-assets/);
+  assert.doesNotMatch(vscodeIgnore, /^dist\/\*\*$/m);
+  assert.match(vscodeIgnore, /^src\/\*\*$/m);
 });
