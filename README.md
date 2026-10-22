@@ -150,6 +150,36 @@ Create a Faro path that traces the authentication flow from entrypoint to sessio
 Onboard me to the setup flow in this extension as a Faro path.
 ```
 
+## Faro in Claude Code
+
+Faro is also a Claude Code plugin. `/explain` asks Claude for a tour of your changes or of existing code, and you walk it in a pane beside the chat: a hypothesis up top, five to seven steps in reading order, and for each step what it does, why, the lines to look at, and the code itself. The explanation follows program-comprehension research; the rules and the bibliography are in [`skills/faro-author-paths/comprehension.md`](./skills/faro-author-paths/comprehension.md).
+
+Install it from a Claude Code terminal session:
+
+```text
+/plugin install faro --marketplace pmarchini/faro
+```
+
+Answer `y` to add the marketplace, then pick a scope. To try a local checkout instead, start Claude Code with `claude --plugin-dir /path/to/faro`.
+
+Use it:
+
+```text
+/explain                                   your uncommitted changes
+/explain HEAD~3..HEAD                      a commit range
+/explain feature/login                     a branch against its merge base
+/explain #482 --goal "why do we retry?"    a pull request (needs gh)
+/explain src/billing/ --lens domain        existing code
+/explain "how does this plugin work?"      a question about a flow
+/explain last                              reopen the last tour
+```
+
+Flags: `--depth brief|standard|deep`, `--lens flow|domain`, `--reader new|familiar`, `--goal "..."`.
+
+In the pane: `j`/`k` move along the path, `e`/`c` show more or less, `l` switches between the flow and domain lens, `b` cycles the lines worth looking at, `o` shows the whole range or its diff, `a` puts the step's suggested question in the prompt, `x` asks Claude to re-explain the step more simply, `r` refreshes a step whose code changed, `q` closes. `/tour pin [name]` keeps a tour across sessions; `/tour list`, `/tour open <id>` and `/tour drop <id>` manage them.
+
+The Graph view of a tour is planned for the next version. Design and decisions: [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md).
+
 ## Development
 
 Core commands:
@@ -157,6 +187,7 @@ Core commands:
 ```sh
 npm run check
 npm test
+npm run test:claude-code   # the Claude Code plugin's hooks, through `claude plugin test`
 make dev-host
 ```
 
@@ -185,3 +216,4 @@ If the MCP flow does not work:
 - [Architecture](./docs/architecture.md)
 - [Implementation Plan](./docs/faro-plan.md)
 - [MVP Spec](./proposals/in-progress/faro-mvp-spec.md)
+- [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md)
