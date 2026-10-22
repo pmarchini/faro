@@ -7,6 +7,7 @@ import { EMPTY_DOCUMENT, EMPTY_READER, PANE } from '../state.ts'
 import type { FaroCodeView as CodeView, FaroReader as ReaderState } from '../types'
 import { runAction, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
+import { LOGO_ROWS, LOGO_WIDTH, logoSegments } from './logo.ts'
 import { fileTree, type TreeFile } from '../file-tree.ts'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
@@ -30,6 +31,7 @@ export function drawPathView(on: On): void {
     if (drafting) {
       return (
         <Box flexDirection="column">
+          {logo(ui)}
           <Text bold>Drafting a tour</Text>
           <Text>{drafting.label}</Text>
           <Text dimColor>{drafting.detail}</Text>
@@ -41,6 +43,7 @@ export function drawPathView(on: On): void {
     if (!tour) {
       return (
         <Box flexDirection="column">
+          {logo(ui)}
           <Text>No tour yet.</Text>
           <Text dimColor>Run /explain to explain your changes, or /explain "how does X work?" for existing code.</Text>
         </Box>
@@ -57,17 +60,22 @@ export function drawPathView(on: On): void {
 
     return (
       <Box flexDirection="column">
-        <Text wrap="truncate-end">
-          <Text bold>{tour.title}</Text>
-          <Text dimColor>
-            {'  '}
-            {tour.lens} lens · {index + 1} of {total}
-          </Text>
-        </Text>
-        <Text>
-          <Text dimColor>Hypothesis: </Text>
-          {tour.hypothesis}
-        </Text>
+        <Box flexDirection="row" columnGap={2}>
+          {width >= 60 && logo(ui)}
+          <Box flexDirection="column" flexShrink={1}>
+            <Text wrap="truncate-end">
+              <Text bold>{tour.title}</Text>
+              <Text dimColor>
+                {'  '}
+                {tour.lens} lens · {index + 1} of {total}
+              </Text>
+            </Text>
+            <Text>
+              <Text dimColor>Hypothesis: </Text>
+              {tour.hypothesis}
+            </Text>
+          </Box>
+        </Box>
         <Text dimColor>{rule}</Text>
         {tour.path.map((id, position) => {
           const entry = tour.nodes[id]
@@ -105,6 +113,20 @@ export function drawPathView(on: On): void {
       </Box>
     )
   })
+}
+
+function logo({ Box, Text }: Ui) {
+  return (
+    <Box flexDirection="column" flexShrink={0} width={LOGO_WIDTH}>
+      {LOGO_ROWS.map((row) => (
+        <Text>
+          {logoSegments(row).map((segment) =>
+            segment.isLight ? <Text bold>{segment.text}</Text> : <Text color="suggestion">{segment.text}</Text>,
+          )}
+        </Text>
+      ))}
+    </Box>
+  )
 }
 
 // Each file the tour anchors in, with the path steps that read it.

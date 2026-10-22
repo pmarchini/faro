@@ -189,6 +189,26 @@ test('the file tree shows where the current step sits and t hides it', async ($,
   await ui.unmount()
 })
 
+test('the Faro logo heads the empty pane, and the tour pane when there is room', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const lighthouse = { type: 'Text', text: /\[#\]/ } as const
+
+  const empty = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await empty.find(lighthouse)).toBeDefined()
+  expect(await empty.find({ type: 'Text', text: /No tour yet/ })).toBeDefined()
+  await empty.unmount()
+
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const wide = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await wide.find(lighthouse)).toBeDefined()
+  await wide.unmount()
+
+  const narrow = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 50 } })
+  expect(await narrow.find(lighthouse)).toBeUndefined()
+  await narrow.unmount()
+})
+
 test('ask fills the prompt with the suggested question and lens asks Claude once', async ($, on) => {
   const world = engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
