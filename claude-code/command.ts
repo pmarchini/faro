@@ -6,7 +6,6 @@ import { getTour, removeTour, upsertTour } from '../src/core/services/tour-machi
 import { loadCode } from './code-view.ts'
 import { USAGE, classifyTarget, parseExplainArgs, splitPathSymbol } from './explain-args.ts'
 import { openPane } from './pane/open.ts'
-import { inSession } from './paths.ts'
 import { authoringPrompt } from './prompts.ts'
 import { EMPTY_DOCUMENT, PINNED_KEY } from './state.ts'
 import { pinnedTours } from './tools.ts'
@@ -267,7 +266,7 @@ async function defaultBranch($: EngineInterface): Promise<string> {
 
 async function exists($: EngineInterface, path: string): Promise<boolean> {
   try {
-    await $.fs.stat(await inSession($, path))
+    await $.fs.stat(path)
     return true
   } catch {
     return false

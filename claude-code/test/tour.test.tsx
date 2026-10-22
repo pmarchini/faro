@@ -72,14 +72,15 @@ function engine(on: On, git: Record<string, string> = {}) {
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
-  // Like the engine's, a relative path would resolve against Claude Code's
-  // own folder, so only paths under the session's folder are found.
+  // Every .ts file under /repo exists, except under /repo/auth/.
+  const isFile = (path: string) => path.startsWith('/repo/') && path.endsWith('.ts') && !path.startsWith('/repo/auth/')
   on('fs.read', (_, e) => {
-    if (e.path.startsWith('/repo/')) return { value: SOURCE }
+    if (isFile(e.path)) return { value: SOURCE }
     throw new Error(`no such file: ${e.path}`)
   })
   on('session.cwd', () => ({ value: '/repo' }))
   on('fs.stat', (_, e) => {
+    if (isFile(e.path)) return { value: { kind: 'file', isLink: false, size: 1, mtimeMs: 0 } }
     if (e.path.includes('src/')) return { value: { kind: 'dir', isLink: false, size: 0, mtimeMs: 0 } }
     throw new Error('missing')
   })
@@ -176,6 +177,26 @@ test('the code is open by default, its beacons tinted and listed, and o shows th
   await ui.press({ key: 'key-codePanel' })
   expect(await ui.find({ type: 'Code' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /c shows the code/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a file the tour names from a subfolder is found among the tracked files', async ($, on) => {
+  engine(on, { 'rev-parse --show-toplevel': '/repo\n', 'ls-files --full-name': 'src/auth/login.ts\nsrc/persist.ts\n' })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const login = node('login', 'Login request enters', {
+    anchors: [{ file: 'auth/login.ts', range: { startLine: 1, endLine: 10 } }],
+    beacons: [{ label: 'login()', file: 'auth/login.ts', line: 5 }],
+  })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ nodes: { ...tour().nodes, login } }) })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /auth\/login\.ts  L1–10 · 10 lines/ })).toBeDefined()
+
+  await $.tool.call({
+    tool: 'mcp__faro__tour_upsert',
+    tour: tour({ nodes: { ...tour().nodes, login: { ...login, anchors: [{ file: 'auth/gone.ts', range: { startLine: 1, endLine: 10 } }], beacons: [] } } }),
+  })
+  expect(await ui.find({ type: 'Text', text: /could not be read: not found from \/repo/ })).toBeDefined()
   await ui.unmount()
 })
 

@@ -5,7 +5,7 @@ import type { Tour, TourAnchor, TourBeacon, TourNode, TourTarget } from '../src/
 import { hunksOverlapping } from './code-excerpt.ts'
 import { diffRows, sourceRows } from './code-window.ts'
 import { diffArgv } from './explain-args.ts'
-import { inSession } from './paths.ts'
+import { locate } from './paths.ts'
 import { EMPTY_READER } from './state.ts'
 import type { FaroCodeView as CodeView } from './types'
 
@@ -70,11 +70,13 @@ async function codeView(
     }
   }
 
-  const text = await readText($, anchor.file)
+  const loaded = await readText($, anchor.file)
 
-  if (text === undefined) {
-    return { ...base, heading: 'could not be read', format: 'source', rows: [] }
+  if ('error' in loaded) {
+    return { ...base, heading: `could not be read: ${loaded.error}`, format: 'source', rows: [] }
   }
+
+  const { text } = loaded
 
   const rows = isWholeFile ? sourceRows(text, 1, Number.MAX_SAFE_INTEGER) : sourceRows(text, startLine, endLine)
   const span = isWholeFile ? 'whole file' : `L${startLine}–${endLine}`
@@ -99,12 +101,19 @@ function diffBaseOf(target: TourTarget): string | undefined {
   }
 }
 
-async function readText($: EngineInterface, file: string): Promise<string | undefined> {
+// The file's text, or why it could not be had.
+async function readText($: EngineInterface, file: string): Promise<{ text: string } | { error: string }> {
+  const path = await locate($, file)
+
+  if (!path) {
+    return { error: `not found from ${await $.session.cwd()}` }
+  }
+
   try {
-    const text = await $.fs.read(await inSession($, file))
-    return typeof text === 'string' ? text : undefined
-  } catch {
-    return undefined
+    const text = await $.fs.read(path)
+    return typeof text === 'string' ? { text } : { error: 'not text' }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
   }
 }
 
