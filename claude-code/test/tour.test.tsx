@@ -200,7 +200,7 @@ test('a file the tour names from a subfolder is found among the tracked files', 
   await ui.unmount()
 })
 
-test('lines far from a beacon fold, z unfolds them, and n scrolls a long file', async ($, on) => {
+test('the code starts unfolded, f folds the lines far from a beacon, and n scrolls a long file', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const nodes = {
@@ -213,10 +213,13 @@ test('lines far from a beacon fold, z unfolds them, and n scrolls a long file', 
   await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ nodes }) })
   const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, scroll: { offset: 0, bodyRows: 30 } }, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: /10 lines folded · z unfolds/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /lines folded/ })).toBeUndefined()
+
+  await ui.press({ key: 'key-fold' })
+  expect(await ui.find({ type: 'Text', text: /10 lines folded · f unfolds/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /11 lines folded/ })).toBeDefined()
 
-  await ui.press({ key: 'key-unfold' })
+  await ui.press({ key: 'key-fold' })
   expect(await ui.find({ type: 'Text', text: /lines folded/ })).toBeUndefined()
   const before = (await ui.find({ type: 'Text', text: /\d+ above, \d+ below/ }))?.text
   expect(before).toBeDefined()
@@ -228,7 +231,7 @@ test('lines far from a beacon fold, z unfolds them, and n scrolls a long file', 
   await ui.unmount()
 })
 
-test('the files section shows where the current step sits and f hides it', async ($, on) => {
+test('the files section shows where the current step sits and h hides it', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
@@ -241,7 +244,7 @@ test('the files section shows where the current step sits and f hides it', async
 
   await ui.press({ key: 'key-files' })
   expect(await ui.find({ type: 'Text', text: /▸ persist\.ts/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /FILES  \(f shows\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /FILES  \(h shows\)/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -263,7 +266,7 @@ test('the Faro logo heads the empty pane and the rail; the header reads o-^-o fa
   await narrow.unmount()
 })
 
-test('a wide pane puts the logo, steps and files in a rail beside the reader, and f hides it', async ($, on) => {
+test('a wide pane puts the logo, steps and files in a rail beside the reader, and h hides it', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
@@ -276,7 +279,7 @@ test('a wide pane puts the logo, steps and files in a rail beside the reader, an
 
   await ui.press({ key: 'key-files' })
   expect(await ui.find({ type: 'Text', text: /\[#\]/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /FILES  \(f shows\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /FILES  \(h shows\)/ })).toBeDefined()
   await ui.unmount()
 })
 

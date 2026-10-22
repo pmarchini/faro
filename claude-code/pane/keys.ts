@@ -12,7 +12,7 @@ export type PaneAction =
   | 'beacon'
   | 'code'
   | 'codePanel'
-  | 'unfold'
+  | 'fold'
   | 'scrollDown'
   | 'scrollUp'
   | 'ask'
@@ -33,13 +33,13 @@ export const PANE_KEYS: readonly PaneKey[] = [
   { action: 'beacon', hotkey: 'b', label: 'beacon' },
   { action: 'code', hotkey: 'o', label: 'whole file' },
   { action: 'codePanel', hotkey: 'c', label: 'code' },
-  { action: 'unfold', hotkey: 'z', label: 'unfold' },
+  { action: 'fold', hotkey: 'f', label: 'fold' },
   { action: 'scrollDown', hotkey: 'n', label: 'code ↓' },
   { action: 'scrollUp', hotkey: 'p', label: 'code ↑' },
   { action: 'ask', hotkey: 'a', label: 'ask' },
   { action: 'dontGet', hotkey: 'x', label: "don't get it" },
   { action: 'refresh', hotkey: 'r', label: 'refresh' },
-  { action: 'files', hotkey: 'f', label: 'rail' },
+  { action: 'files', hotkey: 'h', label: 'rail' },
   { action: 'steps', hotkey: 't', label: 'steps' },
   { action: 'close', hotkey: 'q', label: 'close' },
 ]

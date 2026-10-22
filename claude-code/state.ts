@@ -20,7 +20,7 @@ export const EMPTY_READER: FaroReader = {
   isCodeToggled: false,
   isStepListShown: false,
   codeOffset: 0,
-  isCodeUnfolded: false,
+  isCodeFolded: false,
 }
 
 export function addOnce(list: readonly string[] | undefined, id: string): string[] {

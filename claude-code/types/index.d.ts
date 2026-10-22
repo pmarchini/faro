@@ -68,9 +68,9 @@ export type FaroReader = {
   // In the short layout `t` shows the step list instead of the file tree.
   isStepListShown: boolean
   // The code panel: rows scrolled away from the current beacon, and whether
-  // `z` unfolded the lines far from every beacon.
+  // `f` folded the lines far from every beacon (the code starts unfolded).
   codeOffset: number
-  isCodeUnfolded: boolean
+  isCodeFolded: boolean
 }
 
 export type FaroDrafting = {

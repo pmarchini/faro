@@ -94,7 +94,7 @@ export function drawPathView(on: On): void {
         (key.action !== 'refresh' || (node && stale.includes(node.id))) &&
         (key.action !== 'files' || !isShort) &&
         (key.action !== 'steps' || isShort) &&
-        (!['unfold', 'scrollDown', 'scrollUp'].includes(key.action) || !isCodeFolded),
+        (!['fold', 'scrollDown', 'scrollUp'].includes(key.action) || !isCodeFolded),
     )
     const footer = (
       <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
@@ -172,7 +172,7 @@ export function drawPathView(on: On): void {
           <Text dimColor>{rule}</Text>
           <Text dimColor>STEPS</Text>
           {plainSteps}
-          <Text dimColor>{reader.isFileTreeHidden ? 'FILES  (f shows)' : 'FILES  (f hides)'}</Text>
+          <Text dimColor>{reader.isFileTreeHidden ? 'FILES  (h shows)' : 'FILES  (h hides)'}</Text>
           {!reader.isFileTreeHidden &&
             compactFiles(treeFiles(tour, reader)).map((row) => (
               <Text bold={row.isCurrent} dimColor={row.isDim} wrap="truncate-end">
@@ -205,7 +205,7 @@ export function drawPathView(on: On): void {
               return entry ? railStep(ui, entry, position, tour, reader, () => selectNode($, id)) : null
             })}
             <Text dimColor> </Text>
-            <Text dimColor>FILES  (f hides)</Text>
+            <Text dimColor>FILES  (h hides)</Text>
             {railFiles(treeFiles(tour, reader)).map((row) => (
               <Text bold={row.isCurrent} color={row.isCurrent ? ACCENT : undefined} dimColor={row.isDim} wrap="truncate-end">
                 {row.text}
@@ -468,7 +468,7 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
     .map((beacon, index) => ({ beacon, index }))
     .filter(({ beacon }) => beacon.file === code.path)
     .map(({ beacon, index }) => ({ line: beacon.line, index, isCurrent: index === current }))
-  const view = codeWindow(foldRows(code.rows, beacons, reader.isCodeUnfolded), height, reader.codeOffset)
+  const view = codeWindow(foldRows(code.rows, beacons, !reader.isCodeFolded), height, reader.codeOffset)
   const numbers = view.rows.flatMap((row) => (row.kind === 'row' && row.row.number !== null ? [row.row.number] : []))
   const gutter = Math.max(2, ...numbers.map((number) => String(number).length))
 
@@ -509,7 +509,7 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
         </Text>
       ))}
       <Text dimColor wrap="truncate-end">
-        b next beacon · n/p scroll · z {reader.isCodeUnfolded ? 'fold' : 'unfold'} · o {code.isWholeFile ? 'the step' : 'whole file'}
+        b next beacon · n/p scroll · f {reader.isCodeFolded ? 'unfold' : 'fold'} · o {code.isWholeFile ? 'the step' : 'whole file'}
       </Text>
     </Box>
   )
@@ -559,7 +559,7 @@ function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: numb
   if (row.kind === 'fold') {
     return (
       <Text dimColor backgroundColor={FOLD_ROW} wrap="truncate-end">
-        {`${'⋯'.padStart(gutter)}   ${row.count} lines folded · z unfolds`}
+        {`${'⋯'.padStart(gutter)}   ${row.count} lines folded · f unfolds`}
       </Text>
     )
   }
