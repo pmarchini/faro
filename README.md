@@ -176,7 +176,7 @@ Use it:
 
 Flags: `--depth brief|standard|deep`, `--lens flow|domain`, `--reader new|familiar`, `--goal "..."`.
 
-In the pane: `j`/`k` move along the path, `e`/`c` show more or less, `l` switches between the flow and domain lens, each step shows its whole code range (or diff hunk), `o` narrows it to the line worth looking at and `b` cycles those lines, `a` puts the step's suggested question in the prompt, `x` asks Claude to re-explain the step more simply, `r` refreshes a step whose code changed, `q` closes. `/tour pin [name]` keeps a tour across sessions; `/tour list`, `/tour open <id>` and `/tour drop <id>` manage them.
+In the pane: `j`/`k` move along the path, `e`/`c` show more or less, `l` switches between the flow and domain lens, each step shows its whole code range (or diff hunk), `o` narrows it to the line worth looking at and `b` cycles those lines, `a` puts the step's suggested question in the prompt, `x` asks Claude to re-explain the step more simply, `r` refreshes a step whose code changed, `t` hides or shows the file tree (the tour's files, with the current step's file marked), `q` closes. `/tour pin [name]` keeps a tour across sessions; `/tour list`, `/tour open <id>` and `/tour drop <id>` manage them.
 
 The Graph view of a tour is planned for the next version. Design and decisions: [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md).
 

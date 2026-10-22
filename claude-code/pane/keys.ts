@@ -12,6 +12,7 @@ export type PaneAction =
   | 'ask'
   | 'dontGet'
   | 'refresh'
+  | 'files'
   | 'close'
 
 export type PaneKey = { action: PaneAction; hotkey: string; label: string }
@@ -27,5 +28,6 @@ export const PANE_KEYS: readonly PaneKey[] = [
   { action: 'ask', hotkey: 'a', label: 'ask' },
   { action: 'dontGet', hotkey: 'x', label: "don't get it" },
   { action: 'refresh', hotkey: 'r', label: 'refresh' },
+  { action: 'files', hotkey: 't', label: 'files' },
   { action: 'close', hotkey: 'q', label: 'close' },
 ]

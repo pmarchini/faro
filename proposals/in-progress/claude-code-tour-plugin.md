@@ -20,6 +20,7 @@ Bring Faro to Claude Code as a plugin: Claude explains a change set or existing 
 | `/explain [target] [flags]`, `/tour [open|pin|list|drop]` | `claude-code/command.ts` | done |
 | Path view pane, node panel at three depths, code excerpt and full view | `claude-code/pane/` | done |
 | Stale marking after Edit/Write | `claude-code/stale.ts` | done |
+| File tree of the tour's files, current step's file marked (`t` toggles; Pietro, 2026-10-22) | `claude-code/file-tree.ts` | done |
 | Graph view | | v2 |
 | `tour-author` subagent for very large diffs | | later |
 | VS Code extension reading v2 documents | | later |
@@ -46,7 +47,7 @@ Pennington's program and situation models map onto two lenses: `flow` (control a
 
 ## Implementation notes
 
-- **Keys.** A pane Button's hotkey is one lowercase letter or digit, so the design's `enter`/`space`, `backspace`, `?` and `!` became `e` (deeper), `c` (less), `a` (ask) and `x` (don't get it). The rest are as designed: `j`/`k`, `l`, `b`, `o`, `r`, `q`. Every key is also a visible, clickable button in the pane's footer, and each path row is a button that jumps to that node.
+- **Keys.** A pane Button's hotkey is one lowercase letter or digit, so the design's `enter`/`space`, `backspace`, `?` and `!` became `e` (deeper), `c` (less), `a` (ask) and `x` (don't get it). The rest are as designed: `j`/`k`, `l`, `b`, `o`, `r`, `q`; `t` (file tree) is new. Every key is also a visible, clickable button in the pane's footer, and each path row is a button that jumps to that node.
 - **Prompts from `/explain`.** A command cannot submit a prompt while it holds the turn, so `/explain` answers at once ("Drafting a tour of …"), opens the pane in its drafting state, and submits the authoring prompt from a zero-delay timer.
 - **State contract.** A mod's `$.state` contract must be a self-contained `.d.ts`, so `claude-code/types/index.d.ts` restates the tour types. `claude-code/types/contract-check.ts` fails the mod's type-check if they drift from `src/core/model/tour.ts`.
 - **Atoms per file.** The plugin scanner reads a `$.state` reference only from a const in the file that uses it, so each file declares the atoms it reads or writes; `claude-code/state.ts` holds the shared names and initial values.

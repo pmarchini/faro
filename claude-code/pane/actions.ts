@@ -25,6 +25,11 @@ export async function runAction($: EngineInterface, action: PaneAction): Promise
     return
   }
 
+  if (action === 'files') {
+    await update($, readerAtom, (reader) => ({ ...reader, isFileTreeHidden: !reader.isFileTreeHidden }))
+    return
+  }
+
   if (!tour) {
     return
   }

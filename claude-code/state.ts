@@ -15,6 +15,7 @@ export const EMPTY_READER: FaroReader = {
   confused: {},
   stale: {},
   isOtherLensShown: false,
+  isFileTreeHidden: false,
   beaconIndex: 0,
 }
 

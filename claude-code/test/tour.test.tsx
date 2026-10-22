@@ -170,6 +170,25 @@ test('the code is open by default and o narrows it to the beacon', async ($, on)
   await ui.unmount()
 })
 
+test('the file tree shows where the current step sits and t hides it', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /^└─ src\/$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /▸ login\.ts  1$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /  persist\.ts  2$/ })).toBeDefined()
+
+  await ui.press({ key: 'key-next' })
+  expect(await ui.find({ type: 'Text', text: /✓ login\.ts  1$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /▸ persist\.ts  2$/ })).toBeDefined()
+
+  await ui.press({ key: 'key-files' })
+  expect(await ui.find({ type: 'Text', text: /persist\.ts  2$/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('ask fills the prompt with the suggested question and lens asks Claude once', async ($, on) => {
   const world = engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })

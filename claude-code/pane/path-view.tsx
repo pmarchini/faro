@@ -7,6 +7,7 @@ import { EMPTY_DOCUMENT, EMPTY_READER, PANE } from '../state.ts'
 import type { FaroCodeView as CodeView, FaroReader as ReaderState } from '../types'
 import { runAction, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
+import { fileTree, type TreeFile } from '../file-tree.ts'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
@@ -82,6 +83,16 @@ export function drawPathView(on: On): void {
             {'   '}also: {supporting.map((entry) => entry.title).join(' · ')}
           </Text>
         )}
+        {!reader.isFileTreeHidden && (
+          <Box flexDirection="column">
+            <Text dimColor>{rule}</Text>
+            {fileTree(treeFiles(tour, reader)).map((row) => (
+              <Text bold={row.isCurrent} dimColor={row.isDim} wrap="truncate-end">
+                {row.text}
+              </Text>
+            ))}
+          </Box>
+        )}
         <Text dimColor>{rule}</Text>
         {node && nodePanel(ui, tour, node, reader, stale.includes(node.id))}
         {node && code && code.nodeId === node.id && codePanel(ui, code)}
@@ -94,6 +105,28 @@ export function drawPathView(on: On): void {
       </Box>
     )
   })
+}
+
+// Each file the tour anchors in, with the path steps that read it.
+function treeFiles(tour: Tour, reader: ReaderState): TreeFile[] {
+  const files = new Map<string, TreeFile>()
+  const visited = reader.visited[tour.id] ?? []
+  const current = tour.current.nodeId
+
+  for (const node of Object.values(tour.nodes)) {
+    const step = tour.path.indexOf(node.id) + 1
+
+    for (const { file } of node.anchors) {
+      const entry = files.get(file) ?? { file, steps: [], isCurrent: false, isVisited: false }
+
+      if (step > 0 && !entry.steps.includes(step)) entry.steps.push(step)
+      entry.isCurrent ||= node.id === current
+      entry.isVisited ||= visited.includes(node.id)
+      files.set(file, entry)
+    }
+  }
+
+  return [...files.values()].map((entry) => ({ ...entry, steps: entry.steps.sort((a, b) => a - b) }))
 }
 
 function pathRow(node: TourNode, position: number, tour: Tour, reader: ReaderState, width: number): string {

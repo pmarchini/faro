@@ -59,6 +59,7 @@ export type FaroReader = {
   confused: Record<string, string[]>
   stale: Record<string, string[]>
   isOtherLensShown: boolean
+  isFileTreeHidden: boolean
   beaconIndex: number
 }
 
