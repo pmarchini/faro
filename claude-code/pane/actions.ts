@@ -43,12 +43,12 @@ export async function runAction($: EngineInterface, action: PaneAction): Promise
     case 'beacon': {
       await update($, readerAtom, (reader) => ({ ...reader, beaconIndex: reader.beaconIndex + 1 }))
       const code = await read($, codeAtom)
-      await loadCode($, tour, code?.isFull ?? false)
+      await loadCode($, tour, code?.isFull ?? true)
       return
     }
     case 'code': {
       const code = await read($, codeAtom)
-      await loadCode($, tour, !(code?.isFull ?? false))
+      await loadCode($, tour, !(code?.isFull ?? true))
       return
     }
   }
@@ -111,5 +111,5 @@ async function moveTo(
     isOtherLensShown: false,
     beaconIndex: 0,
   }))
-  await loadCode($, tour, false)
+  await loadCode($, tour)
 }

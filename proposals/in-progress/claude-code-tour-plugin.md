@@ -35,7 +35,7 @@ All settled by Pietro on 2026-10-22.
 | Scope | Diffs and existing code and flows | `/explain` takes a working tree, range, branch, PR, path, or a free-text question; `why.source` is `inferred` when nothing states the reason |
 | Views | Path view first, Graph view in v2 | edges are in the schema and authored from day one, so v2 needs no data change |
 | Lenses | Write only the chosen lens up front; fetch the other on the first `l` press | see "Lens cost" below |
-| Opening code | Never leave Claude Code | `o` swaps the excerpt for the anchor's whole range, or its diff hunk, inside the pane |
+| Opening code | Never leave Claude Code | each node shows its anchor's whole range, or its diff hunk, inside the pane by default (Pietro, 2026-10-22); `o` narrows it to the current beacon with two lines of context |
 | Pinned tours | Per user | kept in the plugin's `$.store`; nothing is written to the repo |
 | Comprehension checks | Not included | no prediction prompts, no check field |
 | Citations | Verified bibliography in the skill | `skills/faro-author-paths/comprehension.md` |

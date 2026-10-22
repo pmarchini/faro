@@ -183,7 +183,7 @@ async function reopen($: EngineInterface, id?: string): Promise<string> {
 
   if (live) {
     await update($, documentAtom, (current) => ({ ...current, activeTourId: live.id }))
-    await loadCode($, live, false)
+    await loadCode($, live)
     await openPane($)
     return `Showing tour ${live.id}.`
   }
@@ -197,7 +197,7 @@ async function reopen($: EngineInterface, id?: string): Promise<string> {
   }
 
   await update($, documentAtom, (current) => upsertTour(current, kept))
-  await loadCode($, kept, false)
+  await loadCode($, kept)
   await openPane($)
 
   return `Showing pinned tour ${kept.id}.`

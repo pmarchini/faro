@@ -152,6 +152,24 @@ test('the pane walks the path and goes deeper, on every surface that takes keys'
   }
 })
 
+test('the code is open by default and o narrows it to the beacon', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:1-10/ })).toBeDefined()
+  expect((await ui.find({ type: 'Code' }))?.text).toContain('line 10')
+
+  await ui.press({ key: 'key-code' })
+  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:5  login\(\)/ })).toBeDefined()
+  expect((await ui.find({ type: 'Code' }))?.text).not.toContain('line 10')
+
+  await ui.press({ key: 'key-next' })
+  expect((await ui.find({ type: 'Code' }))?.text).toContain('line 10')
+  await ui.unmount()
+})
+
 test('ask fills the prompt with the suggested question and lens asks Claude once', async ($, on) => {
   const world = engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })

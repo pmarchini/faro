@@ -176,7 +176,7 @@ function codePanel({ Text, Code }: Ui, code: CodeView): RenderChildren[] {
   return [
     <Text dimColor>
       {code.heading}
-      {code.isFull ? '' : '   (o shows the whole range)'}
+      {code.isFull ? '   (o narrows to the beacon)' : '   (o shows the whole range)'}
     </Text>,
     <Code
       source={code.source}

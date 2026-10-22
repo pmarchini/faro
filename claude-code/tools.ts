@@ -96,7 +96,7 @@ export function serveTools(on: On): void {
     }))
 
     if (stored) {
-      await loadCode($, stored, false)
+      await loadCode($, stored)
     }
 
     await openPane($)
@@ -132,7 +132,7 @@ export function serveTools(on: On): void {
     const tour = getTour(written.document, tourId)
 
     if (tour && tour.current.nodeId === node.id) {
-      await loadCode($, tour, false)
+      await loadCode($, tour)
     }
 
     return { result: `Node ${node.id} of tour ${tourId} is updated.` }
@@ -185,7 +185,7 @@ export function serveTools(on: On): void {
     const tour = getTour(written.document, tourId)
 
     if (tour) {
-      await loadCode($, tour, false)
+      await loadCode($, tour)
     }
 
     await openPane($)

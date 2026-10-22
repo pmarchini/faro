@@ -10,10 +10,11 @@ import type { FaroCodeView as CodeView } from './types'
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const readerAtom = atom({ plugin: 'faro', key: 'reader' } as const, EMPTY_READER)
 
-// Fills the code under the node panel. Reads happen here, in handlers and
-// tool calls, never while drawing: a render hook only reads state.
-
-export async function loadCode($: EngineInterface, tour: Tour, isFull: boolean): Promise<void> {
+// Fills the code under the node panel: the whole anchor (or its diff hunk)
+// by default, or with `o` just the current beacon and a little context.
+// Reads happen here, in handlers and tool calls, never while drawing: a
+// render hook only reads state.
+export async function loadCode($: EngineInterface, tour: Tour, isFull = true): Promise<void> {
   const node = tour.current.nodeId ? tour.nodes[tour.current.nodeId] : undefined
 
   if (!node) {
