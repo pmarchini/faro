@@ -4,6 +4,7 @@ import type { EngineInterface, On } from 'claude-code'
 import type { Tour, TourTarget } from '../src/core/model/tour.ts'
 import { getTour, removeTour, upsertTour } from '../src/core/services/tour-machine.ts'
 import { loadCode } from './code-view.ts'
+import { FOLLOW_KEY, isFollowOn } from './follow.ts'
 import { USAGE, classifyTarget, parseExplainArgs, splitPathSymbol } from './explain-args.ts'
 import { openPane } from './pane/open.ts'
 import { authoringPrompt } from './prompts.ts'
@@ -26,7 +27,7 @@ export async function registerCommands($: EngineInterface): Promise<void> {
   await $.command.register({
     name: 'tour',
     description: 'Open the Faro tour pane, or pin, list and drop tours',
-    argumentHint: '[open [id] | pin [name] | list | drop <id>]',
+    argumentHint: '[open [id] | pin [name] | list | drop <id> | follow on|off]',
   })
 }
 
@@ -74,10 +75,26 @@ export function serveCommands(on: On): void {
         return { text: await list($) }
       case 'drop':
         return { text: name ? await drop($, name) : 'Usage: /tour drop <id>' }
+      case 'follow':
+        return { text: await follow($, name) }
       default:
-        return { text: 'Usage: /tour [open [id] | pin [name] | list | drop <id>]' }
+        return { text: USAGE_TOUR }
     }
   })
+}
+
+const USAGE_TOUR = 'Usage: /tour [open [id] | pin [name] | list | drop <id> | follow on|off]'
+
+async function follow($: EngineInterface, setting?: string): Promise<string> {
+  if (setting === 'on' || setting === 'off') {
+    await $.store.set(FOLLOW_KEY, setting === 'on')
+  } else if (setting !== undefined) {
+    return USAGE_TOUR
+  }
+
+  return (await isFollowOn($))
+    ? 'VS Code follows the tour: the Faro extension opens and highlights each step. /tour follow off stops it.'
+    : 'VS Code does not follow the tour. /tour follow on starts it.'
 }
 
 type Resolved =

@@ -4,6 +4,7 @@ import type { EngineInterface } from 'claude-code'
 import type { Tour, TourAnchor, TourBeacon, TourNode } from '../src/core/model/tour.ts'
 import { beaconExcerpt, hunksOverlapping, sliceLines } from './code-excerpt.ts'
 import { diffArgv } from './explain-args.ts'
+import { publishFollow } from './follow.ts'
 import { EMPTY_READER } from './state.ts'
 import type { FaroCodeView as CodeView } from './types'
 
@@ -33,6 +34,9 @@ export async function loadCode($: EngineInterface, tour: Tour, isFull = true): P
 
   const view = isFull ? await fullView($, tour, node, anchor) : await excerptView($, tour, node, anchor, beacon)
   await update($, codeAtom, () => view)
+
+  // Every change of step or beacon comes through here, so VS Code follows.
+  await publishFollow($, tour, beaconIndex)
 }
 
 function anchorFor(node: TourNode, beacon: TourBeacon | undefined): TourAnchor | undefined {

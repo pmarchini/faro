@@ -17,6 +17,13 @@ export type VscodeTextEditorDecorationType = Pick<
   "dispose"
 >;
 
+export type VscodeStatusBarItem = {
+  text: string;
+  tooltip?: string;
+  show(): void;
+  dispose(): void;
+};
+
 export type VscodeWebview = {
   html: string;
   options?: Record<string, unknown>;
@@ -40,7 +47,11 @@ export type VscodeLike = {
     createTextEditorDecorationType(
       options?: VscodeDecorationRenderOptions,
     ): VscodeTextEditorDecorationType;
-    showTextDocument(document: unknown): Promise<{
+    createStatusBarItem?(): VscodeStatusBarItem;
+    showTextDocument(
+      document: unknown,
+      options?: { preserveFocus?: boolean; preview?: boolean },
+    ): Promise<{
       revealRange(range: unknown, revealType?: unknown): void | Promise<void>;
       setDecorations(decorationType: Disposable, ranges: unknown[]): void | Promise<void>;
       selection?: unknown;

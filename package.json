@@ -60,6 +60,11 @@
           "type": "boolean",
           "default": false,
           "description": "Focus the Faro view container automatically when the extension activates."
+        },
+        "faro.followClaudeCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Follow a Faro tour read in Claude Code: open and highlight each step's code as the reader moves through the tour. Claude Code writes the step to .faro/follow.json in the workspace."
         }
       }
     },

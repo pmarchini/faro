@@ -21,6 +21,7 @@ Bring Faro to Claude Code as a plugin: Claude explains a change set or existing 
 | Path view pane, node panel at three depths, code excerpt and full view | `claude-code/pane/` | done |
 | Stale marking after Edit/Write | `claude-code/stale.ts` | done |
 | File tree of the tour's files, current step's file marked (`t` toggles; Pietro, 2026-10-22) | `claude-code/file-tree.ts` | done |
+| VS Code follows the step read in Claude Code (`/tour follow on|off`, `faro.followClaudeCode`; Pietro, 2026-10-22) | `src/core/model/follow.ts`, `claude-code/follow.ts`, `src/infra/vscode/follow/` | done |
 | Graph view | | v2 |
 | `tour-author` subagent for very large diffs | | later |
 | VS Code extension reading v2 documents | | later |
@@ -36,7 +37,7 @@ All settled by Pietro on 2026-10-22.
 | Scope | Diffs and existing code and flows | `/explain` takes a working tree, range, branch, PR, path, or a free-text question; `why.source` is `inferred` when nothing states the reason |
 | Views | Path view first, Graph view in v2 | edges are in the schema and authored from day one, so v2 needs no data change |
 | Lenses | Write only the chosen lens up front; fetch the other on the first `l` press | see "Lens cost" below |
-| Opening code | Never leave Claude Code | each node shows its anchor's whole range, or its diff hunk, inside the pane by default (Pietro, 2026-10-22); `o` narrows it to the current beacon with two lines of context |
+| Opening code | Never leave Claude Code; VS Code may follow in the background (Pietro, 2026-10-22) | reading never needs another window, but when the Faro extension is open on the same folder it shows the same step without taking focus (see "Following in VS Code"); each node shows its anchor's whole range, or its diff hunk, inside the pane by default (Pietro, 2026-10-22); `o` narrows it to the current beacon with two lines of context |
 | Pinned tours | Per user | kept in the plugin's `$.store`; nothing is written to the repo |
 | Comprehension checks | Not included | no prediction prompts, no check field |
 | Citations | Verified bibliography in the skill | `skills/faro-author-paths/comprehension.md` |
@@ -44,6 +45,12 @@ All settled by Pietro on 2026-10-22.
 ### Lens cost
 
 Pennington's program and situation models map onto two lenses: `flow` (control and data flow) and `domain` (what the code means for the business concept). Writing both for every node roughly doubles the tokens spent authoring a tour, and most readers never switch. So a tour is written in one lens (`tour.lens`, `flow` by default). The first time the reader presses `l` on a node with no `otherLens`, the pane asks Claude to write that node's other lens through `tour_update_node`, shows "Writing the domain lens…" until it lands, and from then on `l` toggles instantly. The cost is a short wait on the first switch per node, paid only by readers who want it.
+
+### Following in VS Code
+
+Pietro asked to follow the highlighted areas in VS Code while reading in Claude Code. The bridge is a file, not a second MCP server: on every change of step or beacon the plugin writes a `FollowSignal` (`src/core/model/follow.ts`: tour, step, title, anchors, beacon line, time) to `.faro/follow.json` under the session's folder, and creates `.faro/.gitignore` with `*` so the person's own `.gitignore` is left alone. The extension polls that path (`fs.watchFile`, 300 ms, so it works before the file exists), ignores malformed or repeated writes and the step present when it started, and opens the beacon's file with `preserveFocus` and `preview`, highlighting the step's ranges in that file, marking the beacon line, and showing the step in the status bar.
+
+Why a file: the plugin cannot open a socket, and the extension's existing MCP bridge (a socket with a token, served to VS Code chat) would need the plugin to find the port and token. A file in the workspace needs neither, works whichever side starts first, and either side can drop it. The cost is that Claude Code must run in the workspace folder VS Code has open, and a few hundred milliseconds of polling delay.
 
 ## Implementation notes
 

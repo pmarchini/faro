@@ -66,6 +66,7 @@ function tour(overrides: Record<string, unknown> = {}) {
 function engine(on: On, git: Record<string, string> = {}) {
   const submitted: string[] = []
   const filled: string[] = []
+  const written: Record<string, string> = {}
 
   mock.store(on)
   on('tool.register', (_, e) => ({ value: { tool: `mcp__faro__${e.name}` } }))
@@ -73,6 +74,12 @@ function engine(on: On, git: Record<string, string> = {}) {
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
   on('fs.read', () => ({ value: SOURCE }))
+  on('fs.write', (_, e) => {
+    written[e.path] = e.text
+    return { value: undefined }
+  })
+  on('session.cwd', () => ({ value: '/repo' }))
+  on('fs.exists', (_, e) => ({ value: e.path in written }))
   on('fs.stat', (_, e) => {
     if (e.path.includes('src/')) return { value: { kind: 'dir', isLink: false, size: 0, mtimeMs: 0 } }
     throw new Error('missing')
@@ -99,7 +106,7 @@ function engine(on: On, git: Record<string, string> = {}) {
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return { submitted, filled }
+  return { submitted, filled, written }
 }
 
 test('tour_upsert stores a valid tour and returns advice on soft rules', async ($, on) => {
@@ -208,6 +215,27 @@ test('the Faro logo heads the empty pane, and the tour pane when there is room',
   const narrow = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, bodyColumns: 50 } })
   expect(await narrow.find(lighthouse)).toBeUndefined()
   await narrow.unmount()
+})
+
+test('each step is written for VS Code to follow, until /tour follow off', async ($, on) => {
+  const world = engine(on)
+  mock.clock(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+
+  const first = JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}')
+  expect(first).toMatchObject({ version: 1, root: '/repo', nodeId: 'login', step: 1, total: 3 })
+  expect(first.focus).toEqual({ file: 'src/login.ts', line: 5 })
+  expect(world.written['/repo/.faro/.gitignore']).toBe('*\n')
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'key-next' })
+  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId).toBe('persist')
+
+  expect((await $.command.run({ ...TYPED, command: 'tour', args: 'follow off' })).text).toContain('does not follow')
+  await ui.press({ key: 'key-next' })
+  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId).toBe('persist')
+  await ui.unmount()
 })
 
 test('ask fills the prompt with the suggested question and lens asks Claude once', async ($, on) => {
