@@ -14,6 +14,9 @@ export const LOGO_ROWS: readonly string[] = [
 
 export const LOGO_WIDTH = 13
 
+// The name under the mark, centred on the base line.
+export const WORDMARK = '   F A R O   '
+
 export type LogoSegment = { text: string; isLight: boolean }
 
 const LIGHT = /[\^#[\]/\\=]/

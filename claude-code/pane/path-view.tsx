@@ -7,7 +7,7 @@ import { EMPTY_DOCUMENT, EMPTY_READER, PANE } from '../state.ts'
 import type { FaroCodeView as CodeView, FaroReader as ReaderState } from '../types'
 import { runAction, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
-import { LOGO_ROWS, LOGO_WIDTH, logoSegments } from './logo.ts'
+import { LOGO_ROWS, LOGO_WIDTH, WORDMARK, logoSegments } from './logo.ts'
 import { fileTree, type TreeFile } from '../file-tree.ts'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
@@ -125,6 +125,7 @@ function logo({ Box, Text }: Ui) {
           )}
         </Text>
       ))}
+      <Text bold>{WORDMARK}</Text>
     </Box>
   )
 }
