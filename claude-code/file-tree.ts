@@ -29,16 +29,73 @@ export function compactFiles(files: readonly TreeFile[]): TreeRow[] {
   }))
 }
 
-// The rail's files: each folder, then its files under it in step order.
+// The rail's files as a tree of folders, one segment a row, so the reader
+// sees where the current step sits without parsing `a/b/c/` strings:
+//
+//   auth/
+//   ├ ✓ routes.ts
+//   └ store/
+//     └ ▸ session.ts
+//
+// Folders and files are in the order the path first reaches them.
 export function railFiles(files: readonly TreeFile[]): TreeRow[] {
-  return groupByFolder(files).flatMap(([folder, entries]) => [
-    { text: folder, isCurrent: false, isDim: true },
-    ...entries.map((entry) => ({
-      text: `  ${mark(entry)} ${entry.file}`,
-      isCurrent: entry.isCurrent,
-      isDim: !entry.isCurrent,
-    })),
-  ])
+  return treeRows(buildTree(files), '')
+}
+
+type Folder = { name: string; folders: Folder[]; files: TreeFile[] }
+
+const firstStep = (entry: TreeFile) => entry.steps[0] ?? Infinity
+
+function buildTree(files: readonly TreeFile[]): Folder {
+  const root: Folder = { name: '', folders: [], files: [] }
+
+  for (const entry of files) {
+    const segments = entry.file.replace(/^\.?\//, '').split('/')
+    const name = segments.pop() ?? entry.file
+    let folder = root
+
+    for (const segment of segments) {
+      let next = folder.folders.find((child) => child.name === segment)
+
+      if (!next) {
+        next = { name: segment, folders: [], files: [] }
+        folder.folders.push(next)
+      }
+
+      folder = next
+    }
+
+    folder.files.push({ ...entry, file: name })
+  }
+
+  return root
+}
+
+function earliest(folder: Folder): number {
+  return Math.min(...folder.files.map(firstStep), ...folder.folders.map(earliest))
+}
+
+type Child = { order: number; name: string } & ({ folder: Folder } | { entry: TreeFile })
+
+function treeRows(folder: Folder, indent: string): TreeRow[] {
+  const children: Child[] = [
+    ...folder.folders.map((child) => ({ order: earliest(child), name: child.name, folder: child })),
+    ...folder.files.map((entry) => ({ order: firstStep(entry), name: entry.file, entry })),
+  ].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+  const isRoot = folder.name === ''
+
+  return children.flatMap((child, index) => {
+    const isLast = index === children.length - 1
+    const branch = isRoot ? '' : isLast ? '└ ' : '├ '
+
+    if ('entry' in child) {
+      const { entry } = child
+      return [{ text: `${indent}${branch}${mark(entry)} ${entry.file}`, isCurrent: entry.isCurrent, isDim: !entry.isCurrent }]
+    }
+
+    const under = isRoot ? '' : isLast ? '  ' : '│ '
+    return [{ text: `${indent}${branch}${child.name}/`, isCurrent: false, isDim: true }, ...treeRows(child.folder, indent + under)]
+  })
 }
 
 function mark(entry: TreeFile): string {
@@ -49,7 +106,6 @@ function mark(entry: TreeFile): string {
 // files in step order; a file no path step anchors in comes last.
 function groupByFolder(files: readonly TreeFile[]): Array<[string, TreeFile[]]> {
   const folders = new Map<string, TreeFile[]>()
-  const firstStep = (entry: TreeFile) => entry.steps[0] ?? Infinity
 
   for (const entry of files) {
     const path = entry.file.replace(/^\.?\//, '')

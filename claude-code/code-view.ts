@@ -7,6 +7,7 @@ import { hunksOverlapping } from './code-excerpt.ts'
 import { diffRows, sourceRows } from './code-window.ts'
 import { diffArgv } from './explain-args.ts'
 import { publishFollow } from './follow.ts'
+import { inSession } from './paths.ts'
 import { EMPTY_READER } from './state.ts'
 import type { FaroCodeView as CodeView } from './types'
 
@@ -90,7 +91,7 @@ async function codeView(
 
 async function readText($: EngineInterface, file: string): Promise<string | undefined> {
   try {
-    const text = await $.fs.read(file)
+    const text = await $.fs.read(await inSession($, file))
     return typeof text === 'string' ? text : undefined
   } catch {
     return undefined

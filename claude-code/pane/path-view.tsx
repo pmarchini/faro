@@ -156,7 +156,7 @@ export function drawPathView(on: On): void {
         {mark(ui)}
         {'  '}
         <Text bold>{tour.title}</Text>
-        <Text color="suggestion">{isCodeTour(tour) ? `  [code tour${tour.target.ref ? ` · ${tour.target.ref}` : ''}]` : ''}</Text>
+        <Text color="suggestion">{isCodeTour(tour) ? `  [code tour${tour.target.kind === 'code' && tour.target.ref ? ` · ${tour.target.ref}` : ''}]` : ''}</Text>
         <Text dimColor>
           {'  '}
           {tour.lens}

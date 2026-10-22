@@ -34,19 +34,29 @@ test("compact files list each folder once, in step order, and mark where the rea
   );
 });
 
-test("rail files list each folder, then its files under it", () => {
+test("rail files are a tree of folders, in the order the path reaches them", () => {
   const rows = railFiles([
-    { file: "auth/session.ts", steps: [3], isCurrent: true, isVisited: true },
-    { file: "auth/routes.ts", steps: [1], isCurrent: false, isVisited: true },
-    { file: "db/store.ts", steps: [4], isCurrent: false, isVisited: false },
+    { file: "packages/arch/src/cli.ts", steps: [1], isCurrent: false, isVisited: true },
+    { file: "packages/arch/src/graph/module-graph.ts", steps: [4], isCurrent: true, isVisited: true },
+    { file: "packages/arch/src/test-finder.ts", steps: [3], isCurrent: false, isVisited: true },
+    { file: "README.md", steps: [6], isCurrent: false, isVisited: false },
   ]);
 
   assert.deepEqual(
     rows.map((row) => row.text),
-    ["auth/", "  ✓ routes.ts", "  ▸ session.ts", "db/", "  · store.ts"],
+    [
+      "packages/",
+      "└ arch/",
+      "  └ src/",
+      "    ├ ✓ cli.ts",
+      "    ├ ✓ test-finder.ts",
+      "    └ graph/",
+      "      └ ▸ module-graph.ts",
+      "· README.md",
+    ],
   );
   assert.deepEqual(
     rows.filter((row) => row.isCurrent).map((row) => row.text),
-    ["  ▸ session.ts"],
+    ["      └ ▸ module-graph.ts"],
   );
 });

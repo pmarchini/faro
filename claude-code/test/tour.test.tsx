@@ -79,7 +79,13 @@ function engine(on: On, git: Record<string, string> = {}) {
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
-  on('fs.read', (_, e) => ({ value: e.path.startsWith('/repo/.faro/') ? (written[e.path] ?? '') : SOURCE }))
+  // Like the engine's, a relative path would resolve against Claude Code's
+  // own folder, so only paths under the session's folder are found.
+  on('fs.read', (_, e) => {
+    if (e.path.startsWith('/repo/.faro/')) return { value: written[e.path] ?? '' }
+    if (e.path.startsWith('/repo/')) return { value: SOURCE }
+    throw new Error(`no such file: ${e.path}`)
+  })
   on('fs.write', (_, e) => {
     external(e.path, e.text)
     return { value: undefined }
@@ -254,7 +260,7 @@ test('a wide pane puts the logo, steps and files in a rail beside the reader, an
 
   expect(await ui.find({ type: 'Text', text: /\[#\]/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^src\/$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^  ▸ login\.ts$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^├ ▸ login\.ts$/ })).toBeDefined()
   expect((await ui.find({ type: 'Button', key: 'node-persist' }))?.text).toContain('Tokens persisted before reply')
 
   await ui.press({ key: 'key-files' })
@@ -474,7 +480,8 @@ test('a tour of existing code reads as one: no diff, read-only code, Does and Ca
   })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: /\[code tour · how do sessions live\?\]/ })).toBeDefined()
+  // The question is the tour's goal; in the header it would push the step count off.
+  expect(await ui.find({ type: 'Text', text: /^  \[code tour\]$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /L1–10 · 10 lines · read only/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^Carry on$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^\[role: guard clause\]$/ })).toBeDefined()
