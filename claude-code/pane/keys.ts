@@ -1,7 +1,7 @@
 // The pane's key map. A Button hotkey is one lowercase letter or digit, so
 // the design's enter, backspace, ? and ! become e, u, a and x. `c` shows or
-// folds the code panel, as in the paired design; `t` is the file tree, or
-// the step list in the short layout.
+// folds the code panel, as in the paired design; `f` the files section, and
+// `t` the step list in the short layout.
 
 export type PaneAction =
   | 'next'
@@ -33,7 +33,7 @@ export const PANE_KEYS: readonly PaneKey[] = [
   { action: 'ask', hotkey: 'a', label: 'ask' },
   { action: 'dontGet', hotkey: 'x', label: "don't get it" },
   { action: 'refresh', hotkey: 'r', label: 'refresh' },
-  { action: 'files', hotkey: 't', label: 'files' },
+  { action: 'files', hotkey: 'f', label: 'files' },
   { action: 'steps', hotkey: 't', label: 'steps' },
   { action: 'close', hotkey: 'q', label: 'close' },
 ]

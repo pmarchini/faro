@@ -22,7 +22,7 @@ Bring Faro to Claude Code as a plugin: Claude explains a change set or existing 
 | Stale marking after Edit/Write | `claude-code/stale.ts` | done |
 | File tree of the tour's files, current step's file marked (`t` toggles; Pietro, 2026-10-22) | `claude-code/file-tree.ts` | done |
 | VS Code follows the step read in Claude Code (`/tour follow on|off`, `faro.followClaudeCode`; Pietro, 2026-10-22) | `src/core/model/follow.ts`, `claude-code/follow.ts`, `src/infra/vscode/follow/` | done |
-| Paired and solo pane, short layout, file tree beside the step list | `claude-code/pane/path-view.tsx`, `claude-code/bridge.ts` | done |
+| Paired and solo pane, short layout, column layout for ~80 cells (header, steps, files with `f`, story, code, keys) | `claude-code/pane/path-view.tsx`, `claude-code/bridge.ts` | done |
 | Next, back and jump-to-step from VS Code (status bar, `alt+[`/`alt+]`, Faro Tour view) | `claude-code/bridge.ts`, `src/infra/vscode/follow/register-follow-ui.ts` | done |
 | Graph view | | v2 |
 | `tour-author` subagent for very large diffs | | later |
@@ -69,6 +69,8 @@ The plugin also writes `.faro/.gitignore` (`*`), so the person's own `.gitignore
 **VS Code.** One preview tab, `preserveFocus`. The tab follows the current beacon, across files when a step spans several. A diff tour opens `vscode.diff` against the tour's base (`diffBaseOf`: the target's `baseSha`, else `HEAD` for the working tree or the left side of a range) through the built-in git extension's `git:` URIs, and falls back to the plain file. Anchors get a faint tint; beacons a stronger one with their label as end-of-line text (full on hover), the current beacon strongest. The note is a read-only comment thread (no commenting ranges, `canReply: false`), collapsed, holding only the headline and plan and "full story in Claude Code". Status bar `‹ faro 3/6 ›`, `alt+[`/`alt+]` and the Faro Tour view in the Explorer appear once a step has been followed (`faro.following` context key).
 
 **Code tours** (a `code` or `question` target: existing code, no change) read as such: the header says "code tour", the code panel is the plain file marked read only (with `@ <headSha>` when the tour has one), the story uses "Does", "Why (inferred: no commit says so)" and "Carry on", and VS Code opens the plain file, never a diff.
+
+**Column layout** (Pietro's notes on the visual design, 2026-10-22): the pane stays open as a column of about 80 cells to the right of the chat, so it is stacked, never side by side: a one-line header (`faro  title  lens  3/6  ⇄ VS Code`) and the hypothesis, STEPS, FILES (one line per folder, `f` hides), the story, the code, the keys. Step rows cut long titles with an ellipsis and keep the file whole; the story's headline wraps with a hanging indent under its number, beside the plan as a chip (`[role: …]` in a code tour), and each field's text wraps under itself. The Code element cannot tint lines, so the step's beacons in the shown file are listed under it, the current one marked `◀`. The lighthouse logo now heads only the empty and drafting panes.
 
 Not done from the design: `o` moving VS Code to the hunk (VS Code already shows the whole file with the step's ranges), and revealing the file in the Explorer as an option.
 
