@@ -14,9 +14,18 @@ const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
 const draftingAtom = atom({ plugin: 'faro', key: 'drafting' } as const, null)
 const readerAtom = atom({ plugin: 'faro', key: 'reader' } as const, EMPTY_READER)
+const pairedAtom = atom({ plugin: 'faro', key: 'paired' } as const, false)
+
+// Below this many rows (VS Code's integrated terminal, typically) the pane
+// drops the step list and tree for a one-line breadcrumb.
+const SHORT_ROWS = 18
+// From this width the file tree sits beside the step list instead of below.
+const SIDE_TREE_COLUMNS = 90
 
 // The Path view: header and hypothesis, the reading path as a numbered
-// spine, the current node at its depth, and the code under it.
+// spine beside the file tree, the current node at its depth, and the code
+// under it. While VS Code follows ("paired") the code is there, so the code
+// panel folds to one line and the node shows at least L1.
 
 export function drawPathView(on: On): void {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -52,11 +61,77 @@ export function drawPathView(on: On): void {
 
     const reader = await read($, readerAtom)
     const code = await read($, codeAtom)
+    const isPaired = await read($, pairedAtom)
+    const isShort = e.props.scroll.bodyRows < SHORT_ROWS
     const node = tour.current.nodeId ? tour.nodes[tour.current.nodeId] : undefined
     const { index, total } = pathPosition(tour)
     const supporting = Object.values(tour.nodes).filter((entry) => !tour.path.includes(entry.id))
     const stale = reader.stale[tour.id] ?? []
-    const keys = PANE_KEYS.filter((key) => key.action !== 'refresh' || (node && stale.includes(node.id)))
+    const isCodeFolded = isPaired || isShort ? !reader.isCodeToggled : reader.isCodeToggled
+    const depth = isPaired ? Math.max(tour.current.depth, 1) : tour.current.depth
+    const pairing = isPaired ? ' · ⇄ VS Code' : ''
+    const keys = PANE_KEYS.filter(
+      (key) =>
+        (key.action !== 'refresh' || (node && stale.includes(node.id))) &&
+        (key.action !== 'files' || !isShort) &&
+        (key.action !== 'steps' || isShort),
+    )
+    const pathRows = (rowWidth: number) =>
+      tour.path.map((id, position) => {
+        const entry = tour.nodes[id]
+
+        return entry ? (
+          <Button key={`node-${id}`} plain onPress={() => selectNode($, id)}>
+            {pathRow(entry, position, tour, reader, rowWidth)}
+          </Button>
+        ) : null
+      })
+    const treeRows = (rowWidth: number, prefix: string) =>
+      fileTree(treeFiles(tour, reader)).map((row) => (
+        <Text bold={row.isCurrent} dimColor={row.isDim} wrap="truncate-end">
+          {`${prefix}${row.text}`.slice(0, rowWidth)}
+        </Text>
+      ))
+    const story = node && (
+      <Box flexDirection="column">
+        {nodePanel(ui, tour, node, reader, depth, stale.includes(node.id), !isShort)}
+        {code && code.nodeId === node.id && (isCodeFolded ? foldedCode(ui, node, reader, code, isPaired, width) : codePanel(ui, code))}
+      </Box>
+    )
+    const footer = (
+      <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
+        {keys.map((key) => (
+          <Button key={`key-${key.action}`} plain hotkey={key.hotkey} label={key.label} onPress={() => runAction($, key.action)} />
+        ))}
+      </Box>
+    )
+
+    if (isShort) {
+      return (
+        <Box flexDirection="column">
+          <Text wrap="truncate-end">
+            <Text bold>
+              faro {index + 1}/{total} {progressMarks(tour, reader)}
+            </Text>
+            {'  '}
+            {node?.title ?? tour.title}
+            <Text dimColor>
+              {'  '}
+              {tour.lens}
+              {pairing}
+            </Text>
+          </Text>
+          {reader.isStepListShown && pathRows(width)}
+          {story}
+          {footer}
+        </Box>
+      )
+    }
+
+    const isTreeShown = !reader.isFileTreeHidden
+    const isTreeBeside = isTreeShown && width >= SIDE_TREE_COLUMNS
+    const treeWidth = Math.min(32, Math.floor(width * 0.3))
+    const listWidth = isTreeBeside ? width - treeWidth - 1 : width
 
     return (
       <Box flexDirection="column">
@@ -68,6 +143,7 @@ export function drawPathView(on: On): void {
               <Text dimColor>
                 {'  '}
                 {tour.lens} lens · {index + 1} of {total}
+                {pairing}
               </Text>
             </Text>
             <Text>
@@ -77,39 +153,27 @@ export function drawPathView(on: On): void {
           </Box>
         </Box>
         <Text dimColor>{rule}</Text>
-        {tour.path.map((id, position) => {
-          const entry = tour.nodes[id]
-
-          return entry ? (
-            <Button key={`node-${id}`} plain onPress={() => selectNode($, id)}>
-              {pathRow(entry, position, tour, reader, width)}
-            </Button>
-          ) : null
-        })}
-        {supporting.length > 0 && (
-          <Text dimColor wrap="truncate-end">
-            {'   '}also: {supporting.map((entry) => entry.title).join(' · ')}
-          </Text>
-        )}
-        {!reader.isFileTreeHidden && (
+        <Box flexDirection="row">
+          <Box flexDirection="column" width={listWidth} flexShrink={0}>
+            {pathRows(listWidth)}
+            {supporting.length > 0 && (
+              <Text dimColor wrap="truncate-end">
+                {'   '}also: {supporting.map((entry) => entry.title).join(' · ')}
+              </Text>
+            )}
+          </Box>
+          {isTreeBeside && <Box flexDirection="column">{treeRows(treeWidth + 1, '│ ')}</Box>}
+        </Box>
+        {isTreeShown && !isTreeBeside && (
           <Box flexDirection="column">
             <Text dimColor>{rule}</Text>
-            {fileTree(treeFiles(tour, reader)).map((row) => (
-              <Text bold={row.isCurrent} dimColor={row.isDim} wrap="truncate-end">
-                {row.text}
-              </Text>
-            ))}
+            {treeRows(width, '')}
           </Box>
         )}
         <Text dimColor>{rule}</Text>
-        {node && nodePanel(ui, tour, node, reader, stale.includes(node.id))}
-        {node && code && code.nodeId === node.id && codePanel(ui, code)}
+        {story}
         <Text dimColor>{rule}</Text>
-        <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
-          {keys.map((key) => (
-            <Button key={`key-${key.action}`} plain hotkey={key.hotkey} label={key.label} onPress={() => runAction($, key.action)} />
-          ))}
-        </Box>
+        {footer}
       </Box>
     )
   })
@@ -166,8 +230,15 @@ function pathRow(node: TourNode, position: number, tour: Tour, reader: ReaderSta
 
 type Ui = Elements[keyof Elements]
 
-function nodePanel({ Text }: Ui, tour: Tour, node: TourNode, reader: ReaderState, isStale: boolean): RenderChildren[] {
-  const depth = tour.current.depth
+function nodePanel(
+  { Text }: Ui,
+  tour: Tour,
+  node: TourNode,
+  reader: ReaderState,
+  depth: number,
+  isStale: boolean,
+  isTitleShown: boolean,
+): RenderChildren[] {
   const otherLens = tour.lens === 'flow' ? 'domain' : 'flow'
   const lensText = reader.isOtherLensShown ? node.otherLens : node
   const lines: RenderChildren[] = []
@@ -184,7 +255,7 @@ function nodePanel({ Text }: Ui, tour: Tour, node: TourNode, reader: ReaderState
 
   lines.push(
     <Text bold>
-      {node.title}
+      {isTitleShown ? node.title : `${tour.path.indexOf(node.id) + 1}`}
       <Text dimColor>
         {'  '}plan: {node.plan || '—'}
         {reader.isOtherLensShown ? `  · ${otherLens} lens` : ''}
@@ -228,11 +299,35 @@ function nodePanel({ Text }: Ui, tour: Tour, node: TourNode, reader: ReaderState
   return lines
 }
 
+// The code panel folded to one line: where the code is, and how to open it.
+function foldedCode({ Text }: Ui, node: TourNode, reader: ReaderState, code: CodeView, isPaired: boolean, width: number) {
+  const count = node.beacons.length
+  const beacon = count > 0 ? node.beacons[reader.beaconIndex % count] : undefined
+  const where = isPaired && beacon ? `code in VS Code: ${beacon.file} L${beacon.line}` : code.heading
+  const which = count > 1 ? ` · beacon ${(reader.beaconIndex % count) + 1} of ${count}` : ''
+  const text = `─ ${where}${which} `
+  const hint = ' c show ─'
+
+  return (
+    <Text dimColor wrap="truncate-end">
+      {text}
+      {'─'.repeat(Math.max(1, width - text.length - hint.length))}
+      {hint}
+    </Text>
+  )
+}
+
+function progressMarks(tour: Tour, reader: ReaderState): string {
+  const visited = reader.visited[tour.id] ?? []
+
+  return tour.path.map((id) => (id === tour.current.nodeId ? '▸' : visited.includes(id) ? '✓' : '○')).join('')
+}
+
 function codePanel({ Text, Code }: Ui, code: CodeView): RenderChildren[] {
   return [
     <Text dimColor>
       {code.heading}
-      {code.isFull ? '   (o narrows to the beacon)' : '   (o shows the whole range)'}
+      {code.isFull ? '   (o narrows to the beacon, c folds)' : '   (o shows the whole range, c folds)'}
     </Text>,
     <Code
       source={code.source}

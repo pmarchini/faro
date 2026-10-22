@@ -12,6 +12,7 @@ import {
   type ExtensionRuntime,
 } from "./create-extension-runtime.ts";
 import { createClaudeCodeFollower } from "./follow/claude-code-follower.ts";
+import { registerFollowUi } from "./follow/register-follow-ui.ts";
 import { createVscodeFollowPorts } from "./follow/vscode-follow-ports.ts";
 import type { VscodeLike } from "./vscode-api.ts";
 import { createVscodeEditorNavigator } from "./vscode-editor-navigator.ts";
@@ -105,8 +106,17 @@ function deactivate(): void {
 
 const loadVscodeApiDefault: LoadVscodeApi = () => import("vscode") as unknown as Promise<VscodeLike>;
 
-const followClaudeCode: FollowerFactory = ({ vscode, workspaceRoot }) =>
-  createClaudeCodeFollower({ workspaceRoot, ports: createVscodeFollowPorts({ vscode }) });
+const followClaudeCode: FollowerFactory = ({ vscode, workspaceRoot }) => {
+  const follower = createClaudeCodeFollower({ workspaceRoot, ports: createVscodeFollowPorts({ vscode }) });
+  const ui = registerFollowUi({ vscode, follower });
+
+  return {
+    dispose() {
+      ui.dispose();
+      follower.dispose();
+    },
+  };
+};
 
 function shouldAutoFocusOnStartup(vscodeApi: VscodeLike): boolean {
   return vscodeApi.workspace.getConfiguration("faro").get("autoFocusOnStartup", false);

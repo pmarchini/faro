@@ -45,6 +45,13 @@
           "name": "Home",
           "type": "webview"
         }
+      ],
+      "explorer": [
+        {
+          "id": "faro.followTour",
+          "name": "Faro Tour",
+          "when": "faro.following"
+        }
       ]
     },
     "mcpServerDefinitionProviders": [
@@ -97,6 +104,38 @@
       {
         "command": "faro.setCurrentBeacon",
         "title": "Faro: Set Current Beacon"
+      },
+      {
+        "command": "faro.follow.next",
+        "title": "Faro: Next Step in Claude Code"
+      },
+      {
+        "command": "faro.follow.back",
+        "title": "Faro: Previous Step in Claude Code"
+      },
+      {
+        "command": "faro.follow.step",
+        "title": "Faro: Go to Step in Claude Code"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "faro.follow.step",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "faro.follow.next",
+        "key": "alt+]",
+        "when": "faro.following"
+      },
+      {
+        "command": "faro.follow.back",
+        "key": "alt+[",
+        "when": "faro.following"
       }
     ]
   },

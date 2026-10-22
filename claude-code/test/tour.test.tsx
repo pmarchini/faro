@@ -67,21 +67,28 @@ function engine(on: On, git: Record<string, string> = {}) {
   const submitted: string[] = []
   const filled: string[] = []
   const written: Record<string, string> = {}
+  const mtimes: Record<string, number> = {}
+  // A file another process (the VS Code extension) writes.
+  const external = (path: string, text: string) => {
+    written[path] = text
+    mtimes[path] = (mtimes[path] ?? 0) + 1
+  }
 
   mock.store(on)
   on('tool.register', (_, e) => ({ value: { tool: `mcp__faro__${e.name}` } }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('ui.close', () => ({ value: undefined }))
-  on('fs.read', () => ({ value: SOURCE }))
+  on('fs.read', (_, e) => ({ value: e.path.startsWith('/repo/.faro/') ? (written[e.path] ?? '') : SOURCE }))
   on('fs.write', (_, e) => {
-    written[e.path] = e.text
+    external(e.path, e.text)
     return { value: undefined }
   })
   on('session.cwd', () => ({ value: '/repo' }))
   on('fs.exists', (_, e) => ({ value: e.path in written }))
   on('fs.stat', (_, e) => {
     if (e.path.includes('src/')) return { value: { kind: 'dir', isLink: false, size: 0, mtimeMs: 0 } }
+    if (e.path in written) return { value: { kind: 'file', isLink: false, size: 1, mtimeMs: mtimes[e.path] ?? 0 } }
     throw new Error('missing')
   })
   on('process.run', (_, e) => {
@@ -106,7 +113,7 @@ function engine(on: On, git: Record<string, string> = {}) {
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return { submitted, filled, written }
+  return { submitted, filled, written, external }
 }
 
 test('tour_upsert stores a valid tour and returns advice on soft rules', async ($, on) => {
@@ -340,4 +347,75 @@ test('/tour pin keeps a tour that /tour open brings back', async ($, on) => {
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'list' })).text).toContain('auth  Session persistence  (pinned)')
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'drop session-persistence' })).text).toContain('Dropped')
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'open auth' })).text).toContain('pinned tour auth')
+})
+
+test('a VS Code heartbeat pairs the pane: the code folds to one line and c opens it', async ($, on) => {
+  const world = engine(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await clock.advance(400)
+
+  expect(await ui.find({ type: 'Code' })).toBeDefined()
+
+  world.external('/repo/.faro/ack.json', '{}')
+  await clock.advance(400)
+  expect(await ui.find({ type: 'Text', text: /⇄ VS Code/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /code in VS Code: src\/login\.ts L5/ })).toBeDefined()
+  expect(await ui.find({ type: 'Code' })).toBeUndefined()
+
+  await ui.press({ key: 'key-codePanel' })
+  expect(await ui.find({ type: 'Code' })).toBeDefined()
+
+  // No beat for longer than the extension's interval allows: solo again.
+  await clock.advance(13_000)
+  expect(await ui.find({ type: 'Text', text: /⇄ VS Code/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('VS Code moves the tour through control.json, and only for the active tour', async ($, on) => {
+  const world = engine(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  await clock.advance(400)
+  const step = () => JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId
+
+  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '1', tourId: 'session-persistence', action: 'next' }))
+  await clock.advance(400)
+  expect(step()).toBe('persist')
+
+  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '2', tourId: 'other', action: 'next' }))
+  await clock.advance(400)
+  expect(step()).toBe('persist')
+
+  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '3', tourId: 'session-persistence', action: 'step', nodeId: 'login' }))
+  await clock.advance(400)
+  expect(step()).toBe('login')
+})
+
+test('a wide pane puts the file tree beside the step list', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, bodyColumns: 120 }, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /^│ └─ src\/$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a short pane shows a breadcrumb and the current step, and t lists the steps', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, scroll: { offset: 0, bodyRows: 12 } }, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /faro 1\/3 ▸○○/ })).toBeDefined()
+  expect(await ui.find({ type: 'Button', key: 'node-persist' })).toBeUndefined()
+  expect(await ui.find({ type: 'Code' })).toBeUndefined()
+
+  await ui.press({ key: 'key-steps' })
+  expect(await ui.find({ type: 'Button', key: 'node-persist' })).toBeDefined()
+  await ui.unmount()
 })

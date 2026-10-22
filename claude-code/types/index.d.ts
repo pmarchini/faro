@@ -61,6 +61,11 @@ export type FaroReader = {
   isOtherLensShown: boolean
   isFileTreeHidden: boolean
   beaconIndex: number
+  // `c` flips the code panel from its default: open when solo, one line
+  // when VS Code is following.
+  isCodeToggled: boolean
+  // In the short layout `t` shows the step list instead of the file tree.
+  isStepListShown: boolean
 }
 
 export type FaroDrafting = {
@@ -88,6 +93,8 @@ declare module 'claude-code' {
       reader: FaroReader
       drafting: FaroDrafting | null
       code: FaroCodeView | null
+      // True while the VS Code extension is following the tour.
+      paired: boolean
     }
   }
 }

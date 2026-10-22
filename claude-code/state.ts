@@ -17,6 +17,8 @@ export const EMPTY_READER: FaroReader = {
   isOtherLensShown: false,
   isFileTreeHidden: false,
   beaconIndex: 0,
+  isCodeToggled: false,
+  isStepListShown: false,
 }
 
 export function addOnce(list: readonly string[] | undefined, id: string): string[] {

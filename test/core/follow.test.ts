@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createFollowSignal, parseFollowSignal } from "../../src/core/model/follow.ts";
+import { createFollowSignal, diffBaseOf, parseFollowControl, parseFollowSignal } from "../../src/core/model/follow.ts";
 import { createNode, createTour } from "./tour-fixtures.ts";
 
 test("the follow signal names the current step and its beacon", () => {
@@ -20,6 +20,14 @@ test("the follow signal names the current step and its beacon", () => {
     summary: "What happens in n2",
     anchors: [{ file: "src/n2.ts", range: { startLine: 1, endLine: 10 } }],
     focus: { file: "src/n2.ts", line: 3 },
+    beaconIndex: 0,
+    beacons: [{ label: "n2()", file: "src/n2.ts", line: 3 }],
+    steps: [
+      { nodeId: "n1", title: "Step n1" },
+      { nodeId: "n2", title: "Step n2" },
+      { nodeId: "n3", title: "Step n3" },
+    ],
+    diffBase: "HEAD",
     note: {
       plan: "guard clause",
       lens: "flow",
@@ -75,4 +83,25 @@ test("parse round-trips a signal and ignores anything malformed", () => {
   assert.equal(parseFollowSignal(JSON.stringify({ ...signal, version: 2 })), null);
   assert.equal(parseFollowSignal(JSON.stringify({ ...signal, anchors: [] })), null);
   assert.equal(parseFollowSignal(JSON.stringify({ ...signal, focus: { file: "a.ts", line: 0 } })), null);
+});
+
+test("a diff tour is compared against its base; a code tour has none", () => {
+  assert.equal(diffBaseOf({ kind: "worktree", ref: "HEAD" }), "HEAD");
+  assert.equal(diffBaseOf({ kind: "range", ref: "v1.2..HEAD" }), "v1.2");
+  assert.equal(diffBaseOf({ kind: "range", ref: "main...feature" }), "main");
+  assert.equal(diffBaseOf({ kind: "pr", ref: "#4", baseSha: "abc" }), "abc");
+  assert.equal(diffBaseOf({ kind: "pr", ref: "#4" }), undefined);
+  assert.equal(diffBaseOf({ kind: "code", ref: "src/" }), undefined);
+});
+
+test("a control request from VS Code is read only when it is complete", () => {
+  assert.deepEqual(parseFollowControl('{"version":1,"id":"7","tourId":"t","action":"next"}'), {
+    version: 1,
+    id: "7",
+    tourId: "t",
+    action: "next",
+  });
+  assert.equal(parseFollowControl('{"version":1,"id":"7","tourId":"t","action":"step"}'), null);
+  assert.equal(parseFollowControl('{"version":1,"id":"7","tourId":"t","action":"lens"}'), null);
+  assert.equal(parseFollowControl("{ half"), null);
 });

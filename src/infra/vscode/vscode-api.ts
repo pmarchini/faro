@@ -20,6 +20,7 @@ export type VscodeTextEditorDecorationType = Pick<
 export type VscodeStatusBarItem = {
   text: string;
   tooltip?: string;
+  command?: string;
   show(): void;
   dispose(): void;
 };
@@ -65,7 +66,8 @@ export type VscodeLike = {
     createTextEditorDecorationType(
       options?: VscodeDecorationRenderOptions,
     ): VscodeTextEditorDecorationType;
-    createStatusBarItem?(): VscodeStatusBarItem;
+    createStatusBarItem?(alignment?: unknown, priority?: number): VscodeStatusBarItem;
+    visibleTextEditors?: ReadonlyArray<{ document?: { uri: unknown } }>;
     showTextDocument(
       document: unknown,
       options?: { preserveFocus?: boolean; preview?: boolean },
@@ -95,7 +97,8 @@ export type VscodeLike = {
   };
   MarkdownString?: new (value?: string) => unknown;
   CommentMode?: { Preview: unknown };
-  CommentThreadCollapsibleState?: { Expanded: unknown };
+  CommentThreadCollapsibleState?: { Expanded: unknown; Collapsed: unknown };
+  StatusBarAlignment?: { Left: unknown };
   lm: {
     registerMcpServerDefinitionProvider(id: string, provider: unknown): Disposable;
   };

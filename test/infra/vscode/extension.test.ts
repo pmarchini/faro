@@ -276,13 +276,16 @@ test("activate registers the full faro UI surface through the injected host", as
   assert.equal(subscriptions.length, 2);
   assert.deepEqual([...commands.keys()].sort(), [
     "faro.focusSidebar",
+    "faro.follow.back",
+    "faro.follow.next",
+    "faro.follow.step",
     "faro.nextBeacon",
     "faro.previousBeacon",
     "faro.revealCurrentBeacon",
     "faro.setActivePath",
     "faro.setCurrentBeacon",
   ]);
-  assert.deepEqual([...views.keys()], ["faro.main"]);
+  assert.deepEqual([...views.keys()].sort(), ["faro.followTour", "faro.main"]);
   assert.deepEqual([...mcpProviders.keys()], ["faro.local"]);
   assert.match(JSON.stringify(operations), /workbench\.view\.extension\.faro/);
 

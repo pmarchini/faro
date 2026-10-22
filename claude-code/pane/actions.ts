@@ -26,8 +26,9 @@ export async function runAction($: EngineInterface, action: PaneAction): Promise
     return
   }
 
-  if (action === 'files') {
-    await update($, readerAtom, (reader) => ({ ...reader, isFileTreeHidden: !reader.isFileTreeHidden }))
+  if (action === 'files' || action === 'steps' || action === 'codePanel') {
+    const field = { files: 'isFileTreeHidden', steps: 'isStepListShown', codePanel: 'isCodeToggled' } as const
+    await update($, readerAtom, (reader) => ({ ...reader, [field[action]]: !reader[field[action]] }))
     return
   }
 
