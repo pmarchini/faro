@@ -142,6 +142,7 @@ export function drawPathView(on: On): void {
               <Text bold>{tour.title}</Text>
               <Text dimColor>
                 {'  '}
+                {isCodeTour(tour) ? 'code tour · ' : ''}
                 {tour.lens} lens · {index + 1} of {total}
                 {pairing}
               </Text>
@@ -281,10 +282,10 @@ function nodePanel(
   if (depth >= 1) {
     add('Confirms', node.confirms)
     add('What changed', lensText?.whatChanged)
-    add('What it does', lensText?.whatItDoes)
-    add('Why', whyText(lensText?.why))
+    add(isCodeTour(tour) ? 'Does' : 'What it does', lensText?.whatItDoes)
+    add('Why', whyText(lensText?.why, isCodeTour(tour)))
     add('Beacons', node.beacons.map((beacon) => `${beacon.label} (L${beacon.line})`).join(' · '))
-    add('Carry forward', node.carryForward)
+    add(isCodeTour(tour) ? 'Carry on' : 'Carry forward', node.carryForward)
   }
 
   if (depth >= 2) {
@@ -339,8 +340,15 @@ function codePanel({ Text, Code }: Ui, code: CodeView): RenderChildren[] {
   ]
 }
 
-function whyText(why: TourWhy | undefined): string | undefined {
-  if (!why) return undefined
+// A tour of existing code, with no change behind it: there is no "what
+// changed", and no commit to give a reason, so the labels say so.
+function isCodeTour(tour: Tour): boolean {
+  return tour.target.kind === 'code' || tour.target.kind === 'question'
+}
 
-  return why.source === 'inferred' ? `${why.text} (inferred)` : `${why.text} (from the ${why.source})`
+function whyText(why: TourWhy | undefined, isCode: boolean): string | undefined {
+  if (!why) return undefined
+  if (why.source !== 'inferred') return `${why.text} (from the ${why.source})`
+
+  return isCode ? `${why.text} (inferred: no commit says so)` : `${why.text} (inferred)`
 }

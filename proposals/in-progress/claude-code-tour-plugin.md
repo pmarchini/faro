@@ -68,6 +68,8 @@ The plugin also writes `.faro/.gitignore` (`*`), so the person's own `.gitignore
 
 **VS Code.** One preview tab, `preserveFocus`. The tab follows the current beacon, across files when a step spans several. A diff tour opens `vscode.diff` against the tour's base (`diffBaseOf`: the target's `baseSha`, else `HEAD` for the working tree or the left side of a range) through the built-in git extension's `git:` URIs, and falls back to the plain file. Anchors get a faint tint; beacons a stronger one with their label as end-of-line text (full on hover), the current beacon strongest. The note is a read-only comment thread (no commenting ranges, `canReply: false`), collapsed, holding only the headline and plan and "full story in Claude Code". Status bar `‹ faro 3/6 ›`, `alt+[`/`alt+]` and the Faro Tour view in the Explorer appear once a step has been followed (`faro.following` context key).
 
+**Code tours** (a `code` or `question` target: existing code, no change) read as such: the header says "code tour", the code panel is the plain file marked read only (with `@ <headSha>` when the tour has one), the story uses "Does", "Why (inferred: no commit says so)" and "Carry on", and VS Code opens the plain file, never a diff.
+
 Not done from the design: `o` moving VS Code to the hunk (VS Code already shows the whole file with the step's ranges), and revealing the file in the Explorer as an option.
 
 ## Implementation notes

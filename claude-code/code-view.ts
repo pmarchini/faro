@@ -93,10 +93,12 @@ async function fullView($: EngineInterface, tour: Tour, node: TourNode, anchor: 
   }
 
   const slice = sliceLines(text, startLine, endLine)
+  const at = tour.target.headSha ? ` @ ${tour.target.headSha.slice(0, 7)}` : ''
+  const readOnly = argv ? '' : `  ·${at} read only`
 
   return {
     ...base,
-    heading: `${anchor.file}:${startLine}-${endLine}`,
+    heading: `${anchor.file}:${startLine}-${endLine}${readOnly}`,
     source: slice.source,
     startLine: slice.startLine,
     format: 'source',

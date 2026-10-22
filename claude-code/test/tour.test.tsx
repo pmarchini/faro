@@ -419,3 +419,21 @@ test('a short pane shows a breadcrumb and the current step, and t lists the step
   expect(await ui.find({ type: 'Button', key: 'node-persist' })).toBeDefined()
   await ui.unmount()
 })
+
+test('a tour of existing code reads as one: no diff, read-only code, Does and Carry on', async ($, on) => {
+  const world = engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const question = { kind: 'question', ref: 'how do sessions live?' }
+  await $.tool.call({
+    tool: 'mcp__faro__tour_upsert',
+    tour: tour({ target: question, current: { nodeId: 'login', depth: 1 } }),
+  })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /code tour · flow lens/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:1-10  · read only/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^Carry on: Carry login$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /inferred: no commit says so/ })).toBeDefined()
+  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').diffBase).toBeUndefined()
+  await ui.unmount()
+})
