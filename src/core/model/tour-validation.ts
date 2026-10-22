@@ -261,7 +261,9 @@ function findEdgeProblems(where: string, tour: Tour): string[] {
 // returned to the author as advice.
 export function lintTour(tour: Tour): string[] {
   const advice: string[] = [];
-  const pathNodes = tour.path.map((id) => tour.nodes[id]).filter(Boolean);
+  const pathNodes = tour.path
+    .map((id) => tour.nodes[id])
+    .filter((node): node is TourNode => node !== undefined);
 
   if (pathNodes.length > 9) {
     advice.push(`The path has ${pathNodes.length} nodes; 5 to 7 is the budget, 8 or 9 only when needed.`);
