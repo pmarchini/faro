@@ -14,6 +14,9 @@ const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
 const readerAtom = atom({ plugin: 'faro', key: 'reader' } as const, EMPTY_READER)
 
+// How far n and p scroll the code panel.
+const SCROLL_ROWS = 8
+
 // What each key does. Navigation changes state and redraws; the asking keys
 // hand Claude a prompt that names the tour and node.
 
@@ -48,14 +51,24 @@ export async function runAction($: EngineInterface, action: PaneAction): Promise
       await update($, documentAtom, (current) => changeDepth(current, tour.id, action === 'deeper' ? 1 : -1))
       return
     case 'beacon': {
-      await update($, readerAtom, (reader) => ({ ...reader, beaconIndex: reader.beaconIndex + 1 }))
+      await update($, readerAtom, (reader) => ({ ...reader, beaconIndex: reader.beaconIndex + 1, codeOffset: 0 }))
       const code = await read($, codeAtom)
-      await loadCode($, tour, code?.isFull ?? true)
+      await loadCode($, tour, code?.isWholeFile ?? false)
       return
     }
     case 'code': {
       const code = await read($, codeAtom)
-      await loadCode($, tour, !(code?.isFull ?? true))
+      await update($, readerAtom, (reader) => ({ ...reader, codeOffset: 0 }))
+      await loadCode($, tour, !(code?.isWholeFile ?? false))
+      return
+    }
+    case 'unfold':
+      await update($, readerAtom, (reader) => ({ ...reader, isCodeUnfolded: !reader.isCodeUnfolded, codeOffset: 0 }))
+      return
+    case 'scrollDown':
+    case 'scrollUp': {
+      const step = action === 'scrollDown' ? SCROLL_ROWS : -SCROLL_ROWS
+      await update($, readerAtom, (reader) => ({ ...reader, codeOffset: reader.codeOffset + step }))
       return
     }
   }
@@ -118,6 +131,8 @@ async function moveTo(
     visited: { ...reader.visited, [tourId]: addOnce(reader.visited[tourId], nodeId) },
     isOtherLensShown: false,
     beaconIndex: 0,
+    codeOffset: 0,
+    isCodeUnfolded: false,
   }))
   await loadCode($, tour)
 }

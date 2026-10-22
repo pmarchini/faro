@@ -166,21 +166,48 @@ test('the pane walks the path and goes deeper, on every surface that takes keys'
   }
 })
 
-test('the code is open by default and o narrows it to the beacon', async ($, on) => {
+test('the code is open by default, its beacons tinted and listed, and o shows the whole file', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:1-10/ })).toBeDefined()
-  expect((await ui.find({ type: 'Code' }))?.text).toContain('line 10')
+  expect(await ui.find({ type: 'Text', text: /src\/login\.ts  L1–10 · 10 lines/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ 5   line 5$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: / ◀ 1$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^● 1 L5  login\(\)$/ })).toBeDefined()
+  expect((await ui.findAll({ type: 'Code' })).map((found) => found.text).join('\n')).toContain('line 10')
 
   await ui.press({ key: 'key-code' })
-  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:5  login\(\)/ })).toBeDefined()
-  expect((await ui.find({ type: 'Code' }))?.text).not.toContain('line 10')
+  expect(await ui.find({ type: 'Text', text: /whole file · 30 lines/ })).toBeDefined()
+  await ui.unmount()
+})
 
-  await ui.press({ key: 'key-next' })
-  expect((await ui.find({ type: 'Code' }))?.text).toContain('line 10')
+test('lines far from a beacon fold, z unfolds them, and n scrolls a long file', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const nodes = {
+    ...tour().nodes,
+    login: node('login', 'Login request enters', {
+      anchors: [{ file: 'src/login.ts', range: { startLine: 1, endLine: 30 } }],
+      beacons: [{ label: 'login()', file: 'src/login.ts', line: 15 }],
+    }),
+  }
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ nodes }) })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, scroll: { offset: 0, bodyRows: 30 } }, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /10 lines folded · z unfolds/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /11 lines folded/ })).toBeDefined()
+
+  await ui.press({ key: 'key-unfold' })
+  expect(await ui.find({ type: 'Text', text: /lines folded/ })).toBeUndefined()
+  const before = (await ui.find({ type: 'Text', text: /\d+ above, \d+ below/ }))?.text
+  expect(before).toBeDefined()
+
+  await ui.press({ key: 'key-scrollDown' })
+  const after = (await ui.find({ type: 'Text', text: /\d+ above, \d+ below/ }))?.text
+  expect(after).not.toBe(before)
+  expect(await ui.find({ type: 'Text', text: '◆' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -201,7 +228,7 @@ test('the files section shows where the current step sits and f hides it', async
   await ui.unmount()
 })
 
-test('the Faro logo heads the empty pane; a tour gets a one-line header', async ($, on) => {
+test('the Faro logo heads the empty pane and the rail; the header reads o-^-o faro', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   const lighthouse = { type: 'Text', text: /\[#\]/ } as const
@@ -213,10 +240,27 @@ test('the Faro logo heads the empty pane; a tour gets a one-line header', async 
   await empty.unmount()
 
   await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
-  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await pane.find(lighthouse)).toBeUndefined()
-  expect(await pane.find({ type: 'Text', text: /^faro  Session persistence  flow  1\/3$/ })).toBeDefined()
-  await pane.unmount()
+  const narrow = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await narrow.find(lighthouse)).toBeUndefined()
+  expect(await narrow.find({ type: 'Text', text: /^o-\^-o faro  Session persistence  flow  1\/3$/ })).toBeDefined()
+  await narrow.unmount()
+})
+
+test('a wide pane puts the logo, steps and files in a rail beside the reader, and f hides it', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, bodyColumns: 110 }, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /\[#\]/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^src\/$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^  ▸ login\.ts$/ })).toBeDefined()
+  expect((await ui.find({ type: 'Button', key: 'node-persist' }))?.text).toContain('Tokens persisted before reply')
+
+  await ui.press({ key: 'key-files' })
+  expect(await ui.find({ type: 'Text', text: /\[#\]/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /FILES  \(f shows\)/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('each step is written for VS Code to follow, until /tour follow off', async ($, on) => {
@@ -430,8 +474,8 @@ test('a tour of existing code reads as one: no diff, read-only code, Does and Ca
   })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
-  expect(await ui.find({ type: 'Text', text: /code tour · flow/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /src\/login\.ts:1-10  · read only/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\[code tour · how do sessions live\?\]/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /L1–10 · 10 lines · read only/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^Carry on$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^\[role: guard clause\]$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /inferred: no commit says so/ })).toBeDefined()

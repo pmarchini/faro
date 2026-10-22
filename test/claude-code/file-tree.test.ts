@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compactFiles } from "../../claude-code/file-tree.ts";
+import { compactFiles, railFiles } from "../../claude-code/file-tree.ts";
 
 test("compact files list each folder once, in step order, and mark where the reader is", () => {
   const rows = compactFiles([
@@ -31,5 +31,22 @@ test("compact files list each folder once, in step order, and mark where the rea
       [false, false],
       [false, true],
     ],
+  );
+});
+
+test("rail files list each folder, then its files under it", () => {
+  const rows = railFiles([
+    { file: "auth/session.ts", steps: [3], isCurrent: true, isVisited: true },
+    { file: "auth/routes.ts", steps: [1], isCurrent: false, isVisited: true },
+    { file: "db/store.ts", steps: [4], isCurrent: false, isVisited: false },
+  ]);
+
+  assert.deepEqual(
+    rows.map((row) => row.text),
+    ["auth/", "  ✓ routes.ts", "  ▸ session.ts", "db/", "  · store.ts"],
+  );
+  assert.deepEqual(
+    rows.filter((row) => row.isCurrent).map((row) => row.text),
+    ["  ▸ session.ts"],
   );
 });

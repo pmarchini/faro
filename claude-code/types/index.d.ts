@@ -59,6 +59,7 @@ export type FaroReader = {
   confused: Record<string, string[]>
   stale: Record<string, string[]>
   isOtherLensShown: boolean
+  // `f` hides the rail of steps and files.
   isFileTreeHidden: boolean
   beaconIndex: number
   // `c` flips the code panel from its default: open when solo, one line
@@ -66,6 +67,10 @@ export type FaroReader = {
   isCodeToggled: boolean
   // In the short layout `t` shows the step list instead of the file tree.
   isStepListShown: boolean
+  // The code panel: rows scrolled away from the current beacon, and whether
+  // `z` unfolded the lines far from every beacon.
+  codeOffset: number
+  isCodeUnfolded: boolean
 }
 
 export type FaroDrafting = {
@@ -73,17 +78,24 @@ export type FaroDrafting = {
   detail: string
 }
 
-// The code under the node panel: beacon lines with a little context, or the
-// whole anchor (or its hunk) after `o`.
+// One line of the code panel: its number in the file (null for a line a
+// diff removed), its diff marker, and its text.
+export type FaroCodeRow = {
+  number: number | null
+  marker: ' ' | '+' | '-'
+  text: string
+}
+
+// The code panel's lines for the current beacon's anchor: its diff hunks
+// for a change, its lines for existing code, or the whole file after `o`.
 export type FaroCodeView = {
   tourId: string
   nodeId: string
-  isFull: boolean
+  isWholeFile: boolean
+  path: string
   heading: string
-  source: string
   format: 'source' | 'diff'
-  startLine?: number
-  path?: string
+  rows: FaroCodeRow[]
 }
 
 declare module 'claude-code' {

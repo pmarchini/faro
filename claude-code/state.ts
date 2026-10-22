@@ -19,6 +19,8 @@ export const EMPTY_READER: FaroReader = {
   beaconIndex: 0,
   isCodeToggled: false,
   isStepListShown: false,
+  codeOffset: 0,
+  isCodeUnfolded: false,
 }
 
 export function addOnce(list: readonly string[] | undefined, id: string): string[] {
