@@ -9,39 +9,13 @@ export type Disposable = {
 
 export type VscodeDecorationRenderOptions = Pick<
   DecorationRenderOptions,
-  "isWholeLine" | "backgroundColor" | "after"
+  "isWholeLine" | "backgroundColor"
 >;
 
 export type VscodeTextEditorDecorationType = Pick<
   TextEditorDecorationType,
   "dispose"
 >;
-
-export type VscodeStatusBarItem = {
-  text: string;
-  tooltip?: string;
-  command?: string;
-  show(): void;
-  dispose(): void;
-};
-
-export type VscodeComment = {
-  body: unknown;
-  mode: unknown;
-  author: { name: string };
-};
-
-export type VscodeCommentThread = {
-  canReply: boolean;
-  label?: string;
-  collapsibleState: unknown;
-  dispose(): void;
-};
-
-export type VscodeCommentController = {
-  createCommentThread(uri: unknown, range: unknown, comments: VscodeComment[]): VscodeCommentThread;
-  dispose(): void;
-};
 
 export type VscodeWebview = {
   html: string;
@@ -66,12 +40,7 @@ export type VscodeLike = {
     createTextEditorDecorationType(
       options?: VscodeDecorationRenderOptions,
     ): VscodeTextEditorDecorationType;
-    createStatusBarItem?(alignment?: unknown, priority?: number): VscodeStatusBarItem;
-    visibleTextEditors?: ReadonlyArray<{ document?: { uri: unknown } }>;
-    showTextDocument(
-      document: unknown,
-      options?: { preserveFocus?: boolean; preview?: boolean },
-    ): Promise<{
+    showTextDocument(document: unknown): Promise<{
       revealRange(range: unknown, revealType?: unknown): void | Promise<void>;
       setDecorations(decorationType: Disposable, ranges: unknown[]): void | Promise<void>;
       selection?: unknown;
@@ -92,13 +61,6 @@ export type VscodeLike = {
       get<T>(key: string, defaultValue: T): T;
     };
   };
-  comments?: {
-    createCommentController(id: string, label: string): VscodeCommentController;
-  };
-  MarkdownString?: new (value?: string) => unknown;
-  CommentMode?: { Preview: unknown };
-  CommentThreadCollapsibleState?: { Expanded: unknown; Collapsed: unknown };
-  StatusBarAlignment?: { Left: unknown };
   lm: {
     registerMcpServerDefinitionProvider(id: string, provider: unknown): Disposable;
   };

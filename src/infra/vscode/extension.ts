@@ -11,9 +11,6 @@ import {
   type CreateExtensionRuntimeOptions,
   type ExtensionRuntime,
 } from "./create-extension-runtime.ts";
-import { createClaudeCodeFollower } from "./follow/claude-code-follower.ts";
-import { registerFollowUi } from "./follow/register-follow-ui.ts";
-import { createVscodeFollowPorts } from "./follow/vscode-follow-ports.ts";
 import type { VscodeLike } from "./vscode-api.ts";
 import { createVscodeEditorNavigator } from "./vscode-editor-navigator.ts";
 
@@ -36,13 +33,11 @@ type BindingsFactory = (options: {
 }) => Disposable | Promise<Disposable>;
 
 type LoadVscodeApi = () => Promise<VscodeLike>;
-type FollowerFactory = (options: { vscode: VscodeLike; workspaceRoot: string }) => Disposable;
 
 type ActivateOptions = {
   runtimeFactory?: RuntimeFactory;
   bindingsFactory?: BindingsFactory;
   loadVscodeApi?: LoadVscodeApi;
-  followerFactory?: FollowerFactory;
 };
 
 let runtime: ExtensionRuntime | null = null;
@@ -54,7 +49,6 @@ async function activate(
     runtimeFactory = createExtensionRuntime,
     bindingsFactory = registerVscodeBindings,
     loadVscodeApi = loadVscodeApiDefault,
-    followerFactory = followClaudeCode,
   }: ActivateOptions = {},
 ): Promise<ExtensionRuntime> {
   const vscodeApi = await loadVscodeApi();
@@ -76,8 +70,6 @@ async function activate(
     workspaceRoot,
   });
 
-  const follower = followerFactory({ vscode: vscodeApi, workspaceRoot });
-
   if (shouldAutoFocusOnStartup(vscodeApi)) {
     await host.focusFaroView();
   }
@@ -86,7 +78,6 @@ async function activate(
     dispose() {
       bindings.dispose();
       editorNavigator.dispose();
-      follower.dispose();
     },
   };
 
@@ -105,18 +96,6 @@ function deactivate(): void {
 }
 
 const loadVscodeApiDefault: LoadVscodeApi = () => import("vscode") as unknown as Promise<VscodeLike>;
-
-const followClaudeCode: FollowerFactory = ({ vscode, workspaceRoot }) => {
-  const follower = createClaudeCodeFollower({ workspaceRoot, ports: createVscodeFollowPorts({ vscode }) });
-  const ui = registerFollowUi({ vscode, follower });
-
-  return {
-    dispose() {
-      ui.dispose();
-      follower.dispose();
-    },
-  };
-};
 
 function shouldAutoFocusOnStartup(vscodeApi: VscodeLike): boolean {
   return vscodeApi.workspace.getConfiguration("faro").get("autoFocusOnStartup", false);

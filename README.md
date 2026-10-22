@@ -178,16 +178,6 @@ Flags: `--depth brief|standard|deep`, `--lens flow|domain`, `--reader new|famili
 
 In the pane, a column beside the chat: a rail on the left holds the Faro mark, the steps (titles wrap) and the tour's files as a folder tree with the current step's file marked; the reader on the right shows the step's story (its headline wraps under its number, beside the plan as a chip) and its code, which fills the rest of the height. The code is centred on the current beacon, beacon lines are tinted and listed under the code (● for the current one), lines far from every beacon fold into "N lines folded", and a track on the right marks where the beacons are. Keys: `j`/`k` move along the path, `e`/`u` show more or less, `l` switches between the flow and domain lens, `b` jumps to the next beacon, `n`/`p` scroll the code, `z` unfolds, `o` shows the whole file, `c` folds or opens the code panel, `f` hides or shows the rail, `a` puts the step's suggested question in the prompt, `x` asks Claude to re-explain the step more simply, `r` refreshes a step whose code changed, `q` closes. In a narrow pane the steps and files stack above the reader; in a pane shorter than 18 rows, such as VS Code's integrated terminal, they give way to a one-line breadcrumb (`faro 3/6 ✓✓▸○○○`) and `t` shows the steps. `/tour pin [name]` keeps a tour across sessions; `/tour list`, `/tour open <id>` and `/tour drop <id>` manage them.
 
-### Follow the tour in VS Code
-
-Claude Code leads and VS Code follows. With the Faro VS Code extension installed and the same folder open, each step you move to in the pane opens in one preview tab that never takes your focus: the plain file for a tour of existing code, or a diff against the tour's base for a tour of a change. The step's ranges are highlighted, each beacon's line carries its one-liner at the end (full text on hover), and a collapsed note names the step. The story itself stays in the pane, which notices VS Code is following ("⇄ VS Code" in its header), folds its own code panel to one line (`c` opens it) and uses the room to show the step's what, why and carry forward.
-
-You can also move from VS Code: `‹ faro 3/6 ›` in the status bar, `alt+[` and `alt+]`, or the Faro Tour list in the Explorer. Asking, the lens and "I don't get it" stay in the pane, since they need Claude.
-
-How it works: Claude Code writes the reader's step to `.faro/follow.json` in the session's folder (the folder ignores itself in git); the extension shows it, beats on `.faro/ack.json` every few seconds so the pane knows it is paired, and writes your next, back and step requests to `.faro/control.json`, which Claude Code applies. A step written before VS Code opened is not followed, only the ones taken afterwards. Run Claude Code from the workspace's root folder so both sides use the same `.faro`.
-
-Turn it off on either side: `/tour follow off` in Claude Code (`/tour follow` shows the setting), or `faro.followClaudeCode: false` in VS Code. `faro.followClaudeCode.notes: false` keeps the highlights and drops the note.
-
 The Graph view of a tour is planned for the next version. Design and decisions: [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md).
 
 ## Development

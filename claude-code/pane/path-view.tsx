@@ -26,7 +26,6 @@ const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
 const draftingAtom = atom({ plugin: 'faro', key: 'drafting' } as const, null)
 const readerAtom = atom({ plugin: 'faro', key: 'reader' } as const, EMPTY_READER)
-const pairedAtom = atom({ plugin: 'faro', key: 'paired' } as const, false)
 
 // Below this many rows (VS Code's integrated terminal, typically) the pane
 // drops the rail for a one-line breadcrumb.
@@ -45,8 +44,7 @@ type Field = { label: string; text: string; color?: string }
 // the Faro mark, the steps and the tour's files (`f` hides it); and the
 // reader, with the current step's story and its code filling the rest of
 // the height, folded and windowed around the current beacon, the beacons
-// listed under it. While VS Code follows ("paired") the code is there, so
-// the code panel folds to one line and the story shows at least L1.
+// listed under it.
 
 export function drawPathView(on: On): void {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -82,7 +80,6 @@ export function drawPathView(on: On): void {
 
     const reader = await read($, readerAtom)
     const code = await read($, codeAtom)
-    const isPaired = await read($, pairedAtom)
     const rows = e.props.scroll.bodyRows
     const isShort = rows < SHORT_ROWS
     const isRail = !isShort && width >= RAIL_FROM_COLUMNS && !reader.isFileTreeHidden
@@ -90,8 +87,8 @@ export function drawPathView(on: On): void {
     const node = tour.current.nodeId ? tour.nodes[tour.current.nodeId] : undefined
     const { index, total } = pathPosition(tour)
     const stale = reader.stale[tour.id] ?? []
-    const isCodeFolded = isPaired || isShort ? !reader.isCodeToggled : reader.isCodeToggled
-    const depth = isPaired ? Math.max(tour.current.depth, 1) : tour.current.depth
+    const isCodeFolded = isShort ? !reader.isCodeToggled : reader.isCodeToggled
+    const depth = tour.current.depth
     const keys = PANE_KEYS.filter(
       (key) =>
         (key.action !== 'refresh' || (node && stale.includes(node.id))) &&
@@ -128,11 +125,10 @@ export function drawPathView(on: On): void {
               {isCodeTour(tour) ? 'code tour · ' : ''}
               {tour.lens}
             </Text>
-            {isPaired ? '  ⇄ VS Code' : ''}
           </Text>
           {reader.isStepListShown && plainSteps}
           {story}
-          {node && code && code.nodeId === node.id && foldedCode(ui, node, reader, code, isPaired)}
+          {node && code && code.nodeId === node.id && foldedCode(ui, node, reader, code)}
           {footer}
         </Box>
       )
@@ -150,7 +146,7 @@ export function drawPathView(on: On): void {
       node &&
       code &&
       code.nodeId === node.id &&
-      (isCodeFolded ? foldedCode(ui, node, reader, code, isPaired) : codePanel(ui, node, reader, code, codeRows, readerWidth))
+      (isCodeFolded ? foldedCode(ui, node, reader, code) : codePanel(ui, node, reader, code, codeRows, readerWidth))
     const header = (
       <Text wrap="truncate-end">
         {mark(ui)}
@@ -163,7 +159,6 @@ export function drawPathView(on: On): void {
           {'  '}
         </Text>
         {index + 1}/{total}
-        {isPaired ? '  ⇄ VS Code' : ''}
       </Text>
     )
 
@@ -444,22 +439,11 @@ function storyRows(node: TourNode | undefined, fields: Field[], width: number): 
 }
 
 // The code panel folded to one line: where the code is, and how to open it.
-function foldedCode({ Text }: Ui, node: TourNode, reader: ReaderState, code: CodeView, isPaired: boolean) {
+function foldedCode({ Text }: Ui, node: TourNode, reader: ReaderState, code: CodeView) {
   const count = node.beacons.length
-  const beacon = count > 0 ? node.beacons[reader.beaconIndex % count] : undefined
   const which = count > 1 ? ` · beacon ${(reader.beaconIndex % count) + 1} of ${count}` : ''
 
-  return isPaired && beacon ? (
-    <Text wrap="truncate-end">
-      <Text color={MARK}>⇄ </Text>Code in VS Code
-      <Text dimColor>
-        {'  '}
-        {beacon.file} L{beacon.line}
-        {which}
-        {'   '}c shows here
-      </Text>
-    </Text>
-  ) : (
+  return (
     <Text dimColor wrap="truncate-end">
       {code.path} {code.heading}
       {which}

@@ -1,12 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import { diffBaseOf } from '../src/core/model/follow.ts'
-import type { Tour, TourAnchor, TourBeacon, TourNode } from '../src/core/model/tour.ts'
+import type { Tour, TourAnchor, TourBeacon, TourNode, TourTarget } from '../src/core/model/tour.ts'
 import { hunksOverlapping } from './code-excerpt.ts'
 import { diffRows, sourceRows } from './code-window.ts'
 import { diffArgv } from './explain-args.ts'
-import { publishFollow } from './follow.ts'
 import { inSession } from './paths.ts'
 import { EMPTY_READER } from './state.ts'
 import type { FaroCodeView as CodeView } from './types'
@@ -27,7 +25,7 @@ export async function loadCode($: EngineInterface, tour: Tour, isWholeFile = fal
     return
   }
 
-  const { beaconIndex, isOtherLensShown } = await read($, readerAtom)
+  const { beaconIndex } = await read($, readerAtom)
   const beacon = node.beacons.length > 0 ? node.beacons[beaconIndex % node.beacons.length] : undefined
   const anchor = anchorFor(node, beacon)
 
@@ -38,9 +36,6 @@ export async function loadCode($: EngineInterface, tour: Tour, isWholeFile = fal
 
   const view = await codeView($, tour, node, anchor, isWholeFile)
   await update($, codeAtom, () => view)
-
-  // Every change of step or beacon comes through here, so VS Code follows.
-  await publishFollow($, tour, { beaconIndex, isOtherLensShown })
 }
 
 function anchorFor(node: TourNode, beacon: TourBeacon | undefined): TourAnchor | undefined {
@@ -87,6 +82,21 @@ async function codeView(
   const readOnly = diffArgv(tour.target, anchor.file) ? '' : ` ·${at} read only`
 
   return { ...base, heading: `${span} · ${rows.length} lines${readOnly}`, format: 'source', rows }
+}
+
+// The ref a tour of a change is compared against, for the heading.
+function diffBaseOf(target: TourTarget): string | undefined {
+  switch (target.kind) {
+    case 'worktree':
+      return target.baseSha ?? 'HEAD'
+    case 'range':
+      return target.baseSha ?? (target.ref.split(/\.{2,3}/)[0] || undefined)
+    case 'branch':
+    case 'pr':
+      return target.baseSha
+    default:
+      return undefined
+  }
 }
 
 async function readText($: EngineInterface, file: string): Promise<string | undefined> {

@@ -66,13 +66,6 @@ function tour(overrides: Record<string, unknown> = {}) {
 function engine(on: On, git: Record<string, string> = {}) {
   const submitted: string[] = []
   const filled: string[] = []
-  const written: Record<string, string> = {}
-  const mtimes: Record<string, number> = {}
-  // A file another process (the VS Code extension) writes.
-  const external = (path: string, text: string) => {
-    written[path] = text
-    mtimes[path] = (mtimes[path] ?? 0) + 1
-  }
 
   mock.store(on)
   on('tool.register', (_, e) => ({ value: { tool: `mcp__faro__${e.name}` } }))
@@ -82,19 +75,12 @@ function engine(on: On, git: Record<string, string> = {}) {
   // Like the engine's, a relative path would resolve against Claude Code's
   // own folder, so only paths under the session's folder are found.
   on('fs.read', (_, e) => {
-    if (e.path.startsWith('/repo/.faro/')) return { value: written[e.path] ?? '' }
     if (e.path.startsWith('/repo/')) return { value: SOURCE }
     throw new Error(`no such file: ${e.path}`)
   })
-  on('fs.write', (_, e) => {
-    external(e.path, e.text)
-    return { value: undefined }
-  })
   on('session.cwd', () => ({ value: '/repo' }))
-  on('fs.exists', (_, e) => ({ value: e.path in written }))
   on('fs.stat', (_, e) => {
     if (e.path.includes('src/')) return { value: { kind: 'dir', isLink: false, size: 0, mtimeMs: 0 } }
-    if (e.path in written) return { value: { kind: 'file', isLink: false, size: 1, mtimeMs: mtimes[e.path] ?? 0 } }
     throw new Error('missing')
   })
   on('process.run', (_, e) => {
@@ -119,7 +105,7 @@ function engine(on: On, git: Record<string, string> = {}) {
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return { submitted, filled, written, external }
+  return { submitted, filled }
 }
 
 test('tour_upsert stores a valid tour and returns advice on soft rules', async ($, on) => {
@@ -186,6 +172,10 @@ test('the code is open by default, its beacons tinted and listed, and o shows th
 
   await ui.press({ key: 'key-code' })
   expect(await ui.find({ type: 'Text', text: /whole file · 30 lines/ })).toBeDefined()
+
+  await ui.press({ key: 'key-codePanel' })
+  expect(await ui.find({ type: 'Code' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /c shows the code/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -266,27 +256,6 @@ test('a wide pane puts the logo, steps and files in a rail beside the reader, an
   await ui.press({ key: 'key-files' })
   expect(await ui.find({ type: 'Text', text: /\[#\]/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /FILES  \(f shows\)/ })).toBeDefined()
-  await ui.unmount()
-})
-
-test('each step is written for VS Code to follow, until /tour follow off', async ($, on) => {
-  const world = engine(on)
-  mock.clock(on)
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
-
-  const first = JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}')
-  expect(first).toMatchObject({ version: 1, root: '/repo', nodeId: 'login', step: 1, total: 3 })
-  expect(first.focus).toEqual({ file: 'src/login.ts', line: 5 })
-  expect(world.written['/repo/.faro/.gitignore']).toBe('*\n')
-
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  await ui.press({ key: 'key-next' })
-  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId).toBe('persist')
-
-  expect((await $.command.run({ ...TYPED, command: 'tour', args: 'follow off' })).text).toContain('does not follow')
-  await ui.press({ key: 'key-next' })
-  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId).toBe('persist')
   await ui.unmount()
 })
 
@@ -394,52 +363,6 @@ test('/tour pin keeps a tour that /tour open brings back', async ($, on) => {
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'open auth' })).text).toContain('pinned tour auth')
 })
 
-test('a VS Code heartbeat pairs the pane: the code folds to one line and c opens it', async ($, on) => {
-  const world = engine(on)
-  const clock = mock.clock(on)
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
-  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  await clock.advance(400)
-
-  expect(await ui.find({ type: 'Code' })).toBeDefined()
-
-  world.external('/repo/.faro/ack.json', '{}')
-  await clock.advance(400)
-  expect(await ui.find({ type: 'Text', text: /⇄ VS Code/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /⇄ Code in VS Code  src\/login\.ts L5/ })).toBeDefined()
-  expect(await ui.find({ type: 'Code' })).toBeUndefined()
-
-  await ui.press({ key: 'key-codePanel' })
-  expect(await ui.find({ type: 'Code' })).toBeDefined()
-
-  // No beat for longer than the extension's interval allows: solo again.
-  await clock.advance(13_000)
-  expect(await ui.find({ type: 'Text', text: /⇄ VS Code/ })).toBeUndefined()
-  await ui.unmount()
-})
-
-test('VS Code moves the tour through control.json, and only for the active tour', async ($, on) => {
-  const world = engine(on)
-  const clock = mock.clock(on)
-  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
-  await clock.advance(400)
-  const step = () => JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').nodeId
-
-  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '1', tourId: 'session-persistence', action: 'next' }))
-  await clock.advance(400)
-  expect(step()).toBe('persist')
-
-  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '2', tourId: 'other', action: 'next' }))
-  await clock.advance(400)
-  expect(step()).toBe('persist')
-
-  world.external('/repo/.faro/control.json', JSON.stringify({ version: 1, id: '3', tourId: 'session-persistence', action: 'step', nodeId: 'login' }))
-  await clock.advance(400)
-  expect(step()).toBe('login')
-})
-
 test('a long headline wraps under its number while its step row is cut with an ellipsis', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
@@ -486,6 +409,5 @@ test('a tour of existing code reads as one: no diff, read-only code, Does and Ca
   expect(await ui.find({ type: 'Text', text: /^Carry on$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^\[role: guard clause\]$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /inferred: no commit says so/ })).toBeDefined()
-  expect(JSON.parse(world.written['/repo/.faro/follow.json'] ?? '{}').diffBase).toBeUndefined()
   await ui.unmount()
 })

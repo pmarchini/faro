@@ -45,13 +45,6 @@
           "name": "Home",
           "type": "webview"
         }
-      ],
-      "explorer": [
-        {
-          "id": "faro.followTour",
-          "name": "Faro Tour",
-          "when": "faro.following"
-        }
       ]
     },
     "mcpServerDefinitionProviders": [
@@ -67,16 +60,6 @@
           "type": "boolean",
           "default": false,
           "description": "Focus the Faro view container automatically when the extension activates."
-        },
-        "faro.followClaudeCode": {
-          "type": "boolean",
-          "default": true,
-          "description": "Follow a Faro tour read in Claude Code: open and highlight each step's code as the reader moves through the tour. Claude Code writes the step to .faro/follow.json in the workspace."
-        },
-        "faro.followClaudeCode.notes": {
-          "type": "boolean",
-          "default": true,
-          "description": "While following Claude Code, pin the step's details (summary, why, what to look at, what to carry forward) as a read-only note under its beacon line."
         }
       }
     },
@@ -104,38 +87,6 @@
       {
         "command": "faro.setCurrentBeacon",
         "title": "Faro: Set Current Beacon"
-      },
-      {
-        "command": "faro.follow.next",
-        "title": "Faro: Next Step in Claude Code"
-      },
-      {
-        "command": "faro.follow.back",
-        "title": "Faro: Previous Step in Claude Code"
-      },
-      {
-        "command": "faro.follow.step",
-        "title": "Faro: Go to Step in Claude Code"
-      }
-    ],
-    "menus": {
-      "commandPalette": [
-        {
-          "command": "faro.follow.step",
-          "when": "false"
-        }
-      ]
-    },
-    "keybindings": [
-      {
-        "command": "faro.follow.next",
-        "key": "alt+]",
-        "when": "faro.following"
-      },
-      {
-        "command": "faro.follow.back",
-        "key": "alt+[",
-        "when": "faro.following"
       }
     ]
   },

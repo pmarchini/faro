@@ -57,9 +57,6 @@ test("package manifest contributes the full faro UI and command surface", () => 
       "faro.revealCurrentBeacon",
       "faro.setActivePath",
       "faro.setCurrentBeacon",
-      "faro.follow.next",
-      "faro.follow.back",
-      "faro.follow.step",
     ],
   );
   assert.deepEqual(
