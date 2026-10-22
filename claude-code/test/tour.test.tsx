@@ -428,10 +428,10 @@ test('a tour of existing code reads as one: no diff, read-only code, Does and Ca
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
   // The question is the tour's goal; in the header it would push the step count off.
-  expect(await ui.find({ type: 'Text', text: /^  \[code tour\]$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ code tour $/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /L1–10 · 10 lines · read only/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^Carry on$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^\[role: guard clause\]$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ role: guard clause $/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /inferred: no commit says so/ })).toBeDefined()
   await ui.unmount()
 })

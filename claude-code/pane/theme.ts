@@ -10,3 +10,9 @@ export const REMOVED = '#e06c75'
 export const CURRENT_BEACON_ROW = '#3b3220'
 export const BEACON_ROW = '#2a2a24'
 export const FOLD_ROW = '#15171c'
+// Frames and chips: the code card's border, a chip's or key badge's ground,
+// the rail's ground and the current step's row.
+export const BORDER = '#3a3f4b'
+export const CHIP = '#262a33'
+export const RAIL = '#16181d'
+export const CURRENT_STEP_ROW = '#3b3220'

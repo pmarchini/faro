@@ -15,10 +15,14 @@ import {
   ACCENT_SOFT,
   ADDED,
   BEACON_ROW,
+  BORDER,
+  CHIP,
+  CURRENT_STEP_ROW,
   CURRENT_BEACON_ROW,
   FOLD_ROW,
   MARK,
   MARK_LIGHT,
+  RAIL,
   REMOVED,
 } from './theme.ts'
 
@@ -35,6 +39,9 @@ const RAIL_COLUMNS = 30
 const RAIL_FROM_COLUMNS = 90
 // The width of a story field's label, so its text wraps under itself.
 const FIELD_WIDTH = 11
+// The code card's border and padding, in rows and columns.
+const CARD_ROWS = 2
+const CARD_COLUMNS = 4
 const MIN_CODE_ROWS = 6
 
 type Ui = Elements[keyof Elements]
@@ -140,7 +147,7 @@ export function drawPathView(on: On): void {
     const footerRows = Math.ceil(keys.reduce((sum, key) => sum + key.label.length + 5, 0) / width)
     const codeRows = Math.max(
       MIN_CODE_ROWS,
-      rows - 4 - stackedRows - storyRows(node, fields, readerWidth) - 1 - beaconRows - footerRows,
+      rows - 4 - stackedRows - storyRows(node, fields, readerWidth) - 1 - beaconRows - footerRows - CARD_ROWS,
     )
     const codeSection =
       node &&
@@ -152,7 +159,10 @@ export function drawPathView(on: On): void {
         {mark(ui)}
         {'  '}
         <Text bold>{tour.title}</Text>
-        <Text color="suggestion">{isCodeTour(tour) ? `  [code tour${tour.target.kind === 'code' && tour.target.ref ? ` · ${tour.target.ref}` : ''}]` : ''}</Text>
+        {isCodeTour(tour) ? '  ' : ''}
+        <Text color="suggestion" backgroundColor={isCodeTour(tour) ? CHIP : undefined}>
+          {isCodeTour(tour) ? ` code tour${tour.target.kind === 'code' && tour.target.ref ? ` · ${tour.target.ref}` : ''} ` : ''}
+        </Text>
         <Text dimColor>
           {'  '}
           {tour.lens}
@@ -196,7 +206,7 @@ export function drawPathView(on: On): void {
         </Text>
         <Text dimColor>{rule}</Text>
         <Box flexDirection="row" columnGap={1}>
-          <Box flexDirection="column" width={RAIL_COLUMNS} flexShrink={0}>
+          <Box flexDirection="column" width={RAIL_COLUMNS} flexShrink={0} backgroundColor={RAIL}>
             <Box marginLeft={Math.floor((RAIL_COLUMNS - LOGO_WIDTH) / 2)}>{logo(ui)}</Box>
             <Text dimColor>STEPS</Text>
             {tour.path.map((id, position) => {
@@ -310,7 +320,9 @@ function railStep(
       </Box>
       <Box flexShrink={1}>
         <Button key={`node-${node.id}`} plain onPress={onPress}>
-          <Text bold={isCurrent}>{node.title}</Text>
+          <Text bold={isCurrent} backgroundColor={isCurrent ? CURRENT_STEP_ROW : undefined}>
+            {node.title}
+          </Text>
           <Text color="warning">{flags}</Text>
         </Button>
       </Box>
@@ -397,7 +409,7 @@ function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: Reade
           <Text bold>{node.title}</Text>
         </Box>
         <Box flexShrink={0} marginLeft={1}>
-          <Text dimColor>{chip}</Text>
+          <Text dimColor backgroundColor={CHIP}>{chip}</Text>
         </Box>
       </Box>
       {fields.map((field) =>
@@ -423,7 +435,7 @@ function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: Reade
 }
 
 function chipText(tour: Tour, node: TourNode): string {
-  return node.plan ? `[${isCodeTour(tour) ? 'role: ' : ''}${node.plan}]` : ''
+  return node.plan ? ` ${isCodeTour(tour) ? 'role: ' : ''}${node.plan} ` : ''
 }
 
 // How many rows the story takes once wrapped, to size the code under it.
@@ -473,18 +485,25 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
   const gutter = Math.max(2, ...numbers.map((number) => String(number).length))
 
   return (
-    <Box flexDirection="column" paddingLeft={1}>
-      <Text wrap="truncate-end">
-        <Text bold>{code.path}</Text>
-        <Text dimColor>
-          {'  '}
-          {code.heading}
-          {view.hidden.above + view.hidden.below > 0 ? `  · ${view.hidden.above} above, ${view.hidden.below} below` : ''}
-          {'   '}c hides
+    <Box flexDirection="column" borderStyle="round" borderColor={BORDER} paddingX={1}>
+      <Box flexDirection="row" columnGap={2}>
+        <Box flexGrow={1} flexShrink={1}>
+          <Text wrap="truncate-end">
+            <Text bold>{code.path}</Text>
+            <Text dimColor>
+              {'  '}
+              {code.heading}
+              {view.hidden.above + view.hidden.below > 0 ? `  · ${view.hidden.above} above, ${view.hidden.below} below` : ''}
+            </Text>
+          </Text>
+        </Box>
+        <Text>
+          {badge(ui, 'c')}
+          <Text dimColor> hide</Text>
         </Text>
-      </Text>
+      </Box>
       <Box flexDirection="row">
-        <Box flexDirection="column" flexShrink={1} width={Math.max(10, width - 3)}>
+        <Box flexDirection="column" flexShrink={1} width={Math.max(10, width - 3 - CARD_COLUMNS)}>
           {codeRuns(view.rows, code).map((run) => drawRun(ui, run, code, gutter))}
         </Box>
         {view.track.length > 0 && (
@@ -509,7 +528,8 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
         </Text>
       ))}
       <Text dimColor wrap="truncate-end">
-        b next beacon · n/p scroll · f {reader.isCodeFolded ? 'unfold' : 'fold'} · o {code.isWholeFile ? 'the step' : 'whole file'}
+        {badge(ui, 'b')} next beacon  {badge(ui, 'n p')} scroll  {badge(ui, 'f')} {reader.isCodeFolded ? 'unfold' : 'fold'}  {badge(ui, 'o')}{' '}
+        {code.isWholeFile ? 'the step' : 'whole file'}
       </Text>
     </Box>
   )
@@ -544,9 +564,9 @@ function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: numb
   if (run.kind === 'plain') {
     return (
       <Box flexDirection="row">
-        <Box flexDirection="column" width={gutter + 3} flexShrink={0}>
+        <Box flexDirection="column" width={gutter + 4} flexShrink={0}>
           {run.rows.map((row) => (
-            <Text dimColor>{`${number(row)}   `}</Text>
+            <Text dimColor>{` ${number(row)}   `}</Text>
           ))}
         </Box>
         <Code source={run.rows.map((row) => row.text).join('\n')} path={code.path} wrap="truncate-end" />
@@ -559,24 +579,27 @@ function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: numb
   if (row.kind === 'fold') {
     return (
       <Text dimColor backgroundColor={FOLD_ROW} wrap="truncate-end">
-        {`${'⋯'.padStart(gutter)}   ${row.count} lines folded · f unfolds`}
+        {` ${'⋯'.padStart(gutter)}   ${row.count} lines folded · f unfolds`}
       </Text>
     )
   }
 
   const color = row.row.marker === '+' ? ADDED : row.row.marker === '-' ? REMOVED : undefined
   const line = `${number(row.row)} ${row.row.marker} ${row.row.text}`
+  // One column before the number: the current beacon's bar, else blank.
+  const bar = row.beacon?.isCurrent ? <Text color={ACCENT}>▌</Text> : <Text> </Text>
 
   if (!row.beacon) {
     return (
       <Text color={color} wrap="truncate-end">
-        {line}
+        {` ${line}`}
       </Text>
     )
   }
 
   return (
     <Box flexDirection="row">
+      {bar}
       <Box flexGrow={1} flexShrink={1}>
         <Text
           bold={row.beacon.isCurrent}
@@ -591,6 +614,15 @@ function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: numb
         {` ${row.beacon.isCurrent ? '◀' : '◁'} ${row.beacon.index + 1}`}
       </Text>
     </Box>
+  )
+}
+
+// A key as a badge, as the design draws keys.
+function badge({ Text }: Ui, keys: string) {
+  return (
+    <Text bold color="text" backgroundColor={BORDER}>
+      {` ${keys} `}
+    </Text>
   )
 }
 
