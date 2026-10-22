@@ -14,16 +14,8 @@ export const LOGO_ROWS: readonly string[] = [
 
 export const LOGO_WIDTH = 13
 
-// The name beside the mark, in figlet's standard font.
-export const WORDMARK_ROWS: readonly string[] = [
-  " _____ _    ____   ___   ",
-  "|  ___/ \\  |  _ \\ / _ \\  ",
-  "| |_ / _ \\ | |_) | | | | ",
-  "|  _/ ___ \\|  _ <| |_| | ",
-  "|_|/_/   \\_\\_| \\_\\\\___/  ",
-]
-
-export const WORDMARK_WIDTH = 25
+// The name under the mark, centred on the base line.
+export const WORDMARK = '   F A R O   '
 
 export type LogoSegment = { text: string; isLight: boolean }
 

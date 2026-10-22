@@ -7,7 +7,7 @@ import { EMPTY_DOCUMENT, EMPTY_READER, PANE } from '../state.ts'
 import type { FaroCodeView as CodeView, FaroReader as ReaderState } from '../types'
 import { runAction, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
-import { LOGO_ROWS, LOGO_WIDTH, WORDMARK_ROWS, logoSegments } from './logo.ts'
+import { LOGO_ROWS, LOGO_WIDTH, WORDMARK, logoSegments } from './logo.ts'
 import { fileTree, type TreeFile } from '../file-tree.ts'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
@@ -31,7 +31,7 @@ export function drawPathView(on: On): void {
     if (drafting) {
       return (
         <Box flexDirection="column">
-          {brand(ui, width)}
+          {logo(ui)}
           <Text bold>Drafting a tour</Text>
           <Text>{drafting.label}</Text>
           <Text dimColor>{drafting.detail}</Text>
@@ -43,7 +43,7 @@ export function drawPathView(on: On): void {
     if (!tour) {
       return (
         <Box flexDirection="column">
-          {brand(ui, width)}
+          {logo(ui)}
           <Text>No tour yet.</Text>
           <Text dimColor>Run /explain to explain your changes, or /explain "how does X work?" for existing code.</Text>
         </Box>
@@ -63,7 +63,6 @@ export function drawPathView(on: On): void {
         <Box flexDirection="row" columnGap={2}>
           {width >= 60 && logo(ui)}
           <Box flexDirection="column" flexShrink={1}>
-            {width >= 60 && wordmark(ui)}
             <Text wrap="truncate-end">
               <Text bold>{tour.title}</Text>
               <Text dimColor>
@@ -126,33 +125,7 @@ function logo({ Box, Text }: Ui) {
           )}
         </Text>
       ))}
-    </Box>
-  )
-}
-
-function wordmark({ Box, Text }: Ui) {
-  return (
-    <Box flexDirection="column" flexShrink={0}>
-      {WORDMARK_ROWS.map((row) => (
-        <Text bold>{row}</Text>
-      ))}
-    </Box>
-  )
-}
-
-// The mark and the name side by side, for the screens with room to spare;
-// the name alone when the pane is too narrow for both.
-function brand(ui: Ui, width: number) {
-  const { Box } = ui
-
-  if (width < LOGO_WIDTH + 2 + WORDMARK_ROWS[0]!.length) {
-    return wordmark(ui)
-  }
-
-  return (
-    <Box flexDirection="row" columnGap={2} alignItems="center">
-      {logo(ui)}
-      {wordmark(ui)}
+      <Text bold>{WORDMARK}</Text>
     </Box>
   )
 }
