@@ -26,6 +26,14 @@ function signal(overrides: Partial<FollowSignal> = {}): FollowSignal {
       { file: "src/session.ts", range: { startLine: 40, endLine: 42 } },
     ],
     focus: { file: "src/session.ts", line: 14 },
+    note: {
+      plan: "write-through",
+      lens: "flow",
+      whatItDoes: "Writes the session row.",
+      why: { text: "Sessions must survive a restart.", source: "inferred" },
+      beacon: { label: "persist()", line: 14 },
+      carryForward: "The row id is the session id.",
+    },
     updatedAt: 1,
     ...overrides,
   };
@@ -75,6 +83,25 @@ test("follow view opens the beacon's file with its anchors and centres the beaco
   ]);
   assert.equal(view.focusLine, 14);
   assert.equal(view.status, "Faro 2/5 · Session is persisted");
+  assert.equal(view.beaconLabel, "persist()");
+  assert.equal(
+    view.note,
+    [
+      "**2/5 · Session is persisted** · _write-through_",
+      "",
+      "The session row is written.",
+      "",
+      "**What it does:** Writes the session row.",
+      "",
+      "**Why:** Sessions must survive a restart. _(inferred)_",
+      "",
+      "**Look at:** `persist()`, line 14",
+      "",
+      "**Carry forward:** The row id is the session id.",
+      "",
+      "_Login flow · flow lens · following Claude Code_",
+    ].join("\n"),
+  );
 });
 
 test("follow view falls back to the first anchor and the workspace root", () => {

@@ -20,8 +20,32 @@ test("the follow signal names the current step and its beacon", () => {
     summary: "What happens in n2",
     anchors: [{ file: "src/n2.ts", range: { startLine: 1, endLine: 10 } }],
     focus: { file: "src/n2.ts", line: 3 },
+    note: {
+      plan: "guard clause",
+      lens: "flow",
+      beacon: { label: "n2()", line: 3 },
+      carryForward: "Hold n2 in mind",
+    },
     updatedAt: 5,
   });
+});
+
+test("the follow note is written in the lens the pane shows", () => {
+  const node = createNode("n1", {
+    whatItDoes: "flow text",
+    otherLens: { summary: "domain summary", whatItDoes: "domain text", why: { text: "because", source: "inferred" } },
+  });
+  const tour = createTour({ nodes: { ...createTour().nodes, n1: node } });
+
+  const flow = createFollowSignal(tour, { beaconIndex: 0, now: 0 });
+  const domain = createFollowSignal(tour, { beaconIndex: 0, now: 0, isOtherLensShown: true });
+
+  assert.equal(flow?.note?.whatItDoes, "flow text");
+  assert.equal(domain?.summary, "domain summary");
+  assert.deepEqual(
+    { lens: domain?.note?.lens, whatItDoes: domain?.note?.whatItDoes, why: domain?.note?.why?.text },
+    { lens: "domain", whatItDoes: "domain text", why: "because" },
+  );
 });
 
 test("the follow signal cycles beacons and leaves focus out when there are none", () => {

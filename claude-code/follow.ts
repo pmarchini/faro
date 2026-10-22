@@ -13,14 +13,18 @@ export async function isFollowOn($: EngineInterface): Promise<boolean> {
   return (await $.store.get(FOLLOW_KEY)) !== false
 }
 
-export async function publishFollow($: EngineInterface, tour: Tour, beaconIndex: number): Promise<void> {
+export async function publishFollow(
+  $: EngineInterface,
+  tour: Tour,
+  reader: { beaconIndex: number; isOtherLensShown: boolean },
+): Promise<void> {
   if (!(await isFollowOn($))) {
     return
   }
 
   try {
     const root = await $.session.cwd()
-    const signal = createFollowSignal(tour, { beaconIndex, root, now: await $.clock.now() })
+    const signal = createFollowSignal(tour, { ...reader, root, now: await $.clock.now() })
 
     if (!signal) {
       return

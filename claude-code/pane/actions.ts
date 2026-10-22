@@ -4,6 +4,7 @@ import type { EngineInterface } from 'claude-code'
 import type { FaroDocumentV2 } from '../../src/core/model/tour.ts'
 import { changeDepth, focusNode, getTour, moveOnPath } from '../../src/core/services/tour-machine.ts'
 import { loadCode } from '../code-view.ts'
+import { publishFollow } from '../follow.ts'
 import { askPrompt, otherLensPrompt, refreshPrompt, simplerPrompt } from '../prompts.ts'
 import { EMPTY_DOCUMENT, EMPTY_READER, addOnce } from '../state.ts'
 import type { PaneAction } from './keys.ts'
@@ -66,6 +67,7 @@ export async function runAction($: EngineInterface, action: PaneAction): Promise
     case 'lens': {
       const reader = await read($, readerAtom)
       await update($, readerAtom, (current) => ({ ...current, isOtherLensShown: !current.isOtherLensShown }))
+      await publishFollow($, tour, { beaconIndex: reader.beaconIndex, isOtherLensShown: !reader.isOtherLensShown })
 
       // The other lens is written on demand, the first time it is asked for.
       if (!reader.isOtherLensShown && !node.otherLens) {

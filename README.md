@@ -180,9 +180,9 @@ In the pane: `j`/`k` move along the path, `e`/`c` show more or less, `l` switche
 
 ### Follow the tour in VS Code
 
-With the Faro VS Code extension installed and the same folder open, VS Code follows the tour as you walk it in Claude Code: each step opens its file as a preview tab beside your terminal, without taking focus, with the step's ranges highlighted, its beacon line marked and centred, and the step named in the status bar (`Faro 3/6 · …`). Claude Code writes the reader's step to `.faro/follow.json` in the session's folder (the folder ignores itself in git), and the extension watches that file. A step written before VS Code opened is not followed, only the ones you take afterwards. Run Claude Code from the workspace's root folder so the extension finds the file.
+With the Faro VS Code extension installed and the same folder open, VS Code follows the tour as you walk it in Claude Code: each step opens its file as a preview tab beside your terminal, without taking focus, with the step's ranges highlighted, its beacon line marked and centred, the step named in the status bar (`Faro 3/6 · …`), and the step's details (summary, why, the line to look at, what to carry forward) pinned as a read-only note under the beacon line, in whichever lens the pane is showing. Hovering the beacon line shows the same note. Claude Code writes the reader's step to `.faro/follow.json` in the session's folder (the folder ignores itself in git), and the extension watches that file. A step written before VS Code opened is not followed, only the ones you take afterwards. Run Claude Code from the workspace's root folder so the extension finds the file.
 
-Turn it off on either side: `/tour follow off` in Claude Code (`/tour follow` shows the setting), or `faro.followClaudeCode: false` in VS Code.
+Turn it off on either side: `/tour follow off` in Claude Code (`/tour follow` shows the setting), or `faro.followClaudeCode: false` in VS Code. `faro.followClaudeCode.notes: false` keeps the highlights and drops the pinned note.
 
 The Graph view of a tour is planned for the next version. Design and decisions: [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md).
 

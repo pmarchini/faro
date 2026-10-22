@@ -23,7 +23,7 @@ export async function loadCode($: EngineInterface, tour: Tour, isFull = true): P
     return
   }
 
-  const { beaconIndex } = await read($, readerAtom)
+  const { beaconIndex, isOtherLensShown } = await read($, readerAtom)
   const beacon = node.beacons.length > 0 ? node.beacons[beaconIndex % node.beacons.length] : undefined
   const anchor = anchorFor(node, beacon)
 
@@ -36,7 +36,7 @@ export async function loadCode($: EngineInterface, tour: Tour, isFull = true): P
   await update($, codeAtom, () => view)
 
   // Every change of step or beacon comes through here, so VS Code follows.
-  await publishFollow($, tour, beaconIndex)
+  await publishFollow($, tour, { beaconIndex, isOtherLensShown })
 }
 
 function anchorFor(node: TourNode, beacon: TourBeacon | undefined): TourAnchor | undefined {

@@ -65,6 +65,11 @@
           "type": "boolean",
           "default": true,
           "description": "Follow a Faro tour read in Claude Code: open and highlight each step's code as the reader moves through the tour. Claude Code writes the step to .faro/follow.json in the workspace."
+        },
+        "faro.followClaudeCode.notes": {
+          "type": "boolean",
+          "default": true,
+          "description": "While following Claude Code, pin the step's details (summary, why, what to look at, what to carry forward) as a read-only note under its beacon line."
         }
       }
     },

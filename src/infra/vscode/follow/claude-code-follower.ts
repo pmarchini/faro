@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { FOLLOW_FILE, parseFollowSignal, type FollowSignal } from "../../../core/model/follow.ts";
+import { renderFollowNote } from "./follow-note.ts";
 
 // Follows a Faro tour that is being read in Claude Code: the Claude Code
 // plugin writes the reader's step to .faro/follow.json, and on every change
@@ -16,6 +17,8 @@ export type FollowView = {
   filePath: string;
   lines: Array<{ startLine: number; endLine: number }>;
   focusLine: number;
+  beaconLabel?: string;
+  note: string;
   status: string;
   tooltip: string;
 };
@@ -103,6 +106,8 @@ export function createFollowView(signal: FollowSignal, workspaceRoot: string): F
     filePath: path.resolve(root, file),
     lines,
     focusLine,
+    beaconLabel: signal.note?.beacon?.label,
+    note: renderFollowNote(signal),
     status: `Faro ${signal.step}/${signal.total} · ${signal.title}`,
     tooltip: `${signal.tourTitle}\n${signal.summary}\nFollowing the tour in Claude Code (faro.followClaudeCode).`,
   };

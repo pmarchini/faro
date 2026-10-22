@@ -2,7 +2,7 @@ import { unwatchFile, watchFile } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-import type { VscodeLike, VscodeTextEditorDecorationType } from "../vscode-api.ts";
+import type { VscodeCommentThread, VscodeLike, VscodeTextEditorDecorationType } from "../vscode-api.ts";
 import type { FollowPorts, FollowView } from "./claude-code-follower.ts";
 
 type FollowEditor = {
@@ -12,7 +12,8 @@ type FollowEditor = {
 
 // The VS Code side of following: polling the signal file (fs.watch misses
 // a file that does not exist yet), a preview editor that leaves focus in the
-// terminal, two highlights and a status bar item.
+// terminal, two highlights, the step's note pinned under the beacon line,
+// and a status bar item.
 export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): FollowPorts {
   const anchorDecoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
@@ -21,9 +22,14 @@ export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): Fol
   const focusDecoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: "rgba(255, 208, 0, 0.22)",
+    after: { margin: "0 0 0 2em", color: "rgba(255, 208, 0, 0.8)" },
   });
   const statusItem = vscode.window.createStatusBarItem?.();
+  // A controller with no commenting ranges: people cannot add to it, so the
+  // only thread on the code is Faro's read-only note.
+  const notes = vscode.comments?.createCommentController("faro.follow", "Faro");
   let editor: FollowEditor | null = null;
+  let thread: VscodeCommentThread | null = null;
 
   function clearEditor(): void {
     if (editor) {
@@ -31,6 +37,30 @@ export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): Fol
       void editor.setDecorations(focusDecoration, []);
       editor = null;
     }
+  }
+
+  function clearNote(): void {
+    thread?.dispose();
+    thread = null;
+  }
+
+  function showNote(uri: unknown, line: unknown, view: FollowView): void {
+    clearNote();
+
+    if (!notes || !vscode.MarkdownString || !isNotesOn(vscode)) {
+      return;
+    }
+
+    thread = notes.createCommentThread(uri, line, [
+      {
+        body: new vscode.MarkdownString(view.note),
+        mode: vscode.CommentMode?.Preview,
+        author: { name: "Faro" },
+      },
+    ]);
+    thread.canReply = false;
+    thread.label = view.status;
+    thread.collapsibleState = vscode.CommentThreadCollapsibleState?.Expanded;
   }
 
   return {
@@ -60,9 +90,8 @@ export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): Fol
       return vscode.workspace.getConfiguration("faro").get("followClaudeCode", true);
     },
     async show(view: FollowView) {
-      const document = await vscode.workspace.openTextDocument(
-        vscode.Uri.parse(pathToFileURL(view.filePath).href),
-      );
+      const uri = vscode.Uri.parse(pathToFileURL(view.filePath).href);
+      const document = await vscode.workspace.openTextDocument(uri);
       const next = (await vscode.window.showTextDocument(document, {
         preserveFocus: true,
         preview: true,
@@ -82,8 +111,15 @@ export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): Fol
         anchorDecoration,
         view.lines.map((line) => lineRange(vscode, line.startLine, line.endLine)),
       );
-      await next.setDecorations(focusDecoration, [focus]);
+      await next.setDecorations(focusDecoration, [
+        {
+          range: focus,
+          hoverMessage: vscode.MarkdownString ? new vscode.MarkdownString(view.note) : view.note,
+          renderOptions: view.beaconLabel ? { after: { contentText: `◂ ${view.beaconLabel}` } } : undefined,
+        },
+      ]);
       await next.revealRange(focus, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+      showNote(uri, focus, view);
       editor = next;
 
       if (statusItem) {
@@ -94,11 +130,17 @@ export function createVscodeFollowPorts({ vscode }: { vscode: VscodeLike }): Fol
     },
     dispose() {
       clearEditor();
+      clearNote();
+      notes?.dispose();
       anchorDecoration.dispose();
       focusDecoration.dispose();
       statusItem?.dispose();
     },
   };
+}
+
+function isNotesOn(vscode: VscodeLike): boolean {
+  return vscode.workspace.getConfiguration("faro").get("followClaudeCode.notes", true);
 }
 
 function lineRange(vscode: VscodeLike, startLine: number, endLine: number): unknown {

@@ -9,7 +9,7 @@ export type Disposable = {
 
 export type VscodeDecorationRenderOptions = Pick<
   DecorationRenderOptions,
-  "isWholeLine" | "backgroundColor"
+  "isWholeLine" | "backgroundColor" | "after"
 >;
 
 export type VscodeTextEditorDecorationType = Pick<
@@ -21,6 +21,24 @@ export type VscodeStatusBarItem = {
   text: string;
   tooltip?: string;
   show(): void;
+  dispose(): void;
+};
+
+export type VscodeComment = {
+  body: unknown;
+  mode: unknown;
+  author: { name: string };
+};
+
+export type VscodeCommentThread = {
+  canReply: boolean;
+  label?: string;
+  collapsibleState: unknown;
+  dispose(): void;
+};
+
+export type VscodeCommentController = {
+  createCommentThread(uri: unknown, range: unknown, comments: VscodeComment[]): VscodeCommentThread;
   dispose(): void;
 };
 
@@ -72,6 +90,12 @@ export type VscodeLike = {
       get<T>(key: string, defaultValue: T): T;
     };
   };
+  comments?: {
+    createCommentController(id: string, label: string): VscodeCommentController;
+  };
+  MarkdownString?: new (value?: string) => unknown;
+  CommentMode?: { Preview: unknown };
+  CommentThreadCollapsibleState?: { Expanded: unknown };
   lm: {
     registerMcpServerDefinitionProvider(id: string, provider: unknown): Disposable;
   };
