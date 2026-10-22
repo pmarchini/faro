@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LOGO_ROWS, LOGO_WIDTH, WORDMARK, logoSegments } from "../../claude-code/pane/logo.ts";
+import { LOGO_ROWS, LOGO_WIDTH, WORDMARK_ROWS, WORDMARK_WIDTH, logoSegments } from "../../claude-code/pane/logo.ts";
 
 test("every logo row is the logo's width, so the header beside it stays aligned", () => {
   assert.ok(LOGO_ROWS.every((row) => row.length === LOGO_WIDTH));
-  assert.equal(WORDMARK.length, LOGO_WIDTH);
+  assert.ok(WORDMARK_ROWS.every((row) => row.length === WORDMARK_WIDTH));
 });
 
 test("logo segments split the hexagon from the lighthouse and keep every character", () => {

@@ -196,7 +196,7 @@ test('the Faro logo heads the empty pane, and the tour pane when there is room',
 
   const empty = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await empty.find(lighthouse)).toBeDefined()
-  expect(await empty.find({ type: 'Text', text: /F A R O/ })).toBeDefined()
+  expect(await empty.find({ type: 'Text', text: /\|_\|\/_\/   \\_\\_\| \\_\\\\___\// })).toBeDefined()
   expect(await empty.find({ type: 'Text', text: /No tour yet/ })).toBeDefined()
   await empty.unmount()
 
