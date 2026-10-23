@@ -70,7 +70,12 @@ function engine(on: On, git: Record<string, string> = {}) {
   mock.store(on)
   on('tool.register', (_, e) => ({ value: { tool: `mcp__faro__${e.name}` } }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const panes = { opened: 0 }
+  on('ui.open', () => {
+    panes.opened += 1
+    return { value: { isPlaced: true } }
+  })
+  on('session.id', () => ({ value: 'session-1' }))
   on('ui.close', () => ({ value: undefined }))
   // Every .ts file under /repo exists, except under /repo/auth/.
   const isFile = (path: string) => path.startsWith('/repo/') && path.endsWith('.ts') && !path.startsWith('/repo/auth/')
@@ -106,7 +111,7 @@ function engine(on: On, git: Record<string, string> = {}) {
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return { submitted, filled }
+  return { submitted, filled, panes }
 }
 
 test('tour_upsert stores a valid tour and returns advice on soft rules', async ($, on) => {
@@ -386,6 +391,23 @@ test('/tour pin keeps a tour that /tour open brings back', async ($, on) => {
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'list' })).text).toContain('auth  Session persistence  (pinned)')
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'drop session-persistence' })).text).toContain('Dropped')
   expect((await $.command.run({ ...TYPED, command: 'tour', args: 'open auth' })).text).toContain('pinned tour auth')
+})
+
+test('a resumed session brings back its tour and opens the pane again', async ($, on) => {
+  const world = engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  await $.tool.call({ tool: 'mcp__faro__tour_focus', tourId: 'session-persistence', nodeId: 'persist' })
+  // The state a new process starts with: no tour in memory.
+  await $.command.run({ ...TYPED, command: 'tour', args: 'drop session-persistence' })
+  const opened = world.panes.opened
+
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+
+  expect(world.panes.opened).toBe(opened + 1)
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Session persistence/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('a long headline wraps under its number while its step row is cut with an ellipsis', async ($, on) => {

@@ -21,6 +21,7 @@ export const EMPTY_READER: FaroReader = {
   isStepListShown: false,
   codeOffset: 0,
   isCodeFolded: false,
+  isPaneOpen: false,
 }
 
 export function addOnce(list: readonly string[] | undefined, id: string): string[] {

@@ -6,6 +6,7 @@ import { lintTour } from '../src/core/model/tour-validation.ts'
 import { focusNode, getTour, updateNode, upsertTour } from '../src/core/services/tour-machine.ts'
 import { loadCode } from './code-view.ts'
 import { openPane } from './pane/open.ts'
+import { saveSession } from './resume.ts'
 import { EMPTY_DOCUMENT, EMPTY_READER, PINNED_KEY, addOnce } from './state.ts'
 
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
@@ -100,6 +101,7 @@ export function serveTools(on: On): void {
     }
 
     await openPane($)
+    await saveSession($)
     const advice = stored ? lintTour(stored) : []
 
     return {
@@ -135,6 +137,7 @@ export function serveTools(on: On): void {
       await loadCode($, tour)
     }
 
+    await saveSession($)
     return { result: `Node ${node.id} of tour ${tourId} is updated.` }
   })
 

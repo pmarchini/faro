@@ -71,6 +71,8 @@ export type FaroReader = {
   // `f` folded the lines far from every beacon (the code starts unfolded).
   codeOffset: number
   isCodeFolded: boolean
+  // Whether the pane was open, so a resumed session opens it again.
+  isPaneOpen: boolean
 }
 
 export type FaroDrafting = {
