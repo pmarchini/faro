@@ -70,13 +70,17 @@ function engine(on: On, git: Record<string, string> = {}) {
   mock.store(on)
   on('tool.register', (_, e) => ({ value: { tool: `mcp__faro__${e.name}` } }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
-  const panes = { opened: 0 }
+  const panes = { opened: 0, closed: 0 }
+  const session = { id: 'session-1' }
   on('ui.open', () => {
     panes.opened += 1
     return { value: { isPlaced: true } }
   })
-  on('session.id', () => ({ value: 'session-1' }))
-  on('ui.close', () => ({ value: undefined }))
+  on('session.id', () => ({ value: session.id }))
+  on('ui.close', () => {
+    panes.closed += 1
+    return { value: undefined }
+  })
   // Every .ts file under /repo exists, except under /repo/auth/.
   const isFile = (path: string) => path.startsWith('/repo/') && path.endsWith('.ts') && !path.startsWith('/repo/auth/')
   on('fs.read', (_, e) => {
@@ -111,7 +115,7 @@ function engine(on: On, git: Record<string, string> = {}) {
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
 
-  return { submitted, filled, panes }
+  return { submitted, filled, panes, session }
 }
 
 test('tour_upsert stores a valid tour and returns advice on soft rules', async ($, on) => {
@@ -407,6 +411,26 @@ test('a resumed session brings back its tour and opens the pane again', async ($
   expect(world.panes.opened).toBe(opened + 1)
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /Session persistence/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('switching to another session from the picker swaps its tour in, or none', async ($, on) => {
+  const world = engine(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const showsTour = async () => (await ui.find({ type: 'Text', text: /Session persistence/ })) !== undefined
+
+  world.session.id = 'session-2'
+  await clock.advance(1000)
+  expect(await showsTour()).toBe(false)
+  const closed = world.panes.closed
+  expect(closed).toBeGreaterThan(0)
+
+  world.session.id = 'session-1'
+  await clock.advance(1000)
+  expect(await showsTour()).toBe(true)
   await ui.unmount()
 })
 
