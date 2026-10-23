@@ -17,6 +17,7 @@ Readers understand code top-down: they form a hypothesis about what the program 
 Experts recognise familiar structures from a few telling lines or names, called beacons (Brooks, 1983). Experienced programmers recall beacon lines far better than other lines of the same program (Wiedenbeck, 1986).
 
 - Each node lists 1 to 3 `beacons`: the identifier or line an expert's eye would land on, with its line number. Never more than 3.
+- Give each beacon a `note`: one short sentence on why the eye should land there and what it tells the reader ("the token is saved here, before reply() runs"), not a restatement of the label. The pane shows it beside the beacon.
 - A beacon must sit inside one of the node's `anchors`. The tool refuses it otherwise.
 
 ### 3. Name the plan, flag the surprise

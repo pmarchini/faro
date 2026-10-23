@@ -15,5 +15,5 @@
     "jsxFragmentFactory": "Fragment",
     "typeRoots": ["../.claude-plugin/types"]
   },
-  "include": ["../.claude-plugin/types", "./**/*.ts", "./**/*.tsx", "../src/core/**/*.ts"]
+  "include": ["../.claude-plugin/types", "./**/*.ts", "./**/*.tsx"]
 }

@@ -35,6 +35,8 @@ export type TourBeacon = {
   label: string;
   file: string;
   line: number;
+  // One sentence on why the eye should land here.
+  note?: string;
 };
 
 export type TourWhySource = "commit" | "pr" | "comment" | "inferred";

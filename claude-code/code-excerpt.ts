@@ -1,30 +1,4 @@
-// Cutting the code the pane shows out of a file or a diff. Pure.
-
-export type Excerpt = {
-  source: string
-  startLine: number
-}
-
-export function sliceLines(text: string, startLine: number, endLine: number): Excerpt {
-  const lines = text.split('\n')
-  const first = Math.max(1, startLine)
-  const last = Math.min(lines.length, Math.max(first, endLine))
-
-  return { source: lines.slice(first - 1, last).join('\n'), startLine: first }
-}
-
-// The beacon line with `context` lines either side, clamped to the anchor.
-export function beaconExcerpt(
-  text: string,
-  line: number,
-  anchor: { startLine: number; endLine: number },
-  context = 2,
-): Excerpt {
-  const start = Math.max(anchor.startLine, line - context)
-  const end = Math.min(anchor.endLine, line + context)
-
-  return sliceLines(text, start, end)
-}
+// Cutting the hunks the pane shows out of a diff. Pure.
 
 type Hunk = { newStart: number; newEnd: number; text: string }
 

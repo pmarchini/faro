@@ -75,10 +75,12 @@ export function serveCommands(on: On): void {
       case 'drop':
         return { text: name ? await drop($, name) : 'Usage: /tour drop <id>' }
       default:
-        return { text: 'Usage: /tour [open [id] | pin [name] | list | drop <id>]' }
+        return { text: USAGE_TOUR }
     }
   })
 }
+
+const USAGE_TOUR = 'Usage: /tour [open [id] | pin [name] | list | drop <id>]'
 
 type Resolved =
   | { target: TourTarget; label: string; detail: string; notes: string[] }

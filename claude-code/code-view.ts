@@ -1,20 +1,23 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Tour, TourAnchor, TourBeacon, TourNode } from '../src/core/model/tour.ts'
-import { beaconExcerpt, hunksOverlapping, sliceLines } from './code-excerpt.ts'
+import type { Tour, TourAnchor, TourBeacon, TourNode, TourTarget } from '../src/core/model/tour.ts'
+import { hunksOverlapping } from './code-excerpt.ts'
+import { diffRows, sourceRows } from './code-window.ts'
 import { diffArgv } from './explain-args.ts'
+import { locate } from './paths.ts'
 import { EMPTY_READER } from './state.ts'
 import type { FaroCodeView as CodeView } from './types'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const readerAtom = atom({ plugin: 'faro', key: 'reader' } as const, EMPTY_READER)
 
-// Fills the code under the node panel: the whole anchor (or its diff hunk)
-// by default, or with `o` just the current beacon and a little context.
-// Reads happen here, in handlers and tool calls, never while drawing: a
-// render hook only reads state.
-export async function loadCode($: EngineInterface, tour: Tour, isFull = true): Promise<void> {
+// Fills the code panel for the current beacon's anchor: its diff hunks for
+// a change, or its lines for existing code; with `o`, the whole file. The
+// pane folds and windows these rows when it draws them. Reads happen here,
+// in handlers and tool calls, never while drawing: a render hook only reads
+// state.
+export async function loadCode($: EngineInterface, tour: Tour, isWholeFile = false): Promise<void> {
   const node = tour.current.nodeId ? tour.nodes[tour.current.nodeId] : undefined
 
   if (!node) {
@@ -31,7 +34,7 @@ export async function loadCode($: EngineInterface, tour: Tour, isFull = true): P
     return
   }
 
-  const view = isFull ? await fullView($, tour, node, anchor) : await excerptView($, tour, node, anchor, beacon)
+  const view = await codeView($, tour, node, anchor, isWholeFile)
   await update($, codeAtom, () => view)
 }
 
@@ -46,65 +49,71 @@ function anchorFor(node: TourNode, beacon: TourBeacon | undefined): TourAnchor |
   return holding ?? node.anchors[0]
 }
 
-async function excerptView(
+async function codeView(
   $: EngineInterface,
   tour: Tour,
   node: TourNode,
   anchor: TourAnchor,
-  beacon: TourBeacon | undefined,
+  isWholeFile: boolean,
 ): Promise<CodeView> {
-  const text = await readText($, anchor.file)
-  const base = { tourId: tour.id, nodeId: node.id, isFull: false, path: anchor.file, format: 'source' as const }
-
-  if (text === undefined) {
-    return { ...base, heading: anchor.file, source: `(${anchor.file} could not be read)` }
-  }
-
-  const excerpt = beacon
-    ? beaconExcerpt(text, beacon.line, anchor.range)
-    : sliceLines(text, anchor.range.startLine, Math.min(anchor.range.endLine, anchor.range.startLine + 4))
-  const heading = beacon ? `${anchor.file}:${beacon.line}  ${beacon.label}` : `${anchor.file}:${anchor.range.startLine}`
-
-  return { ...base, heading, source: excerpt.source, startLine: excerpt.startLine }
-}
-
-async function fullView($: EngineInterface, tour: Tour, node: TourNode, anchor: TourAnchor): Promise<CodeView> {
-  const base = { tourId: tour.id, nodeId: node.id, isFull: true, path: anchor.file }
+  const base = { tourId: tour.id, nodeId: node.id, isWholeFile, path: anchor.file }
   const { startLine, endLine } = anchor.range
-  const argv = diffArgv(tour.target, anchor.file)
+  const argv = isWholeFile ? null : diffArgv(tour.target, anchor.file)
 
   if (argv) {
     const hunks = await runText($, argv)
     const overlapping = hunks ? hunksOverlapping(hunks, startLine, endLine) : ''
 
     if (overlapping) {
-      return { ...base, heading: `${anchor.file} (diff)`, source: overlapping, format: 'diff' }
+      const against = diffBaseOf(tour.target) ?? 'base'
+      return { ...base, heading: `L${startLine}–${endLine} · diff vs ${against}`, format: 'diff', rows: diffRows(overlapping) }
     }
   }
 
-  const text = await readText($, anchor.file)
+  const loaded = await readText($, anchor.file)
 
-  if (text === undefined) {
-    return { ...base, heading: anchor.file, source: `(${anchor.file} could not be read)`, format: 'source' }
+  if ('error' in loaded) {
+    return { ...base, heading: `could not be read: ${loaded.error}`, format: 'source', rows: [] }
   }
 
-  const slice = sliceLines(text, startLine, endLine)
+  const { text } = loaded
 
-  return {
-    ...base,
-    heading: `${anchor.file}:${startLine}-${endLine}`,
-    source: slice.source,
-    startLine: slice.startLine,
-    format: 'source',
+  const rows = isWholeFile ? sourceRows(text, 1, Number.MAX_SAFE_INTEGER) : sourceRows(text, startLine, endLine)
+  const span = isWholeFile ? 'whole file' : `L${startLine}–${endLine}`
+  const at = tour.target.headSha ? ` @ ${tour.target.headSha.slice(0, 7)}` : ''
+  const readOnly = diffArgv(tour.target, anchor.file) ? '' : ` ·${at} read only`
+
+  return { ...base, heading: `${span} · ${rows.length} lines${readOnly}`, format: 'source', rows }
+}
+
+// The ref a tour of a change is compared against, for the heading.
+function diffBaseOf(target: TourTarget): string | undefined {
+  switch (target.kind) {
+    case 'worktree':
+      return target.baseSha ?? 'HEAD'
+    case 'range':
+      return target.baseSha ?? (target.ref.split(/\.{2,3}/)[0] || undefined)
+    case 'branch':
+    case 'pr':
+      return target.baseSha
+    default:
+      return undefined
   }
 }
 
-async function readText($: EngineInterface, file: string): Promise<string | undefined> {
+// The file's text, or why it could not be had.
+async function readText($: EngineInterface, file: string): Promise<{ text: string } | { error: string }> {
+  const path = await locate($, file)
+
+  if (!path) {
+    return { error: `not found from ${await $.session.cwd()}` }
+  }
+
   try {
-    const text = await $.fs.read(file)
-    return typeof text === 'string' ? text : undefined
-  } catch {
-    return undefined
+    const text = await $.fs.read(path)
+    return typeof text === 'string' ? { text } : { error: 'not text' }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
   }
 }
 

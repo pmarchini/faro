@@ -21,6 +21,7 @@ Bring Faro to Claude Code as a plugin: Claude explains a change set or existing 
 | Path view pane, node panel at three depths, code excerpt and full view | `claude-code/pane/` | done |
 | Stale marking after Edit/Write | `claude-code/stale.ts` | done |
 | File tree of the tour's files, current step's file marked (`t` toggles; Pietro, 2026-10-22) | `claude-code/file-tree.ts` | done |
+| Pane layout: rail of steps and files beside the reader, code window with folding and beacon list, short layout | `claude-code/pane/path-view.tsx`, `claude-code/code-window.ts` | done |
 | Graph view | | v2 |
 | `tour-author` subagent for very large diffs | | later |
 | VS Code extension reading v2 documents | | later |
@@ -36,7 +37,7 @@ All settled by Pietro on 2026-10-22.
 | Scope | Diffs and existing code and flows | `/explain` takes a working tree, range, branch, PR, path, or a free-text question; `why.source` is `inferred` when nothing states the reason |
 | Views | Path view first, Graph view in v2 | edges are in the schema and authored from day one, so v2 needs no data change |
 | Lenses | Write only the chosen lens up front; fetch the other on the first `l` press | see "Lens cost" below |
-| Opening code | Never leave Claude Code | each node shows its anchor's whole range, or its diff hunk, inside the pane by default (Pietro, 2026-10-22); `o` narrows it to the current beacon with two lines of context |
+| Opening code | Inside the Claude Code pane; no VS Code companion. Following in VS Code was built (PR #4) and then dropped by Pietro on 2026-10-22 once the pane showed the code well ("not needed anymore") | the pane shows each node's anchor, or its diff hunk, folded and windowed around the current beacon; `o` shows the whole file |
 | Pinned tours | Per user | kept in the plugin's `$.store`; nothing is written to the repo |
 | Comprehension checks | Not included | no prediction prompts, no check field |
 | Citations | Verified bibliography in the skill | `skills/faro-author-paths/comprehension.md` |
@@ -45,9 +46,15 @@ All settled by Pietro on 2026-10-22.
 
 Pennington's program and situation models map onto two lenses: `flow` (control and data flow) and `domain` (what the code means for the business concept). Writing both for every node roughly doubles the tokens spent authoring a tour, and most readers never switch. So a tour is written in one lens (`tour.lens`, `flow` by default). The first time the reader presses `l` on a node with no `otherLens`, the pane asks Claude to write that node's other lens through `tour_update_node`, shows "Writing the domain lens…" until it lands, and from then on `l` toggles instantly. The cost is a short wait on the first switch per node, paid only by readers who want it.
 
+### Pane
+
+**Code tours** (a `code` or `question` target: existing code, no change) read as such: the header says "code tour", the code panel is the plain file marked read only (with `@ <headSha>` when the tour has one), the story uses "Does", "Why (inferred: no commit says so)" and "Carry on".
+
+**Pane layout** (the final visual design, implemented on Pietro's go, 2026-10-22): the pane is a column beside the chat. A one-line header (`o-^-o faro  title  [code tour]  lens  3/6`) and the hypothesis; then, from 90 cells wide, a rail of 30 cells with the Faro mark (`LOGO_ROWS` and "F A R O"), the steps (titles wrap under their number) and the files as a folder tree (`├`/`└`, one folder a row; `h` hides the rail), beside the reader: the story (headline wrapping under its number beside the plan chip, `[role: …]` in a code tour; each field wrapping under itself) and the code, which fills the remaining height. The code is cut into rows (`claude-code/code-window.ts`): the code starts unfolded and `f` folds lines more than three from every beacon into "N lines folded" (Pietro, 2026-10-22), the window is centred on the current beacon and scrolled with `n`/`p` (the design's J/K: a pane hotkey must be one lowercase letter or digit), a one-cell track on the right ticks the beacons, and `o` shows the whole file. Beacon lines are drawn as tinted text rows (the Code element cannot tint a line); runs of plain lines go through the Code element for syntax colour. The beacons are listed under the code, `●` for the current one. Narrower than 90 cells the steps and files stack above the reader; shorter than 18 rows the pane shows a breadcrumb. Colours live in `claude-code/pane/theme.ts`: the accent stays amber until Pietro decides on the brand cyan.
+
 ## Implementation notes
 
-- **Keys.** A pane Button's hotkey is one lowercase letter or digit, so the design's `enter`/`space`, `backspace`, `?` and `!` became `e` (deeper), `c` (less), `a` (ask) and `x` (don't get it). The rest are as designed: `j`/`k`, `l`, `b`, `o`, `r`, `q`; `t` (file tree) is new. Every key is also a visible, clickable button in the pane's footer, and each path row is a button that jumps to that node.
+- **Keys.** A pane Button's hotkey is one lowercase letter or digit, so the design's `enter`/`space`, `backspace`, `?` and `!` became `e` (deeper), `u` (less), `a` (ask) and `x` (don't get it); `c` folds or opens the code panel. The rest are as designed: `j`/`k`, `l`, `b`, `o`, `r`, `q`; `t` (file tree) is new. Every key is also a visible, clickable button in the pane's footer, and each path row is a button that jumps to that node.
 - **Prompts from `/explain`.** A command cannot submit a prompt while it holds the turn, so `/explain` answers at once ("Drafting a tour of …"), opens the pane in its drafting state, and submits the authoring prompt from a zero-delay timer.
 - **State contract.** A mod's `$.state` contract must be a self-contained `.d.ts`, so `claude-code/types/index.d.ts` restates the tour types. `claude-code/types/contract-check.ts` fails the mod's type-check if they drift from `src/core/model/tour.ts`.
 - **Atoms per file.** The plugin scanner reads a `$.state` reference only from a const in the file that uses it, so each file declares the atoms it reads or writes; `claude-code/state.ts` holds the shared names and initial values.

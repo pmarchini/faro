@@ -41,7 +41,7 @@ type TourNode = {
   whatChanged?: string;             // L1, diff tours: behaviour before vs after
   whatItDoes?: string;              // L1, code and question tours
   why?: { text: string; source: "commit" | "pr" | "comment" | "inferred" };
-  beacons: { label: string; file: string; line: number }[];   // 0 to 3
+  beacons: { label: string; file: string; line: number; note?: string }[];   // 0 to 3; note: one sentence on why the eye lands here
   carryForward?: string;            // L1, the one thing to hold for the next node
   detail?: string;                  // L2, edge cases, failure handling
   suggestedQuestion?: string;       // L2, the likely next question
@@ -87,6 +87,7 @@ type TourEdge = {
 - the path has more than 9 nodes
 - a path node other than the last has no `carryForward`
 - a path node has `role: "supporting"`, a title over 6 words, or no beacons
+- a beacon has no `note`
 - a node's anchors cover more than 40 lines
 
 ## Paths in anchors and beacons
