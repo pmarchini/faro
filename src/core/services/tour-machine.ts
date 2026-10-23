@@ -1,4 +1,12 @@
-import type { FaroDocumentV2, Tour, TourDepth, TourNode } from "../model/tour.ts";
+import {
+  MAIN_PATH_ID,
+  pathSteps,
+  type FaroDocumentV2,
+  type Tour,
+  type TourDepth,
+  type TourNode,
+  type TourSubPath,
+} from "../model/tour.ts";
 import { assertValidTour, findNodeProblems } from "../model/tour-validation.ts";
 
 // Pure operations on a v2 document. Each returns a new document and leaves
@@ -67,21 +75,114 @@ export function updateNode(
   return replaceTour(document, nextTour);
 }
 
-export function focusNode(document: FaroDocumentV2, tourId: string, nodeId: string): FaroDocumentV2 {
+export type SubPathWrite = {
+  subPath: TourSubPath;
+  // The sub path's new or rewritten nodes; a step may also name a node the
+  // tour already has.
+  nodes: TourNode[];
+};
+
+// Adds a sub path under a step, or rewrites one with the same id, keeping
+// the reader where they are.
+export function addSubPath(document: FaroDocumentV2, tourId: string, { subPath, nodes }: SubPathWrite): FaroDocumentV2 {
+  const nextTour = clone(requireTour(document, tourId));
+
+  for (const node of nodes) {
+    nextTour.nodes[node.id] = clone(node);
+  }
+
+  nextTour.subPaths = { ...nextTour.subPaths, [subPath.id]: clone(subPath) };
+  assertValidTour(nextTour);
+
+  return replaceTour(document, nextTour);
+}
+
+// The sub paths hanging from a step of a path, in the order they were written.
+export function subPathsAt(tour: Tour, pathId: string, nodeId: string): TourSubPath[] {
+  return Object.values(tour.subPaths ?? {}).filter(
+    (subPath) => subPath.anchor.path === pathId && subPath.anchor.node === nodeId,
+  );
+}
+
+export function currentPathId(tour: Tour): string {
+  return tour.current.pathId ?? MAIN_PATH_ID;
+}
+
+// The paths from the main one down to this one, each with the step the
+// reader dived from (none for the path itself).
+export function pathTrail(tour: Tour, pathId: string = currentPathId(tour)): { pathId: string; nodeId?: string }[] {
+  const trail: { pathId: string; nodeId?: string }[] = [{ pathId }];
+  let at = tour.subPaths?.[pathId];
+
+  while (at && trail.length <= Object.keys(tour.subPaths ?? {}).length) {
+    trail.unshift({ pathId: at.anchor.path, nodeId: at.anchor.node });
+    at = tour.subPaths?.[at.anchor.path];
+  }
+
+  return trail;
+}
+
+export function focusNode(
+  document: FaroDocumentV2,
+  tourId: string,
+  nodeId: string,
+  pathId?: string,
+): FaroDocumentV2 {
   const tour = requireTour(document, tourId);
 
   if (!tour.nodes[nodeId]) {
     throw new Error(`Tour ${tourId} has no node ${nodeId}.`);
   }
 
-  return replaceTour(document, { ...tour, current: { nodeId, depth: tour.current.depth } });
+  const onPath = pathId ?? pathHolding(tour, nodeId);
+
+  if (onPath !== undefined && !pathSteps(tour, onPath)?.includes(nodeId)) {
+    throw new Error(`Path ${onPath} of tour ${tourId} has no step ${nodeId}.`);
+  }
+
+  return replaceTour(document, { ...tour, current: cursor(nodeId, tour.current.depth, onPath) });
 }
 
+// Starts reading a sub path at its first step.
+export function enterPath(document: FaroDocumentV2, tourId: string, pathId: string): FaroDocumentV2 {
+  const tour = requireTour(document, tourId);
+  const steps = pathSteps(tour, pathId);
+
+  if (!steps || steps.length === 0) {
+    throw new Error(`Tour ${tourId} has no path ${pathId}.`);
+  }
+
+  return replaceTour(document, { ...tour, current: cursor(steps[0] ?? null, tour.current.depth, pathId) });
+}
+
+// Back up one level, to the step the current sub path hangs from.
+export function surface(document: FaroDocumentV2, tourId: string): FaroDocumentV2 {
+  const tour = requireTour(document, tourId);
+  const subPath = tour.subPaths?.[currentPathId(tour)];
+
+  if (!subPath) {
+    return document;
+  }
+
+  return replaceTour(document, {
+    ...tour,
+    current: cursor(subPath.anchor.node, tour.current.depth, subPath.anchor.path),
+  });
+}
+
+// j and k move along the path being read. Off either end of a sub path the
+// reader surfaces to the step it hangs from; the main path stops at its ends.
 export function moveOnPath(document: FaroDocumentV2, tourId: string, delta: number): FaroDocumentV2 {
   const tour = requireTour(document, tourId);
-  const index = tour.current.nodeId === null ? -1 : tour.path.indexOf(tour.current.nodeId);
-  const nextIndex = clamp(index + delta, 0, tour.path.length - 1);
-  const nodeId = tour.path[nextIndex] ?? null;
+  const steps = pathSteps(tour, currentPathId(tour)) ?? tour.path;
+  const index = tour.current.nodeId === null ? -1 : steps.indexOf(tour.current.nodeId);
+  const isOffEnd = index + delta < 0 || index + delta > steps.length - 1;
+
+  if (isOffEnd && currentPathId(tour) !== MAIN_PATH_ID) {
+    return surface(document, tourId);
+  }
+
+  const nodeId = steps[clamp(index + delta, 0, steps.length - 1)] ?? null;
 
   return replaceTour(document, { ...tour, current: { ...tour.current, nodeId } });
 }
@@ -94,19 +195,33 @@ export function changeDepth(document: FaroDocumentV2, tourId: string, delta: num
 }
 
 export function pathPosition(tour: Tour): { index: number; total: number } {
-  const index = tour.current.nodeId === null ? -1 : tour.path.indexOf(tour.current.nodeId);
+  const steps = pathSteps(tour, currentPathId(tour)) ?? tour.path;
+  const index = tour.current.nodeId === null ? -1 : steps.indexOf(tour.current.nodeId);
 
-  return { index, total: tour.path.length };
+  return { index, total: steps.length };
+}
+
+// The path a node is a step of: the main path first, then sub paths.
+function pathHolding(tour: Tour, nodeId: string): string | undefined {
+  if (tour.path.includes(nodeId)) {
+    return undefined;
+  }
+
+  return Object.values(tour.subPaths ?? {}).find((subPath) => subPath.steps.includes(nodeId))?.id;
+}
+
+function cursor(nodeId: string | null, depth: TourDepth, pathId: string | undefined): Tour["current"] {
+  return pathId === undefined || pathId === MAIN_PATH_ID ? { nodeId, depth } : { nodeId, depth, pathId };
 }
 
 function normalizeTourCursor(tour: Tour): Tour {
   const current = tour.current ?? { nodeId: null, depth: 0 };
+  const pathId = current.pathId !== undefined && pathSteps(tour, current.pathId) ? current.pathId : undefined;
+  const steps = pathSteps(tour, pathId) ?? tour.path;
   const nodeId =
-    current.nodeId !== null && tour.path.includes(current.nodeId)
-      ? current.nodeId
-      : (tour.path[0] ?? null);
+    current.nodeId !== null && steps.includes(current.nodeId) ? current.nodeId : (steps[0] ?? null);
 
-  return { ...tour, current: { nodeId, depth: current.depth ?? 0 } };
+  return { ...tour, current: cursor(nodeId, current.depth ?? 0, pathId) };
 }
 
 function replaceTour(document: FaroDocumentV2, tour: Tour): FaroDocumentV2 {

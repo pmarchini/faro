@@ -114,6 +114,8 @@ function engine(on: On, git: Record<string, string> = {}) {
     return { isFilled: true }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
 
   return { submitted, filled, panes, session }
 }
@@ -175,7 +177,8 @@ test('the code is open by default, its beacons tinted and listed, and o shows th
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
   expect(await ui.find({ type: 'Text', text: /src\/login\.ts  L1–10 · 10 lines/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^ 5   line 5$/ })).toBeDefined()
+  expect((await ui.find({ type: 'Button', key: 'line-5' }))?.text).toBe(' 5   ')
+  expect(await ui.find({ type: 'Text', text: /^line 5$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: / ◀ 1$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^● 1 L5  $/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^login\(\)  where login hands over$/ })).toBeDefined()
@@ -503,5 +506,171 @@ test('a tour of existing code reads as one: no diff, read-only code, Does and Ca
   expect(await ui.find({ type: 'Text', text: /^Carry on$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^ role: guard clause $/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /inferred: no commit says so/ })).toBeDefined()
+  await ui.unmount()
+})
+
+const SIGNING = {
+  id: 'signing',
+  title: 'How a token is signed',
+  question: 'What does persist sign?',
+  anchor: { path: 'main', node: 'persist' },
+  steps: ['claims', 'keys'],
+}
+
+const SIGNING_NODES = [node('claims', 'Claims are gathered'), node('keys', 'The current key signs', { carryForward: undefined })]
+
+test('d on a step asks Claude for a sub path, the pane says it is writing, and the reader lands in it', async ($, on) => {
+  const world = engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const nodes = { ...tour().nodes, persist: node('persist', 'Tokens persisted before reply', { dive: { question: 'What does persist sign?' } }) }
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ nodes, current: { nodeId: 'persist', depth: 0 } }) })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  expect(await ui.find({ type: 'Text', text: /◆ What does persist sign\?  d dives/ })).toBeDefined()
+  expect(await ui.find({ key: 'key-surface' })).toBeUndefined()
+
+  await ui.press({ key: 'key-dive' })
+  expect(world.submitted).toHaveLength(1)
+  expect(world.submitted[0]).toContain('Dive into step persist: What does persist sign?')
+  expect(world.submitted[0]).toContain('{"path":"main","node":"persist"}')
+  expect(await ui.find({ type: 'Text', text: /Claude is writing a sub path… keep reading/ })).toBeDefined()
+
+  await ui.press({ key: 'key-dive' })
+  expect(world.submitted).toHaveLength(1)
+
+  const added = await $.tool.call({ tool: 'mcp__faro__tour_add_path', tourId: 'session-persistence', path: SIGNING, nodes: SIGNING_NODES })
+  expect(added.deny).toBeUndefined()
+  expect(String(added.result)).toContain('Sub path signing hangs from persist with 2 steps')
+
+  expect(await ui.find({ type: 'Text', text: /^Session persistence › 2 › How a token is signed$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Claims are gathered' })).toBeDefined()
+  expect((await ui.find({ key: 'node-signing-claims' }))?.text).toContain('▸')
+
+  await ui.press({ key: 'key-next' })
+  expect((await ui.find({ key: 'node-signing-keys' }))?.text).toContain('▸')
+
+  await ui.press({ key: 'key-next' })
+  expect(await ui.find({ type: 'Text', text: /^Session persistence$/ })).toBeDefined()
+  expect((await ui.find({ key: 'node-persist' }))?.text).toContain('▸')
+  expect(await ui.find({ type: 'Text', text: /↳ How a token is signed · 2 steps/ })).toBeDefined()
+
+  // A written sub path is entered again without asking Claude.
+  await ui.press({ key: 'key-dive' })
+  expect(world.submitted).toHaveLength(1)
+  expect((await ui.find({ key: 'node-signing-claims' }))?.text).toContain('▸')
+
+  await ui.press({ key: 'key-surface' })
+  expect((await ui.find({ key: 'node-persist' }))?.text).toContain('▸')
+  await ui.unmount()
+})
+
+test('tour_add_path refuses a sub path hanging from no step, and keeps it with the tour', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+
+  const refused = await $.tool.call({
+    tool: 'mcp__faro__tour_add_path',
+    tourId: 'session-persistence',
+    path: { ...SIGNING, anchor: { path: 'main', node: 'ghost' } },
+    nodes: SIGNING_NODES,
+  })
+  expect(refused.deny).toContain('anchor.node ghost is not a step of path main')
+
+  await $.tool.call({ tool: 'mcp__faro__tour_add_path', tourId: 'session-persistence', path: SIGNING, nodes: SIGNING_NODES })
+  const got = JSON.parse(String((await $.tool.call({ tool: 'mcp__faro__tour_get' })).result))
+  expect(got.tour.subPaths.signing.steps).toEqual(['claims', 'keys'])
+  // Nobody asked for it, so the reader stays where they were.
+  expect(got.reader.current).toEqual({ nodeId: 'login', depth: 0 })
+})
+
+test('a click picks a code line, d dives from it and a asks about it; a second click lets it go', async ($, on) => {
+  const world = engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  await ui.press({ key: 'line-3' })
+  expect(await ui.find({ type: 'Text', text: '▸ L3 picked' })).toBeDefined()
+
+  await ui.press({ key: 'key-scrollDown' })
+  expect(await ui.find({ type: 'Text', text: '▸ L4 picked' })).toBeDefined()
+
+  await ui.press({ key: 'pick-ask' })
+  expect(world.filled[0]).toContain('About src/login.ts:4 `line 4`')
+
+  await ui.press({ key: 'line-4' })
+  expect(await ui.find({ type: 'Text', text: /picked/ })).toBeUndefined()
+
+  await ui.press({ key: 'line-7' })
+  await ui.press({ key: 'key-dive' })
+  expect(world.submitted[0]).toContain('Dive into line src/login.ts:7 `line 7` of step login')
+  expect(world.submitted[0]).toContain('{"path":"main","node":"login","file":"src/login.ts","line":7}')
+  expect(await ui.find({ type: 'Text', text: /writing a sub path from L7/ })).toBeDefined()
+
+  await $.tool.call({
+    tool: 'mcp__faro__tour_add_path',
+    tourId: 'session-persistence',
+    path: { ...SIGNING, id: 'line-seven', anchor: { path: 'main', node: 'login', file: 'src/login.ts', line: 7 } },
+    nodes: SIGNING_NODES,
+  })
+  expect(await ui.find({ type: 'Text', text: /› 1 › How a token is signed$/ })).toBeDefined()
+
+  await ui.press({ key: 'key-surface' })
+  expect(await ui.find({ type: 'Text', text: ' ↳' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /from L7/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the rail is a tree of paths and m maps every path with the dives on offer', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const nodes = { ...tour().nodes, reload: node('reload', 'Restart reloads sessions', { dive: { question: 'What does reload replay?' } }) }
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ nodes }) })
+  await $.tool.call({ tool: 'mcp__faro__tour_add_path', tourId: 'session-persistence', path: SIGNING, nodes: SIGNING_NODES })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, bodyColumns: 110 }, surface: 'terminal' })
+
+  expect((await ui.find({ type: 'Button', key: 'path-signing' }))?.text).toBe('↳ How a token is signed')
+  expect(await ui.find({ key: 'node-signing-claims' })).toBeUndefined()
+  expect((await ui.find({ type: 'Button', key: 'node-reload' }))?.text).toContain('◆')
+
+  await ui.press({ key: 'path-signing' })
+  expect((await ui.find({ type: 'Button', key: 'node-signing-claims' }))?.text).toContain('Claims are gathered')
+  expect(await ui.find({ type: 'Text', text: /^▸    1 $/ })).toBeDefined()
+
+  await ui.press({ key: 'key-map' })
+  expect(await ui.find({ type: 'Text', text: 'Map of paths' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^├─┐ How a token is signed · 2 steps$/ })).toBeDefined()
+  expect((await ui.find({ key: 'map-signing-claims' }))?.text).toBe('│ ├ ▸ 1 Claims are gathered')
+  expect(await ui.find({ type: 'Text', text: /^├   3 Restart reloads sessions ◆$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^├┄┐ ◆ What does reload replay\?/ })).toBeDefined()
+
+  await ui.press({ key: 'map-main-reload' })
+  await ui.press({ key: 'key-map' })
+  expect(await ui.find({ type: 'Text', text: /^Session persistence$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a dive the answering turn ends without writing lets d ask again; a turn already running does not count', async ($, on) => {
+  const world = engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour() })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const writing = { type: 'Text', text: /Claude is writing a sub path/ } as const
+
+  await ui.press({ key: 'key-dive' })
+  // The turn that was running when d was pressed ends: the dive still waits.
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: 'before' })
+  expect(await ui.find(writing)).toBeDefined()
+
+  await $.turn.start({ text: world.submitted[0] ?? '', turnId: 'dive' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, reason: 'answer', turnId: 'sub', agentId: 'explore-1' })
+  expect(await ui.find(writing)).toBeDefined()
+
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, reason: 'aborted', turnId: 'dive' })
+  expect(await ui.find(writing)).toBeUndefined()
+
+  await ui.press({ key: 'key-dive' })
+  expect(world.submitted).toHaveLength(2)
   await ui.unmount()
 })

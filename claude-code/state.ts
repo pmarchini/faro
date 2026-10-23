@@ -22,6 +22,9 @@ export const EMPTY_READER: FaroReader = {
   codeOffset: 0,
   isCodeFolded: false,
   isPaneOpen: false,
+  isMapShown: false,
+  selectedLine: null,
+  diving: null,
 }
 
 export function addOnce(list: readonly string[] | undefined, id: string): string[] {
