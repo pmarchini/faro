@@ -1,14 +1,15 @@
 import type { Register } from 'claude-code'
 
 import { registerCommands, serveCommands } from './command.ts'
+import { watchDives } from './dive-watch.ts'
 import { drawPathView } from './pane/path-view.tsx'
 import { restoreSession, serveResume, watchSessionSwitch } from './resume.ts'
 import { watchEdits } from './stale.ts'
 import { registerTools, serveTools } from './tools.ts'
 
 // The faro mod: tour_* tools Claude writes through, /explain and /tour for
-// the person, a pane with the Path view, and the tour kept across a resume.
-// The Graph view is v2.
+// the person, a pane with the Path view and its paths of paths, and the tour
+// kept across a resume.
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -25,5 +26,6 @@ export const register: Register = on => {
   serveCommands(on)
   watchEdits(on)
   drawPathView(on)
+  watchDives(on)
   serveResume(on)
 }

@@ -1,9 +1,17 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
-import type { FaroDocumentV2, Tour, TourNode } from '../src/core/model/tour.ts'
+import { MAIN_PATH_ID, type FaroDocumentV2, type Tour, type TourNode, type TourSubPath } from '../src/core/model/tour.ts'
 import { lintTour } from '../src/core/model/tour-validation.ts'
-import { focusNode, getTour, updateNode, upsertTour } from '../src/core/services/tour-machine.ts'
+import {
+  addSubPath,
+  currentPathId,
+  enterPath,
+  focusNode,
+  getTour,
+  updateNode,
+  upsertTour,
+} from '../src/core/services/tour-machine.ts'
 import { loadCode } from './code-view.ts'
 import { openPane } from './pane/open.ts'
 import { saveSession } from './resume.ts'
@@ -42,6 +50,25 @@ export async function registerTools($: EngineInterface): Promise<void> {
           insertAfter: { type: 'string', description: 'A path node id; needed only to add a new node.' },
         },
         required: ['tourId', 'node'],
+      },
+      isDeferred: false,
+    }),
+    $.tool.register({
+      name: 'tour_add_path',
+      description:
+        'Write a sub path under one step of a tour: a short ordered path (2 to 5 steps) that goes in depth on that step, or on one line of its code. Pass its new nodes; a step may also name a node the tour has. A sub path with the same id is rewritten. If the reader is still on the step, the pane enters the sub path.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tourId: { type: 'string' },
+          path: {
+            type: 'object',
+            description:
+              'The TourSubPath: { id, title, question, anchor: { path: "main" or a sub path id, node, file?, line? }, steps: node ids }.',
+          },
+          nodes: { type: 'array', items: { type: 'object' }, description: 'The new TourNodes its steps name.' },
+        },
+        required: ['tourId', 'path', 'nodes'],
       },
       isDeferred: false,
     }),
@@ -89,6 +116,8 @@ export function serveTools(on: On): void {
     await update($, draftingAtom, () => null)
     await update($, readerAtom, (reader) => ({
       ...reader,
+      diving: null,
+      selectedLine: null,
       visited: { ...reader.visited, [tour.id]: stored?.current.nodeId ? [stored.current.nodeId] : [] },
       confused: { ...reader.confused, [tour.id]: [] },
       stale: { ...reader.stale, [tour.id]: [] },
@@ -139,6 +168,60 @@ export function serveTools(on: On): void {
 
     await saveSession($)
     return { result: `Node ${node.id} of tour ${tourId} is updated.` }
+  })
+
+  on('tool.call', { tool: 'mcp__faro__tour_add_path' }, async ($, e) => {
+    const { tourId, path, nodes } = e as { tourId?: string; path?: TourSubPath; nodes?: TourNode[] }
+
+    if (typeof tourId !== 'string' || !path || typeof path !== 'object' || !Array.isArray(nodes)) {
+      return { deny: `tour_add_path needs { tourId, path, nodes }. ${TOUR_SCHEMA_NOTE}` }
+    }
+
+    const written = await writeDocument($, (document) => addSubPath(document, tourId, { subPath: path, nodes }))
+
+    if ('deny' in written) {
+      return { deny: `The sub path was refused:\n${written.deny}` }
+    }
+
+    // The reader who asked for it and is still on that step goes in.
+    const reader = await read($, readerAtom)
+    const tour = getTour(written.document, tourId)
+    const isAsked =
+      reader.diving?.tourId === tourId && reader.diving.path === path.anchor.path && reader.diving.node === path.anchor.node
+    const isWaiting =
+      tour?.current.nodeId === path.anchor.node && currentPathId(tour) === (path.anchor.path ?? MAIN_PATH_ID)
+
+    if (isAsked) {
+      await update($, readerAtom, (current) => ({ ...current, diving: null }))
+    }
+
+    if (isAsked && isWaiting && tour) {
+      const entered = await writeDocument($, (document) => enterPath(document, tourId, path.id))
+      const inside = 'document' in entered ? getTour(entered.document, tourId) : undefined
+
+      if (inside?.current.nodeId) {
+        const nodeId = inside.current.nodeId
+        await update($, readerAtom, (current) => ({
+          ...current,
+          visited: { ...current.visited, [tourId]: addOnce(current.visited[tourId], nodeId) },
+          selectedLine: null,
+          isOtherLensShown: false,
+          beaconIndex: 0,
+          codeOffset: 0,
+        }))
+        await loadCode($, inside)
+      }
+    }
+
+    await saveSession($)
+    const advice = tour ? lintTour(tour).filter((line) => path.steps.some((id) => line.includes(`Node ${id} `)) || line.includes(`Sub path ${path.id} `)) : []
+
+    return {
+      result: [
+        `Sub path ${path.id} hangs from ${path.anchor.node} with ${path.steps.length} steps.`,
+        ...(advice.length > 0 ? ['Advice:', ...advice.map((line) => `- ${line}`)] : []),
+      ].join('\n'),
+    }
   })
 
   on('tool.call', { tool: 'mcp__faro__tour_get' }, async ($, e) => {

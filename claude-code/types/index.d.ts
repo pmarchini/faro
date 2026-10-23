@@ -25,6 +25,15 @@ export type FaroTourNode = {
   }[]
   role: 'path' | 'supporting'
   otherLens?: { summary: string; whatChanged?: string; whatItDoes?: string; why?: FaroTourWhy }
+  dive?: { question: string }
+}
+
+export type FaroTourSubPath = {
+  id: string
+  title: string
+  question: string
+  anchor: { path: string; node: string; file?: string; line?: number }
+  steps: string[]
 }
 
 export type FaroTour = {
@@ -43,7 +52,8 @@ export type FaroTour = {
   nodes: Record<string, FaroTourNode>
   edges: { from: string; to: string; kind: 'calls' | 'data' | 'requires' | 'tests' | 'configures'; label?: string }[]
   path: string[]
-  current: { nodeId: string | null; depth: 0 | 1 | 2 }
+  subPaths?: Record<string, FaroTourSubPath>
+  current: { nodeId: string | null; depth: 0 | 1 | 2; pathId?: string }
 }
 
 export type FaroDocument = {
@@ -73,6 +83,24 @@ export type FaroReader = {
   isCodeFolded: boolean
   // Whether the pane was open, so a resumed session opens it again.
   isPaneOpen: boolean
+  // `m` shows the map of paths in place of the step.
+  isMapShown: boolean
+  // A code line the reader clicked, to dive or ask from.
+  selectedLine: FaroLine | null
+  // The dive Claude is writing a sub path for.
+  diving: FaroDive | null
+}
+
+export type FaroLine = { nodeId: string; file: string; line: number; text: string }
+
+export type FaroDive = {
+  tourId: string
+  path: string
+  node: string
+  file?: string
+  line?: number
+  // Whether the turn answering it has started.
+  isStarted?: boolean
 }
 
 export type FaroDrafting = {

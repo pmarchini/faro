@@ -23,6 +23,7 @@ Both follow the same explanation model. Read `comprehension.md` (beside this fil
 
 - `tour_upsert { tour }`: create or replace a whole tour; it becomes active and the pane opens on its first path node. Prefer one whole-tour write.
 - `tour_update_node { tourId, node, insertAfter? }`: replace one node (or add one after `insertAfter`) and keep the reader's place. Use it to refine a node after a question, to re-explain a node the reader marked as unclear, and to fill `otherLens` when the reader asks for the other lens.
+- `tour_add_path { tourId, path, nodes }`: write a sub path under one step (see "Dives" below). `nodes` are its new nodes; a step may also name a node the tour already has.
 - `tour_get { tourId? }`: the tour plus the reader's state (current node and depth, visited nodes, nodes marked "don't get this"). Read it before answering a question about the tour.
 - `tour_focus { tourId, nodeId }`: move the reader to a node ("look at step 4").
 - `tour_list`: live and pinned tours.
@@ -35,6 +36,7 @@ Both follow the same explanation model. Read `comprehension.md` (beside this fil
 4. Choose the mental steps: one node per step, 5 to 7 on the path (about 4 for `brief`, up to 9 for `deep`), in causal order for the `flow` lens or concept order for `domain`. Supporting changes become `role: "supporting"` nodes off the path.
 5. Fill each node at L0 and L1 in the chosen lens only; add L2 (`detail`, `suggestedQuestion`) for `standard` and `deep`. Mark `why.source` honestly: `inferred` unless a commit, PR or comment states it.
 6. Add edges between related nodes, path and supporting alike.
+   Mark the one to three steps a reader is most likely to want to go deeper on with `dive: { question }`, the question a sub path from there would answer ("How is the token signed?"). Write no sub path now: they are written when the reader dives.
 7. Check that adjacent path nodes share a carry-forward, then call `tour_upsert` once. If it refuses, fix every listed problem and call it again. Weigh the advice it returns.
 8. Reply in chat in two or three lines: the goal, the shape of the change or flow, and that the pane is open to walk it. Do not repeat the tour in chat.
 
@@ -47,6 +49,18 @@ The pane sends prompts that name the tour and node. Answer them in chat, and cha
 - the other lens: write `otherLens` for that node (summary, whatChanged or whatItDoes, why) in the lens the tour was not written in, and keep everything else unchanged.
 - a stale node (its files changed since the tour was written): re-read the anchors and update the node's ranges, beacons and text.
 
+### Dives: sub paths written on demand
+
+A tour is a tree of paths. The main path is the story; a sub path hangs from one step of another path and goes in depth on it, and a step of a sub path can have its own. The reader asks for one with `d` on a step (or on a line of its code they clicked), and the pane sends a prompt naming the tour, the step, the line if any, and the anchor to use. Then:
+
+1. Call `tour_get` and read the step, then the code under it (or around the line): what it calls, what it relies on.
+2. Answer the dive's question in 2 to 5 steps (7 at most), in the tour's lens and with the same rules as any node: L0 and L1 at least, beacons with notes, `carryForward` between steps, honest `why.source`. Start where the parent step leaves off, not from scratch; the last step should hand the reader back to the parent step.
+3. Give each new node an id not yet in the tour, and `role: "path"`. Reuse an existing node only when the sub path really passes through it.
+4. Call `tour_add_path` with `path: { id, title, question, anchor, steps }`, copying the anchor from the prompt, and the new nodes. If it refuses, fix every problem listed and call it again. A sub path with an id that exists is rewritten.
+5. Reply in chat in one line. The pane moves the reader in if they are still on that step.
+
+Mark a step of a sub path with `dive` too when it is worth a further level; there is no depth limit, but each level should earn its place.
+
 ### When the pane is unavailable
 
 Under `claude -p` or with the plugin not installed there are no `tour_*` tools. Then explain in chat in the same shape: the goal and hypothesis, then the path as a numbered list, one line per node (title, plan, file:line), and the L1 text for each node below it.
@@ -57,7 +71,7 @@ The canonical v1 schema lives in `src/core/model/document.ts`. Do not invent a p
 
 ### Current product limits
 
-- linear `mainPath` only
+- linear `mainPath` only (tours nest sub paths; v1 paths do not)
 - one active path at a time
 - one active beacon at a time
 - `schemaVersion` is `1`

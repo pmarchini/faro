@@ -28,8 +28,23 @@ type Tour = {
   reader: "new" | "familiar";
   nodes: Record<string, TourNode>;  // keyed by node id
   edges: TourEdge[];
-  path: string[];                   // recommended reading order, node ids
-  current: { nodeId: string | null; depth: 0 | 1 | 2 };
+  path: string[];                   // the main path: recommended reading order, node ids
+  subPaths?: Record<string, TourSubPath>;  // written on demand, when the reader dives
+  current: { nodeId: string | null; depth: 0 | 1 | 2; pathId?: string };  // pathId absent: the main path
+};
+
+// A short path that goes in depth on one step of another path.
+type TourSubPath = {
+  id: string;                       // must equal its key; not "main"
+  title: string;                    // "How a token is signed"
+  question: string;                 // what the dive answers
+  anchor: {
+    path: string;                   // "main", or the id of the sub path the step is on
+    node: string;                   // the step it hangs from
+    file?: string;                  // set both when the reader dived from one line
+    line?: number;
+  };
+  steps: string[];                  // 2 to 5 node ids, at most 7
 };
 
 type TourNode = {
@@ -58,6 +73,7 @@ type TourNode = {
     whatItDoes?: string;
     why?: { text: string; source: "commit" | "pr" | "comment" | "inferred" };
   };
+  dive?: { question: string };      // offers a dive (◆): the question a sub path from here would answer
 };
 
 type TourEdge = {
@@ -78,7 +94,9 @@ type TourEdge = {
 - a node has more than 3 beacons, or a beacon's `file:line` is outside every anchor of that file
 - `path` is empty, over 12 nodes, names a missing node, or visits a node twice
 - an edge starts or ends at a missing node, or loops on itself
-- `current.nodeId` is neither `null` nor on the path, or `current.depth` is not 0, 1 or 2
+- `current.nodeId` is neither `null` nor on the path being read (`current.pathId`), or `current.depth` is not 0, 1 or 2
+- a node's `dive` has no question
+- a sub path's id differs from its key or is `"main"`, it has no `title` or `question`, its anchor names a missing path or a node that is not a step of it, its anchors do not lead back to the main path, `anchor.line` is set without `anchor.file`, or its `steps` are empty, over 7, name a missing node or visit one twice
 
 ## Returned as advice
 
@@ -89,6 +107,7 @@ type TourEdge = {
 - a path node has `role: "supporting"`, a title over 6 words, or no beacons
 - a beacon has no `note`
 - a node's anchors cover more than 40 lines
+- a sub path has more than 5 steps (the per-node rules above apply to its steps too)
 
 ## Paths in anchors and beacons
 

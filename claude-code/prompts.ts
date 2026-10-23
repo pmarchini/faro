@@ -33,6 +33,24 @@ export function askPrompt(tour: Tour, node: TourNode, question: string): string 
   return `[faro ${tour.id} › ${node.id} "${node.title}"] ${question}`
 }
 
+// Asks for a sub path under a step, or under one line of its code.
+export function divePrompt(
+  tour: Tour,
+  pathId: string,
+  node: TourNode,
+  line?: { file: string; line: number; text: string },
+): string {
+  const where = line ? `line ${line.file}:${line.line} \`${line.text.trim()}\` of step ${node.id}` : `step ${node.id}`
+  const question = line ? `How does this line work?` : (node.dive?.question ?? 'How does this step work inside?')
+  const anchor = JSON.stringify({ path: pathId, node: node.id, ...(line ? { file: line.file, line: line.line } : {}) })
+
+  return [
+    `[faro ${tour.id} › ${node.id} "${node.title}"] Dive into ${where}: ${question}`,
+    `Follow "Dives" in the ${SKILL} skill: call mcp__faro__tour_get, read the code under it, then write a sub path of 2 to 5 steps`,
+    `with mcp__faro__tour_add_path, anchor ${anchor}. Keep your chat reply to one line.`,
+  ].join(' ')
+}
+
 export function simplerPrompt(tour: Tour, node: TourNode): string {
   return [
     `[faro ${tour.id} › ${node.id} "${node.title}"] I don't get this step.`,
