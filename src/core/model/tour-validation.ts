@@ -166,6 +166,10 @@ export function findNodeProblems(where: string, key: string, node: TourNode): st
       continue;
     }
 
+    if (beacon.note !== undefined && typeof beacon.note !== "string") {
+      problems.push(`${at} beacon ${beacon.label} note must be a string.`);
+    }
+
     if (!Number.isInteger(beacon.line) || beacon.line < 1) {
       problems.push(`${at} beacon ${beacon.label} line must be a 1-based integer.`);
       continue;
@@ -284,6 +288,12 @@ export function lintTour(tour: Tour): string[] {
 
     if (node.beacons.length === 0) {
       advice.push(`Node ${node.id} has no beacons for the reader's eye to land on.`);
+    }
+
+    for (const beacon of node.beacons) {
+      if (!isNonEmptyString(beacon.note)) {
+        advice.push(`Node ${node.id} beacon ${beacon.label} has no note saying why the eye should land there.`);
+      }
     }
 
     const lines = node.anchors.reduce(

@@ -16,3 +16,5 @@ export const BORDER = '#3a3f4b'
 export const CHIP = '#262a33'
 export const RAIL = '#16181d'
 export const CURRENT_STEP_ROW = '#3b3220'
+// The step's summary, set on its own ground so it stands out from the fields.
+export const SUMMARY = '#1f2a33'

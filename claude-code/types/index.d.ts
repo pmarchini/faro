@@ -13,7 +13,7 @@ export type FaroTourNode = {
   whatChanged?: string
   whatItDoes?: string
   why?: FaroTourWhy
-  beacons: { label: string; file: string; line: number }[]
+  beacons: { label: string; file: string; line: number; note?: string }[]
   carryForward?: string
   detail?: string
   suggestedQuestion?: string

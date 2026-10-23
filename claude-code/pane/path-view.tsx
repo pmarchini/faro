@@ -1,7 +1,7 @@
 import { atom, read } from 'claude-code'
 import type { Elements, On, RenderChildren } from 'claude-code'
 
-import type { Tour, TourNode, TourWhy } from '../../src/core/model/tour.ts'
+import type { Tour, TourBeacon, TourNode, TourWhy } from '../../src/core/model/tour.ts'
 import { getTour, pathPosition } from '../../src/core/services/tour-machine.ts'
 import { codeWindow, foldRows, type VisualRow, type WindowBeacon } from '../code-window.ts'
 import { compactFiles, railFiles, type TreeFile } from '../file-tree.ts'
@@ -24,6 +24,7 @@ import {
   MARK_LIGHT,
   RAIL,
   REMOVED,
+  SUMMARY,
 } from './theme.ts'
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
@@ -45,7 +46,7 @@ const CARD_COLUMNS = 4
 const MIN_CODE_ROWS = 6
 
 type Ui = Elements[keyof Elements]
-type Field = { label: string; text: string; color?: string }
+type Field = { label: string; text: string; color?: string; isSummary?: boolean }
 
 // The Path view, a column beside the chat: a one-line header; a rail with
 // the Faro mark, the steps and the tour's files (`f` hides it); and the
@@ -143,7 +144,7 @@ export function drawPathView(on: On): void {
 
     // The rows the code may take: the pane's height less everything else.
     const stackedRows = isRail ? 0 : tour.path.length + 1 + (reader.isFileTreeHidden ? 1 : compactFiles(treeFiles(tour, reader)).length + 1)
-    const beaconRows = node ? node.beacons.length + 1 : 0
+    const beaconRows = node ? beaconListRows(node, readerWidth) + 1 : 0
     const footerRows = Math.ceil(keys.reduce((sum, key) => sum + key.label.length + 5, 0) / width)
     const codeRows = Math.max(
       MIN_CODE_ROWS,
@@ -349,8 +350,8 @@ function storyFields(tour: Tour, node: TourNode, reader: ReaderState, depth: num
   const otherLens = tour.lens === 'flow' ? 'domain' : 'flow'
   const lensText = reader.isOtherLensShown ? node.otherLens : node
   const fields: Field[] = []
-  const add = (label: string, text: string | undefined, color?: string) => {
-    if (text) fields.push({ label, text, ...(color ? { color } : {}) })
+  const add = (label: string, text: string | undefined, color?: string, isSummary = false) => {
+    if (text) fields.push({ label, text, ...(color ? { color } : {}), ...(isSummary ? { isSummary } : {}) })
   }
 
   if (reader.isOtherLensShown) {
@@ -367,7 +368,7 @@ function storyFields(tour: Tour, node: TourNode, reader: ReaderState, depth: num
   }
 
   if (depth === 0) {
-    add('', lensText?.summary ?? node.summary)
+    add('', lensText?.summary ?? node.summary, undefined, true)
   }
 
   add('! Surprise', node.surprise, 'warning')
@@ -425,7 +426,7 @@ function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: Reade
             </Box>
           </Box>
         ) : (
-          <Box marginLeft={number.length}>
+          <Box marginLeft={number.length} {...(field.isSummary ? { backgroundColor: SUMMARY, paddingX: 1 } : {})}>
             <Text dimColor={field.text.startsWith('Press e')}>{field.text}</Text>
           </Box>
         ),
@@ -446,7 +447,7 @@ function storyRows(node: TourNode | undefined, fields: Field[], width: number): 
 
   return (
     wrapped(node.title, width - 4 - node.plan.length - 8) +
-    fields.reduce((sum, field) => sum + wrapped(field.text, width - (field.label ? FIELD_WIDTH : 3) - 1), 0)
+    fields.reduce((sum, field) => sum + wrapped(field.text, width - (field.label ? FIELD_WIDTH : field.isSummary ? 5 : 3) - 1), 0)
   )
 }
 
@@ -520,19 +521,48 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
           </Box>
         )}
       </Box>
-      {node.beacons.map((beacon, index) => (
-        <Text color={index === current ? ACCENT : undefined} dimColor={index !== current} wrap="truncate-end">
-          {index === current ? '●' : '○'} {index + 1} {beacon.file === code.path ? '' : `${beacon.file} `}L{beacon.line}
-          {'  '}
-          {beacon.label}
-        </Text>
-      ))}
+      {node.beacons.map((beacon, index) => {
+        const isCurrent = index === current
+        const where = beaconWhere(beacon, index, isCurrent, code.path)
+
+        return (
+          <Box flexDirection="row">
+            <Box width={where.length} flexShrink={0}>
+              <Text color={isCurrent ? ACCENT : undefined} dimColor={!isCurrent}>
+                {where}
+              </Text>
+            </Box>
+            <Box flexShrink={1}>
+              <Text>
+                <Text bold={isCurrent} color={isCurrent ? ACCENT : undefined} dimColor={!isCurrent}>
+                  {beacon.label}
+                </Text>
+                <Text dimColor={!isCurrent}>{beacon.note ? `  ${beacon.note}` : ''}</Text>
+              </Text>
+            </Box>
+          </Box>
+        )
+      })}
       <Text dimColor wrap="truncate-end">
         {badge(ui, 'b')} next beacon  {badge(ui, 'n p')} scroll  {badge(ui, 'f')} {reader.isCodeFolded ? 'unfold' : 'fold'}  {badge(ui, 'o')}{' '}
         {code.isWholeFile ? 'the step' : 'whole file'}
       </Text>
     </Box>
   )
+}
+
+// A beacon's mark, number and line, before its label and note.
+function beaconWhere(beacon: TourBeacon, index: number, isCurrent: boolean, path: string): string {
+  return `${isCurrent ? '●' : '○'} ${index + 1} ${beacon.file === path ? '' : `${beacon.file} `}L${beacon.line}  `
+}
+
+// The rows the beacon list takes once each label and note wraps.
+function beaconListRows(node: TourNode, width: number): number {
+  return node.beacons.reduce((sum, beacon, index) => {
+    const room = Math.max(10, width - CARD_COLUMNS - beaconWhere(beacon, index, false, beacon.file).length)
+    const text = `${beacon.label}${beacon.note ? `  ${beacon.note}` : ''}`
+    return sum + Math.max(1, Math.ceil(text.length / room))
+  }, 0)
 }
 
 type Run = { kind: 'plain'; rows: CodeRow[] } | { kind: 'single'; row: VisualRow }

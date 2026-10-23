@@ -31,7 +31,7 @@ function node(id: string, title: string, overrides: Record<string, unknown> = {}
     summary: `Summary of ${id}`,
     whatChanged: `Change in ${id}`,
     why: { text: `Reason for ${id}`, source: 'inferred' },
-    beacons: [{ label: `${id}()`, file: `src/${id}.ts`, line: 5 }],
+    beacons: [{ label: `${id}()`, file: `src/${id}.ts`, line: 5, note: `where ${id} hands over` }],
     carryForward: `Carry ${id}`,
     detail: `Detail of ${id}`,
     suggestedQuestion: `What about ${id}?`,
@@ -168,7 +168,8 @@ test('the code is open by default, its beacons tinted and listed, and o shows th
   expect(await ui.find({ type: 'Text', text: /src\/login\.ts  L1–10 · 10 lines/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^ 5   line 5$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: / ◀ 1$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^● 1 L5  login\(\)$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^● 1 L5  $/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^login\(\)  where login hands over$/ })).toBeDefined()
   expect((await ui.findAll({ type: 'Code' })).map((found) => found.text).join('\n')).toContain('line 10')
 
   await ui.press({ key: 'key-code' })

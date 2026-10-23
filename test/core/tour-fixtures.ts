@@ -7,7 +7,7 @@ export function createNode(id: string, overrides: Partial<TourNode> = {}): TourN
     plan: "guard clause",
     summary: `What happens in ${id}`,
     carryForward: `Hold ${id} in mind`,
-    beacons: [{ label: `${id}()`, file: `src/${id}.ts`, line: 3 }],
+    beacons: [{ label: `${id}()`, file: `src/${id}.ts`, line: 3, note: `where ${id} starts` }],
     anchors: [{ file: `src/${id}.ts`, range: { startLine: 1, endLine: 10 } }],
     role: "path",
     ...overrides,

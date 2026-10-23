@@ -140,3 +140,9 @@ test("lint flags a node over forty lines", () => {
 
   assert.ok(lintTour(createTour({ nodes })).some((advice) => /80 lines/.test(advice)));
 });
+
+test("lint asks for a note on a beacon that has none", () => {
+  const nodes = { ...createTour().nodes, n2: createNode("n2", { beacons: [{ label: "n2()", file: "src/n2.ts", line: 3 }] }) };
+
+  assert.deepEqual(lintTour(createTour({ nodes })), ["Node n2 beacon n2() has no note saying why the eye should land there."]);
+});
