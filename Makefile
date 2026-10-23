@@ -1,4 +1,4 @@
-.PHONY: check test dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
+.PHONY: check test test-claude-code dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
 
 VSCODE ?= code
 DEV_WORKSPACE ?= $(CURDIR)/faro-dev.code-workspace
@@ -10,6 +10,9 @@ check:
 
 test:
 	npm test
+
+test-claude-code:
+	npm run test:claude-code
 
 dev-host:
 	@"$(VSCODE)" --new-window --extensionDevelopmentPath="$(CURDIR)" "$(DEV_WORKSPACE)"

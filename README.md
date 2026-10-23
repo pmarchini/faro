@@ -150,6 +150,36 @@ Create a Faro path that traces the authentication flow from entrypoint to sessio
 Onboard me to the setup flow in this extension as a Faro path.
 ```
 
+## Faro in Claude Code
+
+Faro is also a Claude Code plugin. `/explain` asks Claude for a tour of your changes or of existing code, and you walk it in a pane beside the chat: a hypothesis up top, five to seven steps in reading order, and for each step what it does, why, the lines to look at, and the code itself. The explanation follows program-comprehension research; the rules and the bibliography are in [`skills/faro-author-paths/comprehension.md`](./skills/faro-author-paths/comprehension.md).
+
+Install it from a Claude Code terminal session:
+
+```text
+/plugin install faro --marketplace pmarchini/faro
+```
+
+Answer `y` to add the marketplace, then pick a scope. To try a local checkout instead, start Claude Code with `claude --plugin-dir /path/to/faro`.
+
+Use it:
+
+```text
+/explain                                   your uncommitted changes
+/explain HEAD~3..HEAD                      a commit range
+/explain feature/login                     a branch against its merge base
+/explain #482 --goal "why do we retry?"    a pull request (needs gh)
+/explain src/billing/ --lens domain        existing code
+/explain "how does this plugin work?"      a question about a flow
+/explain last                              reopen the last tour
+```
+
+Flags: `--depth brief|standard|deep`, `--lens flow|domain`, `--reader new|familiar`, `--goal "..."`.
+
+In the pane, a column beside the chat: a rail on the left holds the Faro mark, the steps (titles wrap) and the tour's files as a folder tree with the current step's file marked; the reader on the right shows the step's story (its headline wraps under its number, beside the plan as a chip) and its code, which fills the rest of the height. The code is centred on the current beacon, beacon lines are tinted and listed under the code (● for the current one), `f` folds the lines far from every beacon into "N lines folded", and a track on the right marks where the beacons are. Keys: `j`/`k` move along the path, `e`/`u` show more or less, `l` switches between the flow and domain lens, `b` jumps to the next beacon, `n`/`p` scroll the code, `f` folds or unfolds, `o` shows the whole file, `c` folds or opens the code panel, `h` hides or shows the rail, `a` puts the step's suggested question in the prompt, `x` asks Claude to re-explain the step more simply, `r` refreshes a step whose code changed, `q` closes. In a narrow pane the steps and files stack above the reader; in a pane shorter than 18 rows, such as VS Code's integrated terminal, they give way to a one-line breadcrumb (`faro 3/6 ✓✓▸○○○`) and `t` shows the steps. Resuming a session (`claude --resume`, `--continue`, or switching to it from the session picker) brings back its tour, where you were in it, and the pane if it was open. `/tour pin [name]` keeps a tour across sessions; `/tour list`, `/tour open <id>` and `/tour drop <id>` manage them.
+
+The Graph view of a tour is planned for the next version. Design and decisions: [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md).
+
 ## Development
 
 Core commands:
@@ -157,6 +187,7 @@ Core commands:
 ```sh
 npm run check
 npm test
+npm run test:claude-code   # the Claude Code plugin's hooks, through `claude plugin test`
 make dev-host
 ```
 
@@ -185,3 +216,4 @@ If the MCP flow does not work:
 - [Architecture](./docs/architecture.md)
 - [Implementation Plan](./docs/faro-plan.md)
 - [MVP Spec](./proposals/in-progress/faro-mvp-spec.md)
+- [Claude Code tour plugin](./proposals/in-progress/claude-code-tour-plugin.md)

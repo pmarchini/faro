@@ -1,0 +1,9 @@
+{
+  "name": "faro",
+  "version": "0.1.0",
+  "description": "Explains a diff or existing code as a short, research-grounded tour you walk in a pane beside the chat.",
+  "author": { "name": "Pietro Marchini" },
+  "repository": "https://github.com/pmarchini/faro",
+  "license": "MIT",
+  "types": "./claude-code/types/index.d.ts"
+}

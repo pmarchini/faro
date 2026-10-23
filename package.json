@@ -99,7 +99,8 @@
     "package:vsix": "vsce package",
     "install:local": "npm run package:vsix -- --out dist/faro.vsix && code --install-extension dist/faro.vsix --force",
     "test": "node --test --test-isolation=none",
-    "test:watch": "node --test --test-isolation=none --watch"
+    "test:watch": "node --test --test-isolation=none --watch",
+    "test:claude-code": "bash scripts/test-claude-code.sh"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

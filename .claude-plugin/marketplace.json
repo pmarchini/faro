@@ -1,0 +1,6 @@
+{
+  "name": "faro",
+  "description": "Faro: code explanations as short, research-grounded tours you walk in a pane beside the chat.",
+  "owner": { "name": "Pietro Marchini" },
+  "plugins": [{ "name": "faro", "source": "./" }]
+}

@@ -10,3 +10,8 @@ faro-dev.code-workspace
 Makefile
 package-lock.json
 tsconfig.json
+.claude-plugin/**
+hooks/**
+claude-code/**
+skills/faro-author-paths/comprehension.md
+skills/faro-author-paths/tour-schema.md
