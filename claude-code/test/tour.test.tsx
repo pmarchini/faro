@@ -403,6 +403,29 @@ test('a long headline wraps under its number while its step row is cut with an e
   await ui.unmount()
 })
 
+test('the title and hypothesis wrap instead of being cut', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  const hypothesis = 'ProfileApprovalManager is the single gate: it only lets a payment profile become verified once a KYC check passes, unless a risk rule waives it.'
+  await $.tool.call({ tool: 'mcp__faro__tour_upsert', tour: tour({ hypothesis }) })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+
+  type Drawn = { type?: string; props?: Record<string, unknown>; children?: unknown[] }
+  // Whether `text` is drawn under an element that cuts its line.
+  const isCut = (element: Drawn, text: string, isUnderCut = false): boolean => {
+    const cuts = isUnderCut || String(element.props?.wrap ?? '').startsWith('truncate')
+    return (element.children ?? []).some((child) =>
+      child === text ? cuts : typeof child === 'object' && child !== null && isCut(child as Drawn, text, cuts),
+    )
+  }
+  const tree = (await ui.drawn()) as Drawn
+
+  expect(JSON.stringify(tree)).toContain(hypothesis)
+  expect(isCut(tree, hypothesis)).toBe(false)
+  expect(isCut(tree, 'Session persistence')).toBe(false)
+  await ui.unmount()
+})
+
 test('a short pane shows a breadcrumb and the current step, and t lists the steps', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })

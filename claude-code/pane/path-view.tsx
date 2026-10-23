@@ -148,7 +148,7 @@ export function drawPathView(on: On): void {
     const footerRows = Math.ceil(keys.reduce((sum, key) => sum + key.label.length + 5, 0) / width)
     const codeRows = Math.max(
       MIN_CODE_ROWS,
-      rows - 4 - stackedRows - storyRows(node, fields, readerWidth) - 1 - beaconRows - footerRows - CARD_ROWS,
+      rows - 2 - headRows(tour, width) - stackedRows - storyRows(node, fields, readerWidth) - 1 - beaconRows - footerRows - CARD_ROWS,
     )
     const codeSection =
       node &&
@@ -156,7 +156,7 @@ export function drawPathView(on: On): void {
       code.nodeId === node.id &&
       (isCodeFolded ? foldedCode(ui, node, reader, code) : codePanel(ui, node, reader, code, codeRows, readerWidth))
     const header = (
-      <Text wrap="truncate-end">
+      <Text>
         {mark(ui)}
         {'  '}
         <Text bold>{tour.title}</Text>
@@ -177,7 +177,7 @@ export function drawPathView(on: On): void {
       return (
         <Box flexDirection="column">
           {header}
-          <Text dimColor wrap="truncate-end">
+          <Text dimColor>
             {tour.hypothesis}
           </Text>
           <Text dimColor>{rule}</Text>
@@ -202,7 +202,7 @@ export function drawPathView(on: On): void {
     return (
       <Box flexDirection="column">
         {header}
-        <Text dimColor wrap="truncate-end">
+        <Text dimColor>
           {tour.hypothesis}
         </Text>
         <Text dimColor>{rule}</Text>
@@ -437,6 +437,13 @@ function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: Reade
 
 function chipText(tour: Tour, node: TourNode): string {
   return node.plan ? ` ${isCodeTour(tour) ? 'role: ' : ''}${node.plan} ` : ''
+}
+
+// The rows the header and the hypothesis take once wrapped: neither is cut,
+// so a long title or hypothesis is read whole.
+function headRows(tour: Tour, width: number): number {
+  const header = `o-^-o faro  ${tour.title}  code tour  ${tour.lens}  00/00`
+  return Math.ceil(header.length / width) + Math.ceil(tour.hypothesis.length / width)
 }
 
 // How many rows the story takes once wrapped, to size the code under it.
