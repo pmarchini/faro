@@ -177,12 +177,11 @@ test('the code is open by default, its beacons tinted and listed, and o shows th
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
 
   expect(await ui.find({ type: 'Text', text: /src\/login\.ts  L1–10 · 10 lines/ })).toBeDefined()
-  expect((await ui.find({ type: 'Button', key: 'line-5' }))?.text).toBe(' 5   ')
-  expect(await ui.find({ type: 'Text', text: /^line 5$/ })).toBeDefined()
+  expect((await ui.find({ type: 'Button', key: 'line-5' }))?.text).toBe(' 5   line 5')
   expect(await ui.find({ type: 'Text', text: / ◀ 1$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^● 1 L5  $/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^login\(\)  where login hands over$/ })).toBeDefined()
-  expect((await ui.findAll({ type: 'Code' })).map((found) => found.text).join('\n')).toContain('line 10')
+  expect((await ui.find({ type: 'Button', key: 'line-10' }))?.text).toBe('10   line 10')
 
   await ui.press({ key: 'key-code' })
   expect(await ui.find({ type: 'Text', text: /whole file · 30 lines/ })).toBeDefined()
@@ -592,6 +591,9 @@ test('a click picks a code line, d dives from it and a asks about it; a second c
 
   await ui.press({ key: 'line-3' })
   expect(await ui.find({ type: 'Text', text: '▸ L3 picked' })).toBeDefined()
+  // The picked line is drawn on its own ground, the whole line clickable.
+  const picked = (await ui.drawn()) as unknown
+  expect(JSON.stringify(picked)).toContain('"backgroundColor":"#3a2f55"')
 
   await ui.press({ key: 'key-scrollDown' })
   expect(await ui.find({ type: 'Text', text: '▸ L4 picked' })).toBeDefined()

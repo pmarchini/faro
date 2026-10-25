@@ -20,6 +20,10 @@ export const CURRENT_STEP_ROW = '#3b3220'
 export const SUMMARY = '#1f2a33'
 // Sub paths: their numbers and entries, in purple beside the main amber.
 export const SUB_ACCENT = '#c39bff'
-// A code line under the pointer, and the one the reader picked.
-export const HOVER_ROW = '#23262e'
-export const PICKED_ROW = '#2d2640'
+// The code line the reader picked.
+export const PICKED_ROW = '#3a2f55'
+// Code lines are coloured by token (claude-code/pane/syntax.ts).
+export const SYNTAX_KEYWORD = '#c678dd'
+export const SYNTAX_STRING = '#a5c97f'
+export const SYNTAX_NUMBER = '#d19a66'
+export const SYNTAX_COMMENT = '#7f848e'

@@ -10,6 +10,7 @@ import type { FaroCodeRow as CodeRow, FaroCodeView as CodeView, FaroReader as Re
 import { enterSubPath, runAction, selectLine, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
 import { LOGO_ROWS, LOGO_WIDTH, WORDMARK, logoSegments } from './logo.ts'
+import { tokens, type TokenKind } from './syntax.ts'
 import { breadcrumb, isWriting, mapRows, rowText, stepRows, type StepRow, type TreeRow } from './path-tree.ts'
 import {
   ACCENT,
@@ -21,7 +22,6 @@ import {
   CURRENT_STEP_ROW,
   CURRENT_BEACON_ROW,
   FOLD_ROW,
-  HOVER_ROW,
   MARK,
   MARK_LIGHT,
   RAIL,
@@ -29,7 +29,19 @@ import {
   REMOVED,
   SUB_ACCENT,
   SUMMARY,
+  SYNTAX_COMMENT,
+  SYNTAX_KEYWORD,
+  SYNTAX_NUMBER,
+  SYNTAX_STRING,
 } from './theme.ts'
+
+const TOKEN_COLORS: Record<TokenKind, string | undefined> = {
+  keyword: SYNTAX_KEYWORD,
+  string: SYNTAX_STRING,
+  number: SYNTAX_NUMBER,
+  comment: SYNTAX_COMMENT,
+  plain: undefined,
+}
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
@@ -609,7 +621,14 @@ function codePanel(
       subPath.anchor.file === code.path && subPath.anchor.line ? [subPath.anchor.line] : [],
     ),
   )
-  const line: LineContext = { code, gutter, nodeId: node.id, picked: picked?.line ?? null, written }
+  const line: LineContext = {
+    code,
+    gutter,
+    nodeId: node.id,
+    picked: picked?.line ?? null,
+    written,
+    room: Math.max(10, width - 3 - CARD_COLUMNS),
+  }
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={BORDER} paddingX={1}>
@@ -715,12 +734,13 @@ type LineContext = {
   // The picked line's number, and the lines a sub path was written from.
   picked: number | null
   written: Set<number>
+  // The columns a row may take.
+  room: number
 }
 
-// One row of the code: a fold, a line a diff removed, or a numbered line.
-// A numbered line lights under the pointer and shows "↳ dive"; its gutter
-// is the button that picks it. Plain source keeps its syntax colour.
-function drawRow({ Box, Text, Code, Button }: Ui, $: Engine, row: VisualRow, line: LineContext) {
+// One row of the code: a fold, a line a diff removed, or a numbered line,
+// which is a button that picks it, drawn on a tinted ground once picked.
+function drawRow({ Box, Text, Button }: Ui, $: Engine, row: VisualRow, line: LineContext) {
   const { code, gutter } = line
   const number = (codeRow: CodeRow) => (codeRow.number === null ? '' : String(codeRow.number)).padStart(gutter)
 
@@ -745,7 +765,14 @@ function drawRow({ Box, Text, Code, Button }: Ui, $: Engine, row: VisualRow, lin
 
   const lineNumber = codeRow.number
   const isPicked = line.picked === lineNumber
-  const isPlain = code.format === 'source' && !beacon
+  const background = isPicked ? PICKED_ROW : beacon ? (beacon.isCurrent ? CURRENT_BEACON_ROW : BEACON_ROW) : undefined
+  const head = `${number(codeRow)} ${codeRow.marker} `
+  const tail = `${line.written.has(lineNumber) ? ' ↳' : ''}${beacon ? ` ${beacon.isCurrent ? '◀' : '◁'} ${beacon.index + 1}` : ''}`
+  const room = Math.max(4, line.room - 1 - head.length - tail.length)
+  const text = codeRow.text.length > room ? `${codeRow.text.slice(0, room - 1)}…` : codeRow.text
+  // A diff's added and removed lines keep their colour; other lines are
+  // coloured by token.
+  const parts = color ? [{ text, kind: 'plain' as const }] : tokens(text, code.path)
   // One column before the number: the pick, the current beacon's bar, or blank.
   const bar = isPicked ? (
     <Text color={SUB_ACCENT}>▸</Text>
@@ -755,45 +782,34 @@ function drawRow({ Box, Text, Code, Button }: Ui, $: Engine, row: VisualRow, lin
     <Text> </Text>
   )
 
+  // The whole line is the button: a click anywhere on it picks it, and the
+  // terminal inverts it under the pointer.
   return (
-    <Box
-      key={`row-${lineNumber}`}
-      flexDirection="row"
-      {...(isPicked ? { backgroundColor: PICKED_ROW } : {})}
-      hover={{ backgroundColor: isPicked ? PICKED_ROW : HOVER_ROW }}
-    >
+    <Box key={`row-${lineNumber}`} flexDirection="row">
       {bar}
       <Button
         key={`line-${lineNumber}`}
         plain
         onPress={() => selectLine($, { nodeId: line.nodeId, file: code.path, line: lineNumber, text: codeRow.text })}
       >
-        <Text dimColor={!isPicked} color={isPicked ? SUB_ACCENT : undefined}>{`${number(codeRow)} ${codeRow.marker} `}</Text>
-      </Button>
-      <Box flexGrow={1} flexShrink={1}>
-        {isPlain ? (
-          <Code source={codeRow.text} path={code.path} wrap="truncate-end" />
-        ) : (
-          <Text
-            bold={beacon?.isCurrent}
-            color={color}
-            backgroundColor={beacon ? (beacon.isCurrent ? CURRENT_BEACON_ROW : BEACON_ROW) : undefined}
-            wrap="truncate-end"
-          >
-            {codeRow.text}
-          </Text>
-        )}
-      </Box>
-      {line.written.has(lineNumber) && <Text color={SUB_ACCENT}> ↳</Text>}
-      {beacon && (
-        <Text color={beacon.isCurrent ? ACCENT : undefined} dimColor={!beacon.isCurrent}>
-          {` ${beacon.isCurrent ? '◀' : '◁'} ${beacon.index + 1}`}
+        <Text dimColor={!isPicked} color={isPicked ? SUB_ACCENT : undefined} backgroundColor={background}>
+          {head}
         </Text>
-      )}
-      {!isPicked && (
-        <Box display="none" hover={{ display: 'flex' }} flexShrink={0}>
-          <Text dimColor> ↳ dive</Text>
-        </Box>
+        {parts.map((part) => (
+          <Text
+            bold={isPicked || beacon?.isCurrent}
+            color={color ?? TOKEN_COLORS[part.kind]}
+            dimColor={part.kind === 'comment'}
+            backgroundColor={background}
+          >
+            {part.text}
+          </Text>
+        ))}
+      </Button>
+      {tail && (
+        <Text color={beacon?.isCurrent || line.written.has(lineNumber) ? (beacon?.isCurrent ? ACCENT : SUB_ACCENT) : undefined} dimColor={Boolean(beacon) && !beacon?.isCurrent}>
+          {tail}
+        </Text>
       )}
     </Box>
   )
