@@ -1,8 +1,14 @@
-.PHONY: check test test-claude-code dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
+.PHONY: check test test-claude-code install-claude-code uninstall-claude-code dev-host package-vsix install-local upsert-agent-local upsert-agent-global upsert-agent-all upsert-copilot-agent-local
 
 VSCODE ?= code
 DEV_WORKSPACE ?= $(CURDIR)/faro-dev.code-workspace
 VSIX_PATH ?= $(CURDIR)/dist/faro.vsix
+CLAUDE ?= claude
+# Where the faro marketplace comes from: this checkout (the default, so a
+# `git pull` updates the plugin) or a GitHub repo such as pmarchini/faro.
+MARKETPLACE ?= $(CURDIR)
+# Claude Code install scope: user, project, or local.
+PLUGIN_SCOPE ?= user
 FORCE_FLAG = $(if $(filter 1 true yes,$(FORCE)),-- --force,)
 
 check:
@@ -13,6 +19,17 @@ test:
 
 test-claude-code:
 	npm run test:claude-code
+
+# Adds the faro marketplace to Claude Code and installs the plugin from it.
+# Safe to run again. Restart Claude Code (or run /reload-plugins) after.
+install-claude-code:
+	@"$(CLAUDE)" plugin validate "$(CURDIR)" >/dev/null
+	@"$(CLAUDE)" plugin marketplace add "$(MARKETPLACE)" --scope "$(PLUGIN_SCOPE)"
+	@"$(CLAUDE)" plugin install faro@faro --scope "$(PLUGIN_SCOPE)"
+
+uninstall-claude-code:
+	@"$(CLAUDE)" plugin uninstall faro@faro --scope "$(PLUGIN_SCOPE)"
+	@"$(CLAUDE)" plugin marketplace remove faro
 
 dev-host:
 	@"$(VSCODE)" --new-window --extensionDevelopmentPath="$(CURDIR)" "$(DEV_WORKSPACE)"
