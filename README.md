@@ -160,7 +160,15 @@ Install it from a Claude Code terminal session:
 /plugin install faro --marketplace pmarchini/faro
 ```
 
-Answer `y` to add the marketplace, then pick a scope. To try a local checkout instead, start Claude Code with `claude --plugin-dir /path/to/faro`.
+Answer `y` to add the marketplace, then pick a scope.
+
+From a clone of this repository, one command does the same from your shell:
+
+```sh
+make install-claude-code
+```
+
+It adds this checkout as the `faro` marketplace and installs the plugin from it, so the plugin loads in place and a `git pull` updates it (restart Claude Code or run `/reload-plugins` after). It is safe to run again. `make install-claude-code MARKETPLACE=pmarchini/faro` installs from GitHub instead, `PLUGIN_SCOPE=project` or `local` changes the scope (default `user`), and `make uninstall-claude-code` removes both. To try a checkout for one session only, start Claude Code with `claude --plugin-dir /path/to/faro`.
 
 Use it:
 
