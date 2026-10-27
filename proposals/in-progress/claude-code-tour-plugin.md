@@ -22,7 +22,8 @@ Bring Faro to Claude Code as a plugin: Claude explains a change set or existing 
 | Stale marking after Edit/Write | `claude-code/stale.ts` | done |
 | File tree of the tour's files, current step's file marked (`t` toggles; Pietro, 2026-10-22) | `claude-code/file-tree.ts` | done |
 | Pane layout: rail of steps and files beside the reader, code window with folding and beacon list, short layout | `claude-code/pane/path-view.tsx`, `claude-code/code-window.ts` | done |
-| Graph view | | v2 |
+| Graph navigator: paths of paths, sub paths written on demand (`d`/`s`/`m`, clickable code lines, `tour_add_path`) | `src/core`, `claude-code/pane/path-tree.ts`, `claude-code/pane/path-view.tsx` | done |
+| Path overview (link neighbourhood of the single path) | | parked |
 | `tour-author` subagent for very large diffs | | later |
 | VS Code extension reading v2 documents | | later |
 
@@ -50,7 +51,23 @@ Pennington's program and situation models map onto two lenses: `flow` (control a
 
 **Code tours** (a `code` or `question` target: existing code, no change) read as such: the header says "code tour", the code panel is the plain file marked read only (with `@ <headSha>` when the tour has one), the story uses "Does", "Why (inferred: no commit says so)" and "Carry on".
 
-**Pane layout** (the final visual design, implemented on Pietro's go, 2026-10-22): the pane is a column beside the chat. A one-line header (`o-^-o faro  title  [code tour]  lens  3/6`) and the hypothesis; then, from 90 cells wide, a rail of 30 cells with the Faro mark (`LOGO_ROWS` and "F A R O"), the steps (titles wrap under their number) and the files as a folder tree (`├`/`└`, one folder a row; `h` hides the rail), beside the reader: the story (headline wrapping under its number beside the plan chip, `[role: …]` in a code tour; each field wrapping under itself) and the code, which fills the remaining height. The code is cut into rows (`claude-code/code-window.ts`): the code starts unfolded and `f` folds lines more than three from every beacon into "N lines folded" (Pietro, 2026-10-22), the window is centred on the current beacon and scrolled with `n`/`p` (the design's J/K: a pane hotkey must be one lowercase letter or digit), a one-cell track on the right ticks the beacons, and `o` shows the whole file. Beacon lines are drawn as tinted text rows (the Code element cannot tint a line); runs of plain lines go through the Code element for syntax colour. The beacons are listed under the code, `●` for the current one. Narrower than 90 cells the steps and files stack above the reader; shorter than 18 rows the pane shows a breadcrumb. Colours live in `claude-code/pane/theme.ts`: the accent stays amber until Pietro decides on the brand cyan.
+**Pane layout** (the final visual design, implemented on Pietro's go, 2026-10-22): the pane is a column beside the chat. A one-line header (`o-^-o faro  title  [code tour]  lens  3/6`) and the hypothesis; then, from 90 cells wide, a rail of 30 cells with the Faro mark (`LOGO_ROWS` and "F A R O"), the steps (titles wrap under their number) and the files as a folder tree (`├`/`└`, one folder a row; `h` hides the rail), beside the reader: the story (headline wrapping under its number beside the plan chip, `[role: …]` in a code tour; each field wrapping under itself) and the code, which fills the remaining height. The code is cut into rows (`claude-code/code-window.ts`): the code starts unfolded and `f` folds lines more than three from every beacon into "N lines folded" (Pietro, 2026-10-22), the window is centred on the current beacon and scrolled with `n`/`p` (the design's J/K: a pane hotkey must be one lowercase letter or digit), a one-cell track on the right ticks the beacons, and `o` shows the whole file. Beacon lines are drawn on a tinted ground; every line is coloured by token (see "Paths of paths" below). The beacons are listed under the code, `●` for the current one. Narrower than 90 cells the steps and files stack above the reader; shorter than 18 rows the pane shows a breadcrumb. Colours live in `claude-code/pane/theme.ts`: the accent stays amber until Pietro decides on the brand cyan.
+
+### Paths of paths
+
+Settled with Pietro on 2026-10-23 (design canvas, row "Graph navigator: paths of paths"). The graph a reader walks is a tree of paths: the main path, and sub paths that each hang from one step of another path and go in depth on it. Sub paths are lazy: the skill writes none up front, it only marks dive-worthy steps with `dive: { question }` (◆ in the pane). When the reader presses `d` (or clicks a code line, then `d`), the pane submits a prompt and Claude writes the sub path through `tour_add_path`; the pane shows "Claude is writing a sub path… keep reading" and moves the reader in when it lands, if they are still on that step.
+
+| Topic | Decision | Consequence in the code |
+| --- | --- | --- |
+| Shape | `tour.path` stays the main path; `tour.subPaths` holds the rest, keyed by id, each with `anchor { path, node, file?, line? }` | v2 documents need no migration; `"main"` names the main path in an anchor or cursor |
+| Cursor | `current.pathId` names the path being read (absent: main); the stack is the chain of anchors | `pathTrail` derives it; `s` surfaces one level |
+| Where you can dive | Any step, and any line of its code (Pietro: "we need to allow the user to click on the code"); ◆ only marks what the author recommends | each code line is a button; the terminal inverts it under the pointer |
+| After a sub path's last step | `j` returns to the step it hangs from (so does `k` before its first) | `moveOnPath` surfaces off either end of a sub path |
+| Persistence | Written sub paths are part of the tour | saved, pinned and resumed with it |
+| Depth | No limit; the breadcrumb collapses past three paths (`Title › … › 2 › Sub`) | |
+| Length | At most 7 steps (refused), 2 to 5 advised | `MAX_SUB_PATH_LENGTH`, `lintTour` |
+
+The pane: the header is a breadcrumb (`Session persistence › 2 › How a token is signed  flow  1/2`); the rail is a tree that opens only the paths on the reader's trail (others are one `↳` line a click enters); sub path numbers are purple (`SUB_ACCENT`); `m` swaps the step for a map of every path as an indented tree, offered dives as `├┄┐ ◆`. Every numbered code line is one Button, so a click anywhere on it picks it (a first version made only the line number clickable, and Pietro found clicks on the code did nothing). A Button holds only strings and Text, so the Code element's highlighting cannot be used there: `claude-code/pane/syntax.ts` colours keywords, strings, numbers and comments line by line instead. The picked line is drawn on a purple ground with ▸ before it.
 
 ## Implementation notes
 
@@ -73,5 +90,6 @@ Pennington's program and situation models map onto two lenses: `flow` (control a
 ## Next
 
 1. Try it in a live session on this repo (`claude --plugin-dir .`, then `/explain "how does the faro plugin work?"`) and tune the skill's wording on real output.
-2. Graph view (`g`/`p`), from the edges already authored.
+2. Try clicking code lines in a real terminal: mouse capture may get in the way of selecting text to copy.
+3. The parked Path overview (the link neighbourhood of the single path), from the edges already authored.
 3. Let the VS Code extension read `schemaVersion: 2` documents.

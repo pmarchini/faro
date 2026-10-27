@@ -1,5 +1,6 @@
 import {
   MAX_BEACONS_PER_NODE,
+  MAIN_PATH_ID,
   MAX_PATH_LENGTH,
   TOUR_EDGE_KINDS,
   TOUR_LENSES,
@@ -7,13 +8,18 @@ import {
   TOUR_READERS,
   TOUR_TARGET_KINDS,
   TOUR_WHY_SOURCES,
+  pathSteps,
   type FaroDocumentV2,
   type Tour,
   type TourAnchor,
   type TourNode,
   type TourRange,
+  type TourSubPath,
   type TourWhy,
 } from "./tour.ts";
+
+// A sub path goes in depth on one step, so it stays shorter than a path.
+export const MAX_SUB_PATH_LENGTH = 7;
 
 // Problems are collected rather than thrown one at a time, so an agent that
 // wrote a bad tour can fix every problem in one retry.
@@ -98,6 +104,7 @@ export function findTourProblems(tour: Tour): string[] {
   }
 
   problems.push(...findPathProblems(where, tour));
+  problems.push(...findSubPathProblems(where, tour));
   problems.push(...findEdgeProblems(where, tour));
 
   return problems;
@@ -135,6 +142,10 @@ export function findNodeProblems(where: string, key: string, node: TourNode): st
 
   if (node.otherLens?.why !== undefined && !isValidWhy(node.otherLens.why)) {
     problems.push(`${at} otherLens.why needs text and a source of ${TOUR_WHY_SOURCES.join(", ")}.`);
+  }
+
+  if (node.dive !== undefined && !isNonEmptyString(node.dive?.question)) {
+    problems.push(`${at} dive needs a question.`);
   }
 
   if (!Array.isArray(node.anchors) || node.anchors.length === 0) {
@@ -219,13 +230,134 @@ function findPathProblems(where: string, tour: Tour): string[] {
   if (!current || typeof current !== "object") {
     problems.push(`${where} current is required.`);
   } else {
-    if (current.nodeId !== null && !tour.path.includes(current.nodeId)) {
-      problems.push(`${where} current.nodeId must be null or on the path.`);
+    const steps = pathSteps(tour, current.pathId ?? MAIN_PATH_ID);
+
+    if (!steps) {
+      problems.push(`${where} current.pathId names missing path ${current.pathId}.`);
+    } else if (current.nodeId !== null && !steps.includes(current.nodeId)) {
+      problems.push(`${where} current.nodeId must be null or on the path being read.`);
     }
 
     if (current.depth !== 0 && current.depth !== 1 && current.depth !== 2) {
       problems.push(`${where} current.depth must be 0, 1 or 2.`);
     }
+  }
+
+  return problems;
+}
+
+function findSubPathProblems(where: string, tour: Tour): string[] {
+  if (tour.subPaths === undefined) {
+    return [];
+  }
+
+  if (!tour.subPaths || typeof tour.subPaths !== "object" || Array.isArray(tour.subPaths)) {
+    return [`${where} subPaths must be an object keyed by path id.`];
+  }
+
+  const problems: string[] = [];
+
+  for (const [key, subPath] of Object.entries(tour.subPaths)) {
+    problems.push(...findOneSubPathProblems(where, tour, key, subPath));
+  }
+
+  return problems;
+}
+
+export function findOneSubPathProblems(where: string, tour: Tour, key: string, subPath: TourSubPath): string[] {
+  if (!subPath || typeof subPath !== "object") {
+    return [`${where} sub path ${key} must be an object.`];
+  }
+
+  const problems: string[] = [];
+  const at = `${where} sub path ${key}`;
+
+  if (subPath.id !== key) {
+    problems.push(`${at} id must match its key.`);
+  }
+
+  if (key === MAIN_PATH_ID) {
+    problems.push(`${at} id "${MAIN_PATH_ID}" names the main path; pick another.`);
+  }
+
+  for (const field of ["title", "question"] as const) {
+    if (!isNonEmptyString(subPath[field])) {
+      problems.push(`${at} ${field} is required.`);
+    }
+  }
+
+  problems.push(...findAnchorProblems(at, tour, key, subPath));
+
+  if (!Array.isArray(subPath.steps) || subPath.steps.length === 0) {
+    problems.push(`${at} steps must name at least one node.`);
+    return problems;
+  }
+
+  if (subPath.steps.length > MAX_SUB_PATH_LENGTH) {
+    problems.push(`${at} has ${subPath.steps.length} steps; keep at most ${MAX_SUB_PATH_LENGTH}.`);
+  }
+
+  const seen = new Set<string>();
+
+  for (const nodeId of subPath.steps) {
+    if (!tour.nodes[nodeId]) {
+      problems.push(`${at} names missing node ${nodeId}.`);
+    }
+
+    if (seen.has(nodeId)) {
+      problems.push(`${at} visits ${nodeId} twice.`);
+    }
+
+    seen.add(nodeId);
+  }
+
+  return problems;
+}
+
+function findAnchorProblems(at: string, tour: Tour, key: string, subPath: TourSubPath): string[] {
+  const anchor = subPath.anchor;
+
+  if (!anchor || typeof anchor !== "object") {
+    return [`${at} anchor { path, node } is required.`];
+  }
+
+  const problems: string[] = [];
+  const steps = pathSteps(tour, anchor.path);
+
+  if (!steps) {
+    problems.push(`${at} anchor.path names missing path ${anchor.path}.`);
+  } else if (!steps.includes(anchor.node)) {
+    problems.push(`${at} anchor.node ${anchor.node} is not a step of path ${anchor.path}.`);
+  }
+
+  if (anchor.line !== undefined) {
+    if (!Number.isInteger(anchor.line) || anchor.line < 1) {
+      problems.push(`${at} anchor.line must be a 1-based integer.`);
+    }
+
+    if (!isNonEmptyString(anchor.file)) {
+      problems.push(`${at} anchor.line needs anchor.file.`);
+    }
+  }
+
+  // Following anchors upward must reach the main path.
+  const seen = new Set<string>([key]);
+  let parent = anchor.path;
+
+  while (parent !== MAIN_PATH_ID) {
+    if (seen.has(parent)) {
+      problems.push(`${at} hangs from itself through ${parent}; anchors must lead back to the main path.`);
+      break;
+    }
+
+    seen.add(parent);
+    const next = tour.subPaths?.[parent]?.anchor?.path;
+
+    if (next === undefined) {
+      break;
+    }
+
+    parent = next;
   }
 
   return problems;
@@ -265,13 +397,29 @@ function findEdgeProblems(where: string, tour: Tour): string[] {
 // returned to the author as advice.
 export function lintTour(tour: Tour): string[] {
   const advice: string[] = [];
-  const pathNodes = tour.path
+
+  if (tour.path.length > 9) {
+    advice.push(`The path has ${tour.path.length} nodes; 5 to 7 is the budget, 8 or 9 only when needed.`);
+  }
+
+  advice.push(...lintSteps(tour, tour.path));
+
+  for (const subPath of Object.values(tour.subPaths ?? {})) {
+    if (subPath.steps.length > 5) {
+      advice.push(`Sub path ${subPath.id} has ${subPath.steps.length} steps; 2 to 5 keeps a dive short.`);
+    }
+
+    advice.push(...lintSteps(tour, subPath.steps));
+  }
+
+  return [...new Set(advice)];
+}
+
+function lintSteps(tour: Tour, steps: string[]): string[] {
+  const advice: string[] = [];
+  const pathNodes = steps
     .map((id) => tour.nodes[id])
     .filter((node): node is TourNode => node !== undefined);
-
-  if (pathNodes.length > 9) {
-    advice.push(`The path has ${pathNodes.length} nodes; 5 to 7 is the budget, 8 or 9 only when needed.`);
-  }
 
   pathNodes.forEach((node, index) => {
     if (index < pathNodes.length - 1 && !isNonEmptyString(node.carryForward)) {

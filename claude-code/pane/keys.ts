@@ -2,10 +2,15 @@
 // the design's enter, backspace, ? and ! become e, u, a and x, and its J/K
 // for scrolling the code become n and p. `c` shows or folds the code panel,
 // `f` the rail of steps and files, and `t` the step list in the short layout.
+// `d` dives under the step (or the clicked code line), `s` surfaces one
+// level, and `m` shows the map of paths.
 
 export type PaneAction =
   | 'next'
   | 'previous'
+  | 'dive'
+  | 'surface'
+  | 'map'
   | 'deeper'
   | 'shallower'
   | 'lens'
@@ -27,6 +32,9 @@ export type PaneKey = { action: PaneAction; hotkey: string; label: string }
 export const PANE_KEYS: readonly PaneKey[] = [
   { action: 'next', hotkey: 'j', label: 'next' },
   { action: 'previous', hotkey: 'k', label: 'back' },
+  { action: 'dive', hotkey: 'd', label: 'dive' },
+  { action: 'surface', hotkey: 's', label: 'surface' },
+  { action: 'map', hotkey: 'm', label: 'map' },
   { action: 'deeper', hotkey: 'e', label: 'deeper' },
   { action: 'shallower', hotkey: 'u', label: 'less' },
   { action: 'lens', hotkey: 'l', label: 'lens' },

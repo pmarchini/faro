@@ -1,15 +1,17 @@
 import { atom, read } from 'claude-code'
-import type { Elements, On, RenderChildren } from 'claude-code'
+import type { Elements, EngineInterface, On, RenderChildren } from 'claude-code'
 
-import type { Tour, TourBeacon, TourNode, TourWhy } from '../../src/core/model/tour.ts'
-import { getTour, pathPosition } from '../../src/core/services/tour-machine.ts'
+import { MAIN_PATH_ID, pathSteps, type Tour, type TourBeacon, type TourNode, type TourWhy } from '../../src/core/model/tour.ts'
+import { currentPathId, getTour, pathPosition, subPathsAt } from '../../src/core/services/tour-machine.ts'
 import { codeWindow, foldRows, type VisualRow, type WindowBeacon } from '../code-window.ts'
 import { compactFiles, railFiles, type TreeFile } from '../file-tree.ts'
 import { EMPTY_DOCUMENT, EMPTY_READER, PANE } from '../state.ts'
 import type { FaroCodeRow as CodeRow, FaroCodeView as CodeView, FaroReader as ReaderState } from '../types'
-import { runAction, selectNode } from './actions.ts'
+import { enterSubPath, runAction, selectLine, selectNode } from './actions.ts'
 import { PANE_KEYS } from './keys.ts'
 import { LOGO_ROWS, LOGO_WIDTH, WORDMARK, logoSegments } from './logo.ts'
+import { tokens, type TokenKind } from './syntax.ts'
+import { breadcrumb, isWriting, mapRows, rowText, stepRows, type StepRow, type TreeRow } from './path-tree.ts'
 import {
   ACCENT,
   ACCENT_SOFT,
@@ -23,9 +25,23 @@ import {
   MARK,
   MARK_LIGHT,
   RAIL,
+  PICKED_ROW,
   REMOVED,
+  SUB_ACCENT,
   SUMMARY,
+  SYNTAX_COMMENT,
+  SYNTAX_KEYWORD,
+  SYNTAX_NUMBER,
+  SYNTAX_STRING,
 } from './theme.ts'
+
+const TOKEN_COLORS: Record<TokenKind, string | undefined> = {
+  keyword: SYNTAX_KEYWORD,
+  string: SYNTAX_STRING,
+  number: SYNTAX_NUMBER,
+  comment: SYNTAX_COMMENT,
+  plain: undefined,
+}
 
 const codeAtom = atom({ plugin: 'faro', key: 'code' } as const, null)
 const documentAtom = atom({ plugin: 'faro', key: 'document' } as const, EMPTY_DOCUMENT)
@@ -46,6 +62,7 @@ const CARD_COLUMNS = 4
 const MIN_CODE_ROWS = 6
 
 type Ui = Elements[keyof Elements]
+type Engine = EngineInterface
 type Field = { label: string; text: string; color?: string; isSummary?: boolean }
 
 // The Path view, a column beside the chat: a one-line header; a rail with
@@ -94,6 +111,8 @@ export function drawPathView(on: On): void {
     const readerWidth = isRail ? width - RAIL_COLUMNS - 1 : width
     const node = tour.current.nodeId ? tour.nodes[tour.current.nodeId] : undefined
     const { index, total } = pathPosition(tour)
+    const isSubPath = currentPathId(tour) !== MAIN_PATH_ID
+    const tree = stepRows(tour, reader)
     const stale = reader.stale[tour.id] ?? []
     const isCodeFolded = isShort ? !reader.isCodeToggled : reader.isCodeToggled
     const depth = tour.current.depth
@@ -102,6 +121,7 @@ export function drawPathView(on: On): void {
         (key.action !== 'refresh' || (node && stale.includes(node.id))) &&
         (key.action !== 'files' || !isShort) &&
         (key.action !== 'steps' || isShort) &&
+        (key.action !== 'surface' || isSubPath) &&
         (!['fold', 'scrollDown', 'scrollUp'].includes(key.action) || !isCodeFolded),
     )
     const footer = (
@@ -112,22 +132,18 @@ export function drawPathView(on: On): void {
       </Box>
     )
     const fields = node ? storyFields(tour, node, reader, depth, stale.includes(node.id)) : []
-    const story = node && storyPanel(ui, tour, node, reader, fields, readerWidth)
-    const plainSteps = tour.path.map((id, position) => {
-      const entry = tour.nodes[id]
-
-      return entry ? (
-        <Button key={`node-${id}`} plain onPress={() => selectNode($, id)}>
-          {stepRow(entry, position, tour, reader, width)}
-        </Button>
-      ) : null
-    })
+    const dives = node ? diveRows(tour, node, reader) : []
+    const story =
+      node &&
+      (reader.isMapShown ? mapPanel(ui, $, tour, reader) : storyPanel(ui, $, tour, node, reader, fields, dives, readerWidth))
+    const plainSteps = tree.map((row) => treeRowLine(ui, $, row, width))
 
     if (isShort) {
       return (
         <Box flexDirection="column">
           <Text wrap="truncate-end">
-            {mark(ui)} {index + 1}/{total} {progressMarks(tour, reader)}
+            {mark(ui)} {isSubPath ? `${breadcrumb(tour)} ` : ''}
+            {index + 1}/{total} {progressMarks(tour, reader)}
             <Text dimColor>
               {'  '}
               {isCodeTour(tour) ? 'code tour · ' : ''}
@@ -136,30 +152,31 @@ export function drawPathView(on: On): void {
           </Text>
           {reader.isStepListShown && plainSteps}
           {story}
-          {node && code && code.nodeId === node.id && foldedCode(ui, node, reader, code)}
+          {node && code && code.nodeId === node.id && !reader.isMapShown && foldedCode(ui, node, reader, code)}
           {footer}
         </Box>
       )
     }
 
     // The rows the code may take: the pane's height less everything else.
-    const stackedRows = isRail ? 0 : tour.path.length + 1 + (reader.isFileTreeHidden ? 1 : compactFiles(treeFiles(tour, reader)).length + 1)
+    const stackedRows = isRail ? 0 : tree.length + 1 + (reader.isFileTreeHidden ? 1 : compactFiles(treeFiles(tour, reader)).length + 1)
     const beaconRows = node ? beaconListRows(node, readerWidth) + 1 : 0
     const footerRows = Math.ceil(keys.reduce((sum, key) => sum + key.label.length + 5, 0) / width)
     const codeRows = Math.max(
       MIN_CODE_ROWS,
-      rows - 2 - headRows(tour, width) - stackedRows - storyRows(node, fields, readerWidth) - 1 - beaconRows - footerRows - CARD_ROWS,
+      rows - 2 - headRows(tour, width) - stackedRows - storyRows(node, fields, readerWidth) - dives.length - 1 - beaconRows - footerRows - CARD_ROWS,
     )
     const codeSection =
       node &&
       code &&
       code.nodeId === node.id &&
-      (isCodeFolded ? foldedCode(ui, node, reader, code) : codePanel(ui, node, reader, code, codeRows, readerWidth))
+      !reader.isMapShown &&
+      (isCodeFolded ? foldedCode(ui, node, reader, code) : codePanel(ui, $, tour, node, reader, code, codeRows, readerWidth))
     const header = (
       <Text>
         {mark(ui)}
         {'  '}
-        <Text bold>{tour.title}</Text>
+        <Text bold>{breadcrumb(tour)}</Text>
         {isCodeTour(tour) ? '  ' : ''}
         <Text color="suggestion" backgroundColor={isCodeTour(tour) ? CHIP : undefined}>
           {isCodeTour(tour) ? ` code tour${tour.target.kind === 'code' && tour.target.ref ? ` · ${tour.target.ref}` : ''} ` : ''}
@@ -210,11 +227,7 @@ export function drawPathView(on: On): void {
           <Box flexDirection="column" width={RAIL_COLUMNS} flexShrink={0} backgroundColor={RAIL}>
             <Box marginLeft={Math.floor((RAIL_COLUMNS - LOGO_WIDTH) / 2)}>{logo(ui)}</Box>
             <Text dimColor>STEPS</Text>
-            {tour.path.map((id, position) => {
-              const entry = tour.nodes[id]
-
-              return entry ? railStep(ui, entry, position, tour, reader, () => selectNode($, id)) : null
-            })}
+            {tree.map((row) => railRow(ui, $, row))}
             <Text dimColor> </Text>
             <Text dimColor>FILES  (h hides)</Text>
             {railFiles(treeFiles(tour, reader)).map((row) => (
@@ -267,14 +280,16 @@ function mark({ Text }: Ui) {
   )
 }
 
-// Each file the tour anchors in, with the path steps that read it.
+// Each file the tour anchors in, with the steps of the path being read that
+// read it.
 function treeFiles(tour: Tour, reader: ReaderState): TreeFile[] {
   const files = new Map<string, TreeFile>()
   const visited = reader.visited[tour.id] ?? []
   const current = tour.current.nodeId
+  const steps = pathSteps(tour, currentPathId(tour)) ?? tour.path
 
   for (const node of Object.values(tour.nodes)) {
-    const step = tour.path.indexOf(node.id) + 1
+    const step = steps.indexOf(node.id) + 1
 
     for (const { file } of node.anchors) {
       const entry = files.get(file) ?? { file, steps: [], isCurrent: false, isVisited: false }
@@ -289,59 +304,137 @@ function treeFiles(tour: Tour, reader: ReaderState): TreeFile[] {
   return [...files.values()].map((entry) => ({ ...entry, steps: entry.steps.sort((a, b) => a - b) }))
 }
 
-function stepState(node: TourNode, tour: Tour, reader: ReaderState) {
-  const isCurrent = tour.current.nodeId === node.id
-  const isVisited = (reader.visited[tour.id] ?? []).includes(node.id)
-  const isStale = (reader.stale[tour.id] ?? []).includes(node.id)
+// A row of the rail's tree: a step, its title wrapping under itself beside
+// mark and number and indented by how deep its path is; a sub path off the
+// trail, which a press enters; or the sub path Claude is writing.
+function railRow({ Box, Text, Button }: Ui, $: Engine, row: TreeRow) {
+  const indent = row.level * 2
 
-  return {
-    isCurrent,
-    mark: isCurrent ? '▸' : isVisited ? '✓' : ' ',
-    flags: `${node.surprise ? ' !' : ''}${isStale ? ' ~' : ''}`,
+  if (row.kind !== 'step') {
+    return (
+      <Box flexDirection="row" width={RAIL_COLUMNS} paddingLeft={5 + indent - 2}>
+        {row.kind === 'subPath' ? (
+          <Button key={`path-${row.subPath.id}`} plain onPress={() => enterSubPath($, row.subPath.id)}>
+            <Text color={SUB_ACCENT}>↳ </Text>
+            <Text dimColor={row.isOpen}>{row.subPath.title}</Text>
+          </Button>
+        ) : (
+          <Text dimColor>{row.kind === 'writing' ? '↳ writing…' : `◆ ${row.question}`}</Text>
+        )}
+      </Box>
+    )
   }
-}
 
-// A step in the rail: its title wraps under itself, beside mark and number.
-function railStep(
-  { Box, Text, Button }: Ui,
-  node: TourNode,
-  position: number,
-  tour: Tour,
-  reader: ReaderState,
-  onPress: () => Promise<void>,
-) {
-  const { isCurrent, mark, flags } = stepState(node, tour, reader)
+  const accent = row.level > 0 ? SUB_ACCENT : ACCENT
 
   return (
     <Box flexDirection="row" width={RAIL_COLUMNS}>
-      <Box width={5} flexShrink={0}>
-        <Text color={isCurrent ? ACCENT : undefined} dimColor={!isCurrent}>
-          {`${mark} ${String(position + 1).padStart(2)} `}
+      <Box width={5 + indent} flexShrink={0}>
+        <Text color={row.isCurrent ? accent : undefined} dimColor={!row.isCurrent}>
+          {`${row.mark} ${' '.repeat(indent)}${String(row.position + 1).padStart(2)} `}
         </Text>
       </Box>
       <Box flexShrink={1}>
-        <Button key={`node-${node.id}`} plain onPress={onPress}>
-          <Text bold={isCurrent} backgroundColor={isCurrent ? CURRENT_STEP_ROW : undefined}>
-            {node.title}
+        <Button key={stepKey(row)} plain onPress={() => selectNode($, row.node.id, row.pathId)}>
+          <Text bold={row.isCurrent} backgroundColor={row.isCurrent ? CURRENT_STEP_ROW : undefined}>
+            {row.node.title}
           </Text>
-          <Text color="warning">{flags}</Text>
+          <Text color="warning">{row.flags}</Text>
         </Button>
       </Box>
     </Box>
   )
 }
 
+// A row of the tree on one line, for a narrow pane.
+function treeRowLine({ Text, Button }: Ui, $: Engine, row: TreeRow, width: number) {
+  switch (row.kind) {
+    case 'step':
+      return (
+        <Button key={stepKey(row)} plain onPress={() => selectNode($, row.node.id, row.pathId)}>
+          {stepLine(row, width)}
+        </Button>
+      )
+    case 'subPath':
+      return (
+        <Button key={`path-${row.subPath.id}`} plain onPress={() => enterSubPath($, row.subPath.id)}>
+          {`      ${rowText(row, false)}`.slice(0, width)}
+        </Button>
+      )
+    default:
+      return (
+        <Text dimColor wrap="truncate-end">
+          {`      ${rowText(row, false)}`}
+        </Text>
+      )
+  }
+}
+
+// Steps of the main path keep their plain key; a sub path's carry its id.
+function stepKey(row: StepRow): string {
+  return row.pathId === MAIN_PATH_ID ? `node-${row.node.id}` : `node-${row.pathId}-${row.node.id}`
+}
+
 // A step on one line, for a narrow pane: the title cut with an ellipsis to
 // leave room for the flags and the file, which stay whole.
-function stepRow(node: TourNode, position: number, tour: Tour, reader: ReaderState, width: number): string {
-  const { mark, flags } = stepState(node, tour, reader)
+function stepLine(row: StepRow, width: number): string {
+  const { node, mark, flags } = row
   const file = node.anchors[0]?.file.split('/').slice(-2).join('/') ?? ''
-  const head = `${mark} ${String(position + 1).padStart(2)}  `
+  const head = `${mark} ${String(row.position + 1).padStart(2)}  ${'  '.repeat(row.level)}`
   const tail = `${flags}  ${file}`
   const room = Math.max(8, width - head.length - tail.length)
   const title = node.title.length > room ? `${node.title.slice(0, room - 1)}…` : node.title.padEnd(room)
 
   return `${head}${title}${tail}`.slice(0, width)
+}
+
+// Under the story, where this step leads deeper: the sub paths written from
+// it (a press enters one), the one Claude is writing, or the dive the tour
+// offers.
+type DiveRow = { key: string; text: string; pathId?: string; isDim?: boolean }
+
+function diveRows(tour: Tour, node: TourNode, reader: ReaderState): DiveRow[] {
+  const pathId = currentPathId(tour)
+  const written = subPathsAt(tour, pathId, node.id)
+  const rows: DiveRow[] = written.map((subPath) => ({
+    key: `dive-${subPath.id}`,
+    text: `↳ ${subPath.title} · ${subPath.steps.length} steps${subPath.anchor.line ? ` · from L${subPath.anchor.line}` : ''}`,
+    pathId: subPath.id,
+  }))
+
+  if (isWriting(tour, reader, pathId, node.id)) {
+    const line = reader.diving?.line
+    rows.push({ key: 'dive-writing', text: `↳ Claude is writing a sub path${line ? ` from L${line}` : ''}… keep reading`, isDim: true })
+  } else if (node.dive && !written.some((subPath) => subPath.anchor.line === undefined)) {
+    rows.push({ key: 'dive-offered', text: `◆ ${node.dive.question}  d dives`, isDim: true })
+  }
+
+  return rows
+}
+
+// The map: every path as an indented tree, the dives offered but not yet
+// written among them; a press on a step goes there.
+function mapPanel({ Box, Text, Button }: Ui, $: Engine, tour: Tour, reader: ReaderState) {
+  return (
+    <Box flexDirection="column" paddingLeft={1}>
+      <Text bold>Map of paths</Text>
+      <Text dimColor>{tour.title}</Text>
+      {mapRows(tour, reader).map((row) =>
+        row.kind === 'step' ? (
+          <Button key={`map-${row.pathId}-${row.node.id}`} plain onPress={() => selectNode($, row.node.id, row.pathId)}>
+            <Text bold={row.isCurrent} color={row.isCurrent ? (row.level > 0 ? SUB_ACCENT : ACCENT) : undefined}>
+              {rowText(row, true)}
+            </Text>
+          </Button>
+        ) : (
+          <Text color={row.kind === 'subPath' ? SUB_ACCENT : undefined} dimColor={row.kind !== 'subPath'} wrap="truncate-end">
+            {rowText(row, true)}
+          </Text>
+        ),
+      )}
+      <Text dimColor>m goes back to the step</Text>
+    </Box>
+  )
 }
 
 // The story's fields at the reader's depth, in the lens the pane shows.
@@ -394,15 +487,25 @@ function storyFields(tour: Tour, node: TourNode, reader: ReaderState, depth: num
 
 // The headline wraps with a hanging indent under its number, beside the
 // plan as a chip; each field's text wraps under itself, not its label.
-function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: ReaderState, fields: Field[], width: number) {
-  const number = `${tour.path.indexOf(node.id) + 1}`.padEnd(3)
+function storyPanel(
+  { Box, Text, Button }: Ui,
+  $: Engine,
+  tour: Tour,
+  node: TourNode,
+  reader: ReaderState,
+  fields: Field[],
+  dives: DiveRow[],
+  width: number,
+) {
+  const number = `${pathPosition(tour).index + 1}`.padEnd(3)
   const chip = chipText(tour, node)
+  const accent = currentPathId(tour) === MAIN_PATH_ID ? ACCENT : SUB_ACCENT
 
   return (
     <Box flexDirection="column" paddingLeft={1}>
       <Box flexDirection="row">
         <Box width={number.length} flexShrink={0}>
-          <Text bold color={ACCENT}>
+          <Text bold color={accent}>
             {number}
           </Text>
         </Box>
@@ -431,6 +534,17 @@ function storyPanel({ Box, Text }: Ui, tour: Tour, node: TourNode, reader: Reade
           </Box>
         ),
       )}
+      {dives.map((dive) => (
+        <Box marginLeft={number.length}>
+          {dive.pathId ? (
+            <Button key={dive.key} plain onPress={() => enterSubPath($, dive.pathId ?? '')}>
+              <Text color={SUB_ACCENT}>{dive.text}</Text>
+            </Button>
+          ) : (
+            <Text dimColor={dive.isDim}>{dive.text}</Text>
+          )}
+        </Box>
+      ))}
     </Box>
   )
 }
@@ -475,13 +589,23 @@ function foldedCode({ Text }: Ui, node: TourNode, reader: ReaderState, code: Cod
 function progressMarks(tour: Tour, reader: ReaderState): string {
   const visited = reader.visited[tour.id] ?? []
 
-  return tour.path.map((id) => (id === tour.current.nodeId ? '▸' : visited.includes(id) ? '✓' : '○')).join('')
+  return (pathSteps(tour, currentPathId(tour)) ?? tour.path).map((id) => (id === tour.current.nodeId ? '▸' : visited.includes(id) ? '✓' : '○')).join('')
 }
 
 // The code, folded and windowed around the current beacon, a scroll track
 // beside it with the beacons ticked, and the step's beacons listed under.
-function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, height: number, width: number) {
-  const { Box, Text } = ui
+// Every numbered line is clickable: a click picks it, to dive or ask from.
+function codePanel(
+  ui: Ui,
+  $: Engine,
+  tour: Tour,
+  node: TourNode,
+  reader: ReaderState,
+  code: CodeView,
+  height: number,
+  width: number,
+) {
+  const { Box, Text, Button } = ui
   const count = node.beacons.length
   const current = count > 0 ? reader.beaconIndex % count : -1
   const beacons: WindowBeacon[] = node.beacons
@@ -491,6 +615,20 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
   const view = codeWindow(foldRows(code.rows, beacons, !reader.isCodeFolded), height, reader.codeOffset)
   const numbers = view.rows.flatMap((row) => (row.kind === 'row' && row.row.number !== null ? [row.row.number] : []))
   const gutter = Math.max(2, ...numbers.map((number) => String(number).length))
+  const picked = reader.selectedLine?.nodeId === node.id && reader.selectedLine.file === code.path ? reader.selectedLine : null
+  const written = new Set(
+    subPathsAt(tour, currentPathId(tour), node.id).flatMap((subPath) =>
+      subPath.anchor.file === code.path && subPath.anchor.line ? [subPath.anchor.line] : [],
+    ),
+  )
+  const line: LineContext = {
+    code,
+    gutter,
+    nodeId: node.id,
+    picked: picked?.line ?? null,
+    written,
+    room: Math.max(10, width - 3 - CARD_COLUMNS),
+  }
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={BORDER} paddingX={1}>
@@ -512,7 +650,7 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
       </Box>
       <Box flexDirection="row">
         <Box flexDirection="column" flexShrink={1} width={Math.max(10, width - 3 - CARD_COLUMNS)}>
-          {codeRuns(view.rows, code).map((run) => drawRun(ui, run, code, gutter))}
+          {view.rows.map((row) => drawRow(ui, $, row, line))}
         </Box>
         {view.track.length > 0 && (
           <Box flexDirection="column" width={1} flexShrink={0}>
@@ -550,10 +688,27 @@ function codePanel(ui: Ui, node: TourNode, reader: ReaderState, code: CodeView, 
           </Box>
         )
       })}
-      <Text dimColor wrap="truncate-end">
-        {badge(ui, 'b')} next beacon  {badge(ui, 'n p')} scroll  {badge(ui, 'f')} {reader.isCodeFolded ? 'unfold' : 'fold'}  {badge(ui, 'o')}{' '}
-        {code.isWholeFile ? 'the step' : 'whole file'}
-      </Text>
+      {picked ? (
+        <Box flexDirection="row" columnGap={2}>
+          <Text color={SUB_ACCENT}>{`▸ L${picked.line} picked`}</Text>
+          <Button key="pick-dive" plain onPress={() => runAction($, 'dive')}>
+            {badge(ui, 'd')}
+            <Text> {written.has(picked.line) ? 'enter its sub path' : 'dive here'}</Text>
+          </Button>
+          <Button key="pick-ask" plain onPress={() => runAction($, 'ask')}>
+            {badge(ui, 'a')}
+            <Text> ask</Text>
+          </Button>
+          <Text dimColor wrap="truncate-end">
+            {badge(ui, 'n p')} move · click it again to let go
+          </Text>
+        </Box>
+      ) : (
+        <Text dimColor wrap="truncate-end">
+          {badge(ui, 'b')} next beacon  {badge(ui, 'n p')} scroll  {badge(ui, 'f')} {reader.isCodeFolded ? 'unfold' : 'fold'}  {badge(ui, 'o')}{' '}
+          {code.isWholeFile ? 'the step' : 'whole file'}  · click a line to dive from it
+        </Text>
+      )}
     </Box>
   )
 }
@@ -572,46 +727,22 @@ function beaconListRows(node: TourNode, width: number): number {
   }, 0)
 }
 
-type Run = { kind: 'plain'; rows: CodeRow[] } | { kind: 'single'; row: VisualRow }
-
-// Plain source lines drawn together through the Code element, for syntax
-// colour; beacon lines, changed lines and folds one by one.
-function codeRuns(rows: VisualRow[], code: CodeView): Run[] {
-  const runs: Run[] = []
-
-  for (const row of rows) {
-    const last = runs.at(-1)
-    const isPlain = code.format === 'source' && row.kind === 'row' && !row.beacon
-
-    if (isPlain && last?.kind === 'plain') {
-      last.rows.push(row.row)
-    } else if (isPlain) {
-      runs.push({ kind: 'plain', rows: [row.row] })
-    } else {
-      runs.push({ kind: 'single', row })
-    }
-  }
-
-  return runs
+type LineContext = {
+  code: CodeView
+  gutter: number
+  nodeId: string
+  // The picked line's number, and the lines a sub path was written from.
+  picked: number | null
+  written: Set<number>
+  // The columns a row may take.
+  room: number
 }
 
-function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: number) {
-  const number = (row: CodeRow) => (row.number === null ? '' : String(row.number)).padStart(gutter)
-
-  if (run.kind === 'plain') {
-    return (
-      <Box flexDirection="row">
-        <Box flexDirection="column" width={gutter + 4} flexShrink={0}>
-          {run.rows.map((row) => (
-            <Text dimColor>{` ${number(row)}   `}</Text>
-          ))}
-        </Box>
-        <Code source={run.rows.map((row) => row.text).join('\n')} path={code.path} wrap="truncate-end" />
-      </Box>
-    )
-  }
-
-  const { row } = run
+// One row of the code: a fold, a line a diff removed, or a numbered line,
+// which is a button that picks it, drawn on a tinted ground once picked.
+function drawRow({ Box, Text, Button }: Ui, $: Engine, row: VisualRow, line: LineContext) {
+  const { code, gutter } = line
+  const number = (codeRow: CodeRow) => (codeRow.number === null ? '' : String(codeRow.number)).padStart(gutter)
 
   if (row.kind === 'fold') {
     return (
@@ -621,35 +752,65 @@ function drawRun({ Box, Text, Code }: Ui, run: Run, code: CodeView, gutter: numb
     )
   }
 
-  const color = row.row.marker === '+' ? ADDED : row.row.marker === '-' ? REMOVED : undefined
-  const line = `${number(row.row)} ${row.row.marker} ${row.row.text}`
-  // One column before the number: the current beacon's bar, else blank.
-  const bar = row.beacon?.isCurrent ? <Text color={ACCENT}>▌</Text> : <Text> </Text>
+  const { row: codeRow, beacon } = row
+  const color = codeRow.marker === '+' ? ADDED : codeRow.marker === '-' ? REMOVED : undefined
 
-  if (!row.beacon) {
+  if (codeRow.number === null) {
     return (
       <Text color={color} wrap="truncate-end">
-        {` ${line}`}
+        {` ${number(codeRow)} ${codeRow.marker} ${codeRow.text}`}
       </Text>
     )
   }
 
+  const lineNumber = codeRow.number
+  const isPicked = line.picked === lineNumber
+  const background = isPicked ? PICKED_ROW : beacon ? (beacon.isCurrent ? CURRENT_BEACON_ROW : BEACON_ROW) : undefined
+  const head = `${number(codeRow)} ${codeRow.marker} `
+  const tail = `${line.written.has(lineNumber) ? ' ↳' : ''}${beacon ? ` ${beacon.isCurrent ? '◀' : '◁'} ${beacon.index + 1}` : ''}`
+  const room = Math.max(4, line.room - 1 - head.length - tail.length)
+  const text = codeRow.text.length > room ? `${codeRow.text.slice(0, room - 1)}…` : codeRow.text
+  // A diff's added and removed lines keep their colour; other lines are
+  // coloured by token.
+  const parts = color ? [{ text, kind: 'plain' as const }] : tokens(text, code.path)
+  // One column before the number: the pick, the current beacon's bar, or blank.
+  const bar = isPicked ? (
+    <Text color={SUB_ACCENT}>▸</Text>
+  ) : beacon?.isCurrent ? (
+    <Text color={ACCENT}>▌</Text>
+  ) : (
+    <Text> </Text>
+  )
+
+  // The whole line is the button: a click anywhere on it picks it, and the
+  // terminal inverts it under the pointer.
   return (
-    <Box flexDirection="row">
+    <Box key={`row-${lineNumber}`} flexDirection="row">
       {bar}
-      <Box flexGrow={1} flexShrink={1}>
-        <Text
-          bold={row.beacon.isCurrent}
-          color={color}
-          backgroundColor={row.beacon.isCurrent ? CURRENT_BEACON_ROW : BEACON_ROW}
-          wrap="truncate-end"
-        >
-          {line}
+      <Button
+        key={`line-${lineNumber}`}
+        plain
+        onPress={() => selectLine($, { nodeId: line.nodeId, file: code.path, line: lineNumber, text: codeRow.text })}
+      >
+        <Text dimColor={!isPicked} color={isPicked ? SUB_ACCENT : undefined} backgroundColor={background}>
+          {head}
         </Text>
-      </Box>
-      <Text color={row.beacon.isCurrent ? ACCENT : undefined} dimColor={!row.beacon.isCurrent}>
-        {` ${row.beacon.isCurrent ? '◀' : '◁'} ${row.beacon.index + 1}`}
-      </Text>
+        {parts.map((part) => (
+          <Text
+            bold={isPicked || beacon?.isCurrent}
+            color={color ?? TOKEN_COLORS[part.kind]}
+            dimColor={part.kind === 'comment'}
+            backgroundColor={background}
+          >
+            {part.text}
+          </Text>
+        ))}
+      </Button>
+      {tail && (
+        <Text color={beacon?.isCurrent || line.written.has(lineNumber) ? (beacon?.isCurrent ? ACCENT : SUB_ACCENT) : undefined} dimColor={Boolean(beacon) && !beacon?.isCurrent}>
+          {tail}
+        </Text>
+      )}
     </Box>
   )
 }
